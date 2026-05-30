@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Recastr
+
+Recastr is an AI creator workflow that turns one video, podcast, or blog into
+30 days of platform-ready social content. The product now focuses on the core
+loop: ingest a source, extract viral hooks, generate tweets, LinkedIn posts,
+Reel scripts, and captions, then copy or export the pack.
+
+The local build ships with three pre-processed demo projects, so the pitch flow
+works without OpenAI, Whisper, yt-dlp, Supabase, Razorpay, or Redis credentials.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+npm install
+copy .env.example .env.local
+npx prisma generate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) or
+[http://localhost:3000/dashboard](http://localhost:3000/dashboard).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Product Surface
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Premium landing page with demo preview, workflow, outputs, testimonials, pricing, and CTA.
+- Focused creator dashboard with source ingestion and Viral Hook Intelligence.
+- Core generation surface for Twitter/X, LinkedIn, Instagram captions, Reel scripts, and YouTube Community posts.
+- Inline editable outputs with counters, diff view, copy, approval, and tone rewrite.
+- Export routes for PDF, CSV, JSON, and Notion queue placeholder.
+- Razorpay order checkout and webhook handling.
+- Optional schedule/calendar remains available, but no longer dominates the product.
 
-## Learn More
+## Production Wiring
 
-To learn more about Next.js, take a look at the following resources:
+Copy `.env.example` to `.env.local` and add service credentials. With
+`RECASTR_DEMO_MODE=true`, routes return deterministic demo data. Set it to
+`false` and provide credentials to activate live OpenAI generation, Supabase,
+Razorpay, Redis, and analytics.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run prisma:generate
+npm run prisma:push
+npm run seed
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Useful Routes
 
-## Deploy on Vercel
+- `/dashboard`
+- `/projects/demo-founder-podcast`
+- `/schedule`
+- `/onboarding`
+- `/settings`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+API routes live under `/api/ingest/*`, `/api/generate`, `/api/tone`,
+`/api/export`, `/api/schedule`, and `/api/razorpay/*`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Production Readiness Docs
+
+- [Audit report](docs/01-audit-report.md)
+- [Security report](docs/02-security-report.md)
+- [UI redesign spec](docs/03-ui-redesign-spec.md)
+- [Database and migration plan](docs/04-database-schema-and-migration.md)
+- [API specification](docs/05-api-spec.md)
+- [Component library](docs/06-component-library.md)
+- [Roadmap](docs/07-feature-roadmap.md)
+- [Monetization strategy](docs/08-monetization-strategy.md)
+- [Launch checklist](docs/09-launch-checklist.md)
+- [Deployment checklist](docs/10-deployment-checklist.md)

@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id             String          @id @default(cuid())
+  supabaseId     String          @unique
+  email          String          @unique
+  name           String?
+  avatarUrl      String?
+  creatorType    String?
+  tonePref       String          @default("casual")
+  platforms      String[]
+  role           String          @default("member")
+  plan           String          @default("free")
+  planExpiresAt  DateTime?
+  createdAt      DateTime        @default(now())
+  projects       Project[]
+  scheduledPosts ScheduledPost[]
+  brandVoices    BrandVoice[]
+  connectedAccts ConnectedAccount[]
+  usageEvents    UsageEvent[]
+  credits        UserCredit?
+  jobRecords     JobRecord[]
+  ownedOrganizations Organization[] @relation("OrganizationOwner")
+  memberships    OrganizationMembership[]
+  auditLogs      AuditLog[]
+
+  @@index([plan, createdAt])
+}
+
+model Project {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  title        String
+  sourceUrl    String?
+  sourceText   String?   @db.Text
+  sourceType   String    @default("text")
+  organizationId String?
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  thumbnailUrl String?
+  transcript   String?   @db.Text
+  summary      Json?
+  duration     Int?
+  wordCount    Int?
+  hooks        Hook[]
+  contents     Content[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([sourceType])
+}
+
+model Organization {
+  id          String                   @id @default(cuid())
+  name        String
+  slug        String                   @unique
+  ownerId     String
+  owner       User                     @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  projects    Project[]
+  memberships OrganizationMembership[]
+  auditLogs   AuditLog[]
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  @@index([ownerId])
+}
+
+model OrganizationMembership {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  role           String       @default("member")
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([userId, role])
+}
+
+model Hook {
+  id         String    @id @default(cuid())
+  projectId  String
+  project    Project   @relation(fields: [projectId], references: [id])
+  text       String    @db.Text
+  hookType   String
+  reachScore Float
+  contents   Content[]
+  createdAt  DateTime  @default(now())
+
+  @@index([projectId, reachScore])
+}
+
+model Content {
+  id            String         @id @default(cuid())
+  projectId     String
+  project       Project        @relation(fields: [projectId], references: [id])
+  hookId        String?
+  hook          Hook?          @relation(fields: [hookId], references: [id])
+  platform      String
+  contentType   String
+  body          String         @db.Text
+  originalBody  String         @db.Text
+  tone          String
+  approved      Boolean        @default(false)
+  order         Int            @default(0)
+  scheduledPost ScheduledPost?
+  createdAt     DateTime       @default(now())
+
+  @@index([projectId, platform, order])
+  @@index([approved])
+}
+
+model ScheduledPost {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  contentId   String   @unique
+  content     Content  @relation(fields: [contentId], references: [id])
+  platform    String
+  scheduledAt DateTime
+  status      String   @default("pending")
+  publishedAt DateTime?
+  failReason  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, status, scheduledAt])
+}
+
+model BrandVoice {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  name            String
+  toneDescriptors String[]
+  bannedWords     String[]
+  samplePosts     String[]
+  targetAudience  String
+  contentPillars  String[]
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+}
+
+model ConnectedAccount {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  platform     String
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@unique([userId, platform])
+  @@index([userId])
+}
+
+model UsageEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  eventType String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, eventType, createdAt])
+}
+
+model UserCredit {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  credits   Int      @default(15)
+  used      Int      @default(0)
+  resetAt   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, credits])
+}
+
+model JobRecord {
+  id           String   @id @default(cuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+  type         String
+  status       String   @default("pending")
+  progress     Int      @default(0)
+  payload      Json?
+  result       Json?
+  errorMessage String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, status, createdAt])
+  @@index([type, status])
+}
+
+model AuditLog {
+  id             String        @id @default(cuid())
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  action         String
+  entityType     String
+  entityId       String?
+  metadata       Json?
+  ipHash         String?
+  userAgent      String?
+  createdAt      DateTime      @default(now())
+
+  @@index([userId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+}

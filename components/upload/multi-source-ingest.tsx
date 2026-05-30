@@ -1,0 +1,273 @@
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import {
+  ArrowRight,
+  FileAudio,
+  FileText,
+  Link2,
+  NotebookText,
+  Sparkles,
+  UploadCloud,
+  Video,
+} from "lucide-react";
+import type { ComponentType } from "react";
+import { useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ProgressStepper, ingestionSteps } from "@/components/ui/progress-stepper";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import type { IngestionStep, SourceType } from "@/lib/types";
+
+const ingestFormSchema = z.object({
+  sourceType: z.enum(["YOUTUBE", "PODCAST", "BLOG", "TEXT"]),
+  url: z.string().optional(),
+  title: z.string().optional(),
+  text: z.string().optional(),
+});
+
+type IngestForm = z.infer<typeof ingestFormSchema>;
+
+const sourceOptions: Array<{
+  type: SourceType;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+}> = [
+  { type: "YOUTUBE", label: "YouTube", icon: Video },
+  { type: "PODCAST", label: "Podcast", icon: FileAudio },
+  { type: "BLOG", label: "Blog", icon: NotebookText },
+  { type: "TEXT", label: "Raw text", icon: FileText },
+];
+
+export function MultiSourceIngest() {
+  const stepperRef = useRef<HTMLDivElement>(null);
+  const [activeStep, setActiveStep] = useState<IngestionStep>("Fetching");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const [generatedProjectId, setGeneratedProjectId] = useState<string | null>(null);
+
+  const form = useForm<IngestForm>({
+    resolver: zodResolver(ingestFormSchema),
+    defaultValues: {
+      sourceType: "YOUTUBE",
+      url: "",
+      title: "",
+      text: "",
+    },
+  });
+
+  const sourceType = form.watch("sourceType");
+
+  async function onSubmit(values: IngestForm) {
+    setIsProcessing(true);
+    setIsComplete(false);
+    setGeneratedProjectId(null);
+    stepperRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    for (const step of ingestionSteps) {
+      setActiveStep(step);
+      await new Promise((resolve) => setTimeout(resolve, step === "Ready" ? 250 : 650));
+    }
+
+    const route =
+      values.sourceType === "YOUTUBE"
+        ? "/api/ingest/url"
+        : values.sourceType === "BLOG"
+          ? "/api/ingest/url"
+          : values.sourceType === "PODCAST"
+            ? "/api/ingest/podcast"
+            : "/api/ingest/text";
+
+    try {
+      const response = await fetch(route, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body:
+          values.sourceType === "TEXT"
+            ? JSON.stringify({ title: values.title, text: values.text })
+            : JSON.stringify({ url: values.url }),
+      });
+      const data = (await response.json()) as {
+        projectId?: string;
+        error?: string;
+        warning?: string;
+      };
+      if (!response.ok || !data.projectId) throw new Error(data.error ?? "ingestion_failed");
+      const projectId = data.projectId;
+      setGeneratedProjectId(projectId);
+      setIsComplete(true);
+      toast.success("Source intelligence is ready", {
+        description: data.warning ?? "Open the generated project to edit, copy, and export posts.",
+      });
+    } catch (error) {
+      toast.error("Ingestion failed", {
+        description: error instanceof Error ? error.message : "Paste a manual transcript and try again.",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
+  return (
+    <Card id="source-ingest" className="scroll-mt-24 overflow-hidden">
+      <CardHeader className="border-b bg-card">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle>Ingest a source</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Paste a URL, upload audio, or drop in raw text to start a project.
+            </p>
+          </div>
+          <div className="flex rounded-[8px] border bg-muted p-1">
+            {sourceOptions.map((option) => {
+              const Icon = option.icon;
+              const selected = sourceType === option.type;
+              return (
+                <button
+                  key={option.type}
+                  type="button"
+                  onClick={() => form.setValue("sourceType", option.type)}
+                  className={cn(
+                    "flex h-8 items-center gap-2 rounded-[6px] px-3 text-xs font-medium text-muted-foreground transition",
+                    selected && "bg-card text-foreground shadow-sm",
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <form className="grid gap-5 xl:grid-cols-[1fr_360px]" onSubmit={form.handleSubmit(onSubmit)}>
+          <div className="space-y-4">
+            {sourceType === "PODCAST" ? (
+              <label className="flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-[12px] border border-dashed border-input bg-muted/40 p-6 text-center transition hover:border-primary">
+                <UploadCloud className="h-8 w-8 text-primary" />
+                <p className="mt-3 text-sm font-medium">
+                  {fileName || "Drop MP3, MP4, or WAV"}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Whisper chunking handles long audio and timeout recovery.
+                </p>
+                <input
+                  type="file"
+                  accept="audio/*,video/mp4"
+                  className="sr-only"
+                  onChange={(event) => setFileName(event.target.files?.[0]?.name ?? "")}
+                />
+              </label>
+            ) : sourceType === "TEXT" ? (
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="title">Project title</Label>
+                  <Input
+                    id="title"
+                    placeholder="Quarterly webinar transcript"
+                    {...form.register("title")}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="text">Raw transcript or notes</Label>
+                  <Textarea
+                    id="text"
+                    className="min-h-40 font-mono text-xs"
+                    placeholder="Paste source text here..."
+                    {...form.register("text")}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Label htmlFor="url">
+                  {sourceType === "YOUTUBE" ? "YouTube URL" : "Blog URL"}
+                </Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Link2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="url"
+                      className="pl-9"
+                      placeholder={
+                        sourceType === "YOUTUBE"
+                          ? "https://youtube.com/watch?v=..."
+                          : "https://example.com/post"
+                      }
+                      {...form.register("url")}
+                    />
+                  </div>
+                  <Button type="submit" disabled={isProcessing}>
+                    Analyze
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Paywalls, geo-blocks, and private videos fall back to manual transcript paste.
+                </p>
+              </div>
+            )}
+
+            {sourceType !== "YOUTUBE" && sourceType !== "BLOG" ? (
+              <Button type="submit" disabled={isProcessing}>
+                Analyze source
+              </Button>
+            ) : null}
+          </div>
+
+          <motion.div
+            ref={stepperRef}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-[12px] border bg-muted/30 p-4"
+          >
+            <ProgressStepper
+              activeStep={activeStep}
+              completed={isComplete}
+              processing={isProcessing}
+            />
+            {generatedProjectId ? (
+              <div className="mt-5 rounded-2xl border border-primary/25 bg-primary/10 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      Generated content is ready
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Open the project workspace to see tweets, LinkedIn posts, Instagram captions, and community posts.
+                    </p>
+                  </div>
+                  <Button asChild size="sm">
+                    <Link href={`/projects/${generatedProjectId}`}>
+                      Open generated content
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+            <div className="mt-5 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-[8px] border bg-card p-3">
+                <p className="font-medium">Cached transcripts</p>
+                <p className="mt-1 text-muted-foreground">MD5 keyed, storage-backed</p>
+              </div>
+              <div className="rounded-[8px] border bg-card p-3">
+                <p className="font-medium">SSE generation</p>
+                <p className="mt-1 text-muted-foreground">Tokens stream into cards</p>
+              </div>
+            </div>
+          </motion.div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
