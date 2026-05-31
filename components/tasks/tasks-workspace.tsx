@@ -4,12 +4,20 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { format, isSameDay, isThisWeek, isToday } from "date-fns";
+import { format, formatDistanceToNow, isSameDay, isThisWeek, isToday } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Clock3, Trash2, CalendarDays, History } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, Copy, Eye, History, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   isBrowserScheduledPostId,
   readBrowserScheduledPosts,
@@ -324,12 +332,16 @@ function ScheduledTab({
             <div className="divide-y divide-white/5">
               {dayPosts.map((post) => {
                 const content = post.contentId ? contentIndex.get(post.contentId) : undefined;
+                const body = getScheduledBody(post, content);
                 return (
-                  <div className="grid gap-4 px-5 py-4 md:grid-cols-[100px_140px_1fr_auto] md:items-center hover:bg-muted/10 transition-colors" key={post.id}>
-                    <span className="inline-flex items-center gap-2 rounded-full bg-background/50 px-2.5 py-1 font-mono text-xs font-semibold border border-white/5">
-                      <Clock3 className="h-3 w-3 text-muted-foreground" />
-                      {format(new Date(post.publishAt), "h:mma")}
-                    </span>
+                  <div className="grid gap-4 px-5 py-4 md:grid-cols-[120px_140px_1fr_auto] md:items-center hover:bg-muted/10 transition-colors" key={post.id}>
+                    <div className="space-y-1">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-background/50 px-2.5 py-1 font-mono text-xs font-semibold border border-white/5">
+                        <Clock3 className="h-3 w-3 text-muted-foreground" />
+                        {format(new Date(post.publishAt), "h:mma")}
+                      </span>
+                      <CountdownTimer date={post.publishAt} />
+                    </div>
                     <span className="flex items-center gap-2 text-sm font-bold">
                       <div className={cn("flex h-6 w-6 items-center justify-center rounded-[6px] text-white", platformClass(post.platform))}>
                         <span className="text-[10px] font-bold">{platformLabel(post.platform).charAt(0)}</span>
@@ -337,12 +349,14 @@ function ScheduledTab({
                       {platformLabel(post.platform)}
                     </span>
                     <p className="truncate text-sm text-muted-foreground font-medium">
-                      {content ? truncate(content.body, 100) : post.title}
+                      {truncate(body, 100)}
                     </p>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="secondary" className="rounded-lg h-8">Edit</Button>
-                      <Button onClick={() => onCancel(post.id)} size="sm" variant="ghost" className="rounded-lg h-8 text-muted-foreground hover:text-destructive">Cancel</Button>
-                    </div>
+                    <ScheduledPostActions
+                      body={body}
+                      content={content}
+                      post={post}
+                      onCancel={onCancel}
+                    />
                   </div>
                 );
               })}
@@ -393,6 +407,7 @@ function HistoryTab({
       <div className="divide-y divide-white/5">
         {posts.map((post) => {
           const content = post.contentId ? contentIndex.get(post.contentId) : undefined;
+          const body = getScheduledBody(post, content);
           return (
             <div className="grid grid-cols-[160px_140px_1fr_120px_130px] gap-4 px-5 py-4 text-sm hover:bg-muted/10 transition-colors items-center" key={post.id}>
               <span className="font-mono text-xs font-medium text-muted-foreground bg-background/50 px-2 py-1 rounded-md border border-white/5 w-max">
@@ -404,7 +419,7 @@ function HistoryTab({
                 </div>
                 {platformLabel(post.platform)}
               </span>
-              <span className="truncate text-muted-foreground font-medium">{content ? truncate(content.body, 88) : post.title}</span>
+              <span className="truncate text-muted-foreground font-medium">{truncate(body, 88)}</span>
               <StatusBadge status={post.status} />
               <span className="flex items-center gap-2">
                 {post.status === "FAILED" ? (
@@ -412,7 +427,16 @@ function HistoryTab({
                     Retry
                   </Button>
                 ) : (
-                  <Button size="sm" variant="ghost" className="h-8 text-muted-foreground">View</Button>
+                  <ScheduledPostDialog
+                    body={body}
+                    content={content}
+                    post={post}
+                    trigger={
+                      <Button size="sm" variant="ghost" className="h-8 text-muted-foreground">
+                        View
+                      </Button>
+                    }
+                  />
                 )}
                 <Button size="sm" variant="ghost" className="h-8 text-muted-foreground hover:text-destructive px-2" onClick={() => onDelete(post.id)}>
                   <Trash2 className="h-4 w-4" />
@@ -431,6 +455,153 @@ function HistoryTab({
       </div>
     </div>
   );
+}
+
+function ScheduledPostActions({
+  body,
+  content,
+  onCancel,
+  post,
+}: {
+  body: string;
+  content?: ContentPiece;
+  onCancel: (id: string) => void;
+  post: ScheduledPost;
+}) {
+  return (
+    <div className="flex flex-wrap justify-end gap-2">
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-9 rounded-lg text-muted-foreground"
+        onClick={() => copyScheduledContent(body)}
+      >
+        <Copy className="mr-1.5 h-3.5 w-3.5" />
+        Copy
+      </Button>
+      <ScheduledPostDialog
+        body={body}
+        content={content}
+        post={post}
+        trigger={
+          <Button size="sm" variant="secondary" className="h-9 rounded-lg">
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            View full
+          </Button>
+        }
+      />
+      <Button
+        onClick={() => onCancel(post.id)}
+        size="sm"
+        variant="ghost"
+        className="h-9 rounded-lg text-muted-foreground hover:text-destructive"
+      >
+        Cancel
+      </Button>
+    </div>
+  );
+}
+
+function ScheduledPostDialog({
+  body,
+  content,
+  post,
+  trigger,
+}: {
+  body: string;
+  content?: ContentPiece;
+  post: ScheduledPost;
+  trigger: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {trigger}
+      </DialogTrigger>
+      <DialogContent className="z-[70] max-h-[86vh] max-w-2xl overflow-y-auto rounded-[24px] border-white/10 bg-card shadow-soft">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span className={cn("h-2.5 w-2.5 rounded-full", platformClass(post.platform))} />
+            {platformLabel(post.platform)} scheduled post
+          </DialogTitle>
+          <DialogDescription>
+            {format(new Date(post.publishAt), "EEE, MMM d, yyyy 'at' h:mm a")} · {content?.contentType ?? "Post"}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-white/10 bg-background/60 p-4">
+            <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">{body}</p>
+          </div>
+          <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-3">
+            <InfoPill label="Status" value={statusLabel(post.status)} />
+            <InfoPill label="Reminder" value={<CountdownTimer date={post.publishAt} />} />
+            <InfoPill label="Email" value={post.failReason ? "Failed" : post.publishedAt ? "Sent" : "Pending"} />
+          </div>
+          {post.failReason ? (
+            <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">
+              {post.failReason}
+            </div>
+          ) : null}
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button
+              className="h-10 rounded-xl"
+              onClick={() => copyScheduledContent(body)}
+              variant="secondary"
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Copy content
+            </Button>
+            <Button className="h-10 rounded-xl" onClick={() => setOpen(false)}>
+              Done
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function InfoPill({
+  label,
+  value,
+}: {
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-background/50 p-3">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <div className="mt-1 text-sm font-semibold text-foreground">{value}</div>
+    </div>
+  );
+}
+
+function CountdownTimer({ date }: { date: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  const target = new Date(date).getTime();
+  const isExpired = target <= now;
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <span className={cn("text-[11px] font-semibold", isExpired ? "text-amber-400" : "text-cyan-300")}>
+      {isExpired ? "Due now" : `${formatDistanceToNow(target, { addSuffix: false })} left`}
+    </span>
+  );
+}
+
+async function copyScheduledContent(body: string) {
+  try {
+    await navigator.clipboard.writeText(body);
+    toast.success("Copied to clipboard");
+  } catch {
+    toast.error("Could not copy content");
+  }
 }
 
 function LoadingState({ label }: { label: string }) {
@@ -479,6 +650,18 @@ function StatusBadge({ status }: { status: ScheduledPost["status"] }) {
   if (status === "FAILED") return <Badge variant="danger" className="bg-red-500/20 text-red-500 border-0">Failed</Badge>;
   if (status === "CANCELLED") return <Badge variant="muted" className="border-0">Cancelled</Badge>;
   return <Badge variant="warning" className="bg-amber-500/20 text-amber-500 border-0">Scheduled</Badge>;
+}
+
+function statusLabel(status: ScheduledPost["status"]) {
+  if (status === "NOTIFIED") return "Email sent";
+  if (status === "PUBLISHED") return "Published";
+  if (status === "FAILED") return "Failed";
+  if (status === "CANCELLED") return "Cancelled";
+  return "Scheduled";
+}
+
+function getScheduledBody(post: ScheduledPost, content?: ContentPiece) {
+  return content?.body ?? post.title;
 }
 
 function platformClass(platform: Platform) {

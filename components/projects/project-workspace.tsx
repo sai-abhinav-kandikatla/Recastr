@@ -75,7 +75,7 @@ export function ProjectWorkspace({ project }: { project: Project }) {
 
   const scheduleMutation = useMutation({
     mutationFn: scheduleContent,
-    onSuccess: () => toast.success("Scheduled"),
+    onSuccess: () => toast.success("Post scheduled. You will receive an email reminder when it is time to post."),
     onError: (error) => {
       if (error instanceof Error && error.message === "credit_exhausted") return;
       toast.error("Schedule failed");
