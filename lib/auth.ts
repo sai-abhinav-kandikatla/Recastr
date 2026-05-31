@@ -81,9 +81,9 @@ export async function ensureUserRecord(user: AuthenticatedUser) {
       return prisma.user.update({
         where: { id: existing.id },
         data: {
+          supabaseId: user.id,
           email: user.email,
           plan: user.plan.toLowerCase(),
-          ...(existing.supabaseId === user.id ? {} : { supabaseId: existing.supabaseId }),
         },
         select: { id: true },
       });

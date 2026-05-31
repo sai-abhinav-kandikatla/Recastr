@@ -68,25 +68,28 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      const alreadyExists = /already|registered|exists/i.test(error.message);
-      return Response.json(
-        {
-          error: alreadyExists ? "Account already exists. Sign in instead." : error.message,
-          code: alreadyExists ? "user_exists" : "signup_failed",
-          status: alreadyExists ? 409 : 400,
-        },
-        { status: alreadyExists ? 409 : 400 },
-      );
+      return signupErrorResponse(error.message);
     }
 
     if (!data.user?.email) {
       return Response.json(
         {
-          error: "Could not create account",
+          error: "Could not create account. Try again in a few minutes, or sign in if this email was already used.",
           code: "signup_failed",
           status: 400,
         },
         { status: 400 },
+      );
+    }
+
+    if (Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return Response.json(
+        {
+          error: "Account already exists. Sign in instead.",
+          code: "user_exists",
+          status: 409,
+        },
+        { status: 409 },
       );
     }
 
@@ -134,4 +137,50 @@ function isUniqueEmailError(error: unknown) {
 
 function createTemporaryPassword() {
   return `${randomBytes(24).toString("base64url")}Aa1!`;
+}
+
+function signupErrorResponse(message: string) {
+  const lower = message.toLowerCase();
+
+  if (lower.includes("rate limit") || lower.includes("too many")) {
+    return Response.json(
+      {
+        error: "Too many verification emails were requested. Please wait a few minutes, then try again.",
+        code: "email_rate_limited",
+        status: 429,
+      },
+      { status: 429 },
+    );
+  }
+
+  if (lower.includes("already") || lower.includes("registered") || lower.includes("exists")) {
+    return Response.json(
+      {
+        error: "Account already exists. Sign in instead.",
+        code: "user_exists",
+        status: 409,
+      },
+      { status: 409 },
+    );
+  }
+
+  if (lower.includes("invalid") && lower.includes("email")) {
+    return Response.json(
+      {
+        error: "Enter a valid email address.",
+        code: "invalid_email",
+        status: 400,
+      },
+      { status: 400 },
+    );
+  }
+
+  return Response.json(
+    {
+      error: message || "Could not create account",
+      code: "signup_failed",
+      status: 400,
+    },
+    { status: 400 },
+  );
 }
