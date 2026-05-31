@@ -8,12 +8,15 @@ import { createStoredScheduledPost, listStoredScheduledPosts } from "@/lib/proje
 import { addRecastrJob, jobNames } from "@/lib/queue/client";
 import { apiError } from "@/lib/api/response";
 import { recordAuditLog } from "@/lib/audit-log";
+import { processDueScheduledNotifications } from "@/lib/scheduled-notifications";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
     const user = await getRequestUser(request);
+    await processDueScheduledNotifications({ userId: user.id });
+
     const localPosts = shouldUseLocalSchedules()
       ? listStoredScheduledPosts().filter((post) => ["PENDING", "SCHEDULED"].includes(post.status))
       : [];

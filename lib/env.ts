@@ -19,6 +19,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().optional(),
+  CRON_SECRET: z.string().optional(),
 });
 
 function normalizeSupabaseUrl(value: string | undefined) {
@@ -64,6 +65,7 @@ export const env = envSchema.parse({
   NEXT_PUBLIC_RAZORPAY_KEY_ID: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
   RESEND_API_KEY: process.env.RESEND_API_KEY,
   RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL,
+  CRON_SECRET: process.env.CRON_SECRET,
 }) as z.infer<typeof envSchema> & {
   supabaseUrl: string | undefined;
   supabaseAnonKey: string | undefined;

@@ -30,6 +30,8 @@ type HistoryListResponse = {
   };
   error?: { message?: string };
 };
+const HISTORY_STATUSES = ["NOTIFIED", "PUBLISHED", "FAILED", "CANCELLED"] as const;
+const SCHEDULED_STATUSES = ["SCHEDULED", "PENDING"] as const;
 
 export function TasksWorkspace({
   projects,
@@ -53,7 +55,7 @@ export function TasksWorkspace({
   const scheduledItems = useMemo(
     () =>
       localScheduled
-        .filter((post) => ["SCHEDULED", "PENDING"].includes(post.status))
+        .filter((post) => SCHEDULED_STATUSES.includes(post.status as (typeof SCHEDULED_STATUSES)[number]))
         .filter((post) => matchesScheduledFilter(post, scheduledFilter))
         .sort((a, b) => new Date(a.publishAt).getTime() - new Date(b.publishAt).getTime()),
     [localScheduled, scheduledFilter],
@@ -61,7 +63,7 @@ export function TasksWorkspace({
   const historyItems = useMemo(
     () =>
       localScheduled
-        .filter((post) => ["NOTIFIED", "PUBLISHED", "FAILED", "CANCELLED"].includes(post.status))
+        .filter((post) => HISTORY_STATUSES.includes(post.status as (typeof HISTORY_STATUSES)[number]))
         .sort((a, b) => new Date(b.publishAt).getTime() - new Date(a.publishAt).getTime()),
     [localScheduled],
   );
@@ -92,7 +94,7 @@ export function TasksWorkspace({
         if (!response.ok) throw new Error(payload.error?.message ?? "Could not load scheduled posts");
         if (!cancelled) {
           setLocalScheduled((current) =>
-            replaceScheduledGroup(current, payload.data ?? [], ["PENDING", "SCHEDULED"]),
+            replaceScheduledGroup(current, payload.data ?? [], [...SCHEDULED_STATUSES]),
           );
         }
       })
@@ -124,7 +126,7 @@ export function TasksWorkspace({
         if (!response.ok) throw new Error(payload.error?.message ?? "Could not load history");
         if (!cancelled) {
           setLocalScheduled((current) =>
-            replaceScheduledGroup(current, payload.data?.items ?? [], ["NOTIFIED", "PUBLISHED", "FAILED", "CANCELLED"]),
+            replaceScheduledGroup(current, payload.data?.items ?? [], [...HISTORY_STATUSES]),
           );
         }
       })
@@ -366,15 +368,15 @@ function HistoryTab({
   onRetry: (id: string) => void;
 }) {
   if (loading) {
-    return <LoadingState label="Loading publishing history..." />;
+    return <LoadingState label="Loading notification history..." />;
   }
 
   if (posts.length === 0) {
     return (
       <EmptyState
-        headline="No publishing history yet"
+        headline="No notification history yet"
         icon={<History className="h-8 w-8 text-muted-foreground" />}
-        subline="Notified, failed, and cancelled scheduled posts will appear here."
+        subline="When a scheduled reminder email is sent, it will appear here as Email sent. Failed and cancelled reminders appear here too."
       />
     );
   }
@@ -472,7 +474,7 @@ function EmptyState({
 }
 
 function StatusBadge({ status }: { status: ScheduledPost["status"] }) {
-  if (status === "NOTIFIED") return <Badge variant="success" className="bg-green-500/20 text-green-500 border-0">Notified</Badge>;
+  if (status === "NOTIFIED") return <Badge variant="success" className="bg-green-500/20 text-green-500 border-0">Email sent</Badge>;
   if (status === "PUBLISHED") return <Badge variant="success" className="bg-green-500/20 text-green-500 border-0">Published</Badge>;
   if (status === "FAILED") return <Badge variant="danger" className="bg-red-500/20 text-red-500 border-0">Failed</Badge>;
   if (status === "CANCELLED") return <Badge variant="muted" className="border-0">Cancelled</Badge>;
@@ -531,16 +533,18 @@ function parseTaskTab(value: string | null): TaskTab {
 }
 
 function mergeScheduledPosts(current: ScheduledPost[], incoming: ScheduledPost[]) {
-  const incomingContentIds = new Set(incoming.map((post) => post.contentId).filter(Boolean));
-  const optimistic = current.filter(
+  const normalizedCurrent = current.map(normalizeScheduledPost);
+  const normalizedIncoming = incoming.map(normalizeScheduledPost);
+  const incomingContentIds = new Set(normalizedIncoming.map((post) => post.contentId).filter(Boolean));
+  const optimistic = normalizedCurrent.filter(
     (post) => isEphemeralScheduleId(post.id) && post.contentId && !incomingContentIds.has(post.contentId),
   );
 
-  if (optimistic.length === 0) return incoming;
+  if (optimistic.length === 0) return normalizedIncoming;
 
-  const incomingIds = new Set(incoming.map((post) => post.id));
+  const incomingIds = new Set(normalizedIncoming.map((post) => post.id));
   return [
-    ...incoming,
+    ...normalizedIncoming,
     ...optimistic.filter((post) => !incomingIds.has(post.id)),
   ].sort((a, b) => new Date(a.publishAt).getTime() - new Date(b.publishAt).getTime());
 }
@@ -550,10 +554,12 @@ function replaceScheduledGroup(
   incoming: ScheduledPost[],
   statuses: Array<ScheduledPost["status"]>,
 ) {
-  const statusSet = new Set(statuses);
-  const incomingIds = new Set(incoming.map((post) => post.id));
-  const incomingContentIds = new Set(incoming.map((post) => post.contentId).filter(Boolean));
-  const optimistic = current.filter(
+  const statusSet = new Set(statuses.map(normalizePostStatus));
+  const normalizedCurrent = current.map(normalizeScheduledPost);
+  const normalizedIncoming = incoming.map(normalizeScheduledPost);
+  const incomingIds = new Set(normalizedIncoming.map((post) => post.id));
+  const incomingContentIds = new Set(normalizedIncoming.map((post) => post.contentId).filter(Boolean));
+  const optimistic = normalizedCurrent.filter(
     (post) =>
       isEphemeralScheduleId(post.id) &&
       statusSet.has(post.status) &&
@@ -561,12 +567,38 @@ function replaceScheduledGroup(
       (!post.contentId || !incomingContentIds.has(post.contentId)),
   );
   return [
-    ...current.filter((post) => !statusSet.has(post.status)),
-    ...incoming,
+    ...normalizedCurrent.filter((post) => !statusSet.has(post.status)),
+    ...normalizedIncoming,
     ...optimistic,
   ].sort((a, b) => new Date(a.publishAt).getTime() - new Date(b.publishAt).getTime());
 }
 
 function isEphemeralScheduleId(id: string) {
   return id.startsWith("local-scheduled-") || id.startsWith("scheduled-demo-") || isBrowserScheduledPostId(id);
+}
+
+function normalizeScheduledPost(post: ScheduledPost): ScheduledPost {
+  return {
+    ...post,
+    publishAt: post.publishAt ?? post.scheduledAt ?? new Date().toISOString(),
+    status: normalizePostStatus(post.status),
+  };
+}
+
+function normalizePostStatus(status: ScheduledPost["status"] | string): ScheduledPost["status"] {
+  const normalized = status.toUpperCase();
+  if (
+    normalized === "DRAFT" ||
+    normalized === "PENDING" ||
+    normalized === "SCHEDULED" ||
+    normalized === "NOTIFIED" ||
+    normalized === "PUBLISHED" ||
+    normalized === "FAILED" ||
+    normalized === "CANCELLED" ||
+    normalized === "COMPLETE"
+  ) {
+    return normalized;
+  }
+  if (normalized === "PROCESSING") return "PENDING";
+  return "PENDING";
 }

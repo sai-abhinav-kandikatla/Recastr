@@ -1,9 +1,9 @@
 import { Queue, Worker } from "bullmq";
 import IORedis from "ioredis";
 import type { Prisma } from "@prisma/client";
-import { assertEmailConfigured, sendScheduledPostNotificationEmail } from "@/lib/email";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
+import { notifyScheduledPost } from "@/lib/scheduled-notifications";
 
 export const jobNames = {
   publishPost: "PUBLISH_POST",
@@ -104,79 +104,6 @@ type RecastrJobData = {
   scheduledPostId?: string;
   jobRecordId?: string;
 };
-
-async function notifyScheduledPost(scheduledPostId: string | undefined) {
-  if (!scheduledPostId) throw new Error("scheduledPostId is required");
-  assertEmailConfigured();
-
-  const post = await prisma.scheduledPost.findUnique({
-    where: { id: scheduledPostId },
-    include: {
-      content: {
-        include: { project: true },
-      },
-      user: {
-        select: {
-          email: true,
-          notifyScheduleReminder: true,
-        },
-      },
-    },
-  });
-
-  if (!post) throw new Error("Scheduled post not found");
-
-  if (!["pending", "scheduled"].includes(post.status.toLowerCase())) {
-    return {
-      skipped: true,
-      reason: `status_${post.status}`,
-      scheduledPostId: post.id,
-    };
-  }
-
-  if (post.scheduledAt.getTime() - Date.now() > 60_000) {
-    return {
-      skipped: true,
-      reason: "rescheduled_for_later",
-      scheduledPostId: post.id,
-      scheduledAt: post.scheduledAt.toISOString(),
-    };
-  }
-
-  try {
-    if (post.user.notifyScheduleReminder) {
-      await sendScheduledPostNotificationEmail({
-        userEmail: post.user.email,
-        platform: post.platform,
-        postBody: post.content.body,
-        scheduledAt: post.scheduledAt,
-        projectTitle: post.content.project.title,
-      });
-    }
-
-    await prisma.scheduledPost.update({
-      where: { id: post.id },
-      data: { status: "notified", publishedAt: new Date(), failReason: null },
-    });
-
-    return {
-      notified: post.user.notifyScheduleReminder,
-      scheduledPostId: post.id,
-      platform: post.platform,
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown notification error";
-    await markScheduledPostFailed(post.id, message);
-    throw error;
-  }
-}
-
-async function markScheduledPostFailed(id: string, message: string) {
-  await prisma.scheduledPost.update({
-    where: { id },
-    data: { status: "failed", failReason: message },
-  });
-}
 
 async function markJobRecord(
   id: string | undefined,

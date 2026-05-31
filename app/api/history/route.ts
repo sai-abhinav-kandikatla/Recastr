@@ -3,6 +3,7 @@ import { apiError } from "@/lib/api/response";
 import { getRequestUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma/client";
 import { listStoredScheduledPosts } from "@/lib/projects/store";
+import { processDueScheduledNotifications } from "@/lib/scheduled-notifications";
 import type { Platform, PostStatus } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -10,6 +11,8 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   try {
     const user = await getRequestUser(request);
+    await processDueScheduledNotifications({ userId: user.id });
+
     const url = new URL(request.url);
     const page = Math.max(1, Number(url.searchParams.get("page") ?? 1));
     const platform = url.searchParams.get("platform");
