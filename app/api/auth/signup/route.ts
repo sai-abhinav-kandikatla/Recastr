@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import { Prisma } from "@prisma/client";
-import { randomBytes } from "crypto";
 import { z } from "zod";
 import { ensureUserRecord } from "@/lib/auth";
 import { apiError } from "@/lib/api/response";
@@ -12,6 +11,7 @@ export const runtime = "nodejs";
 const signupSchema = z.object({
   email: z.string().trim().email(),
   name: z.string().trim().min(2).max(80).optional().or(z.literal("")),
+  password: z.string().min(8).max(128),
 });
 
 export async function POST(request: Request) {
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
     const { data, error } = await supabase.auth.signUp({
       email: payload.email,
-      password: createTemporaryPassword(),
+      password: payload.password,
       options: {
         data: {
           name: payload.name || payload.email.split("@")[0],
@@ -133,10 +133,6 @@ function isUniqueEmailError(error: unknown) {
     Array.isArray(error.meta?.target) &&
     error.meta.target.includes("email")
   );
-}
-
-function createTemporaryPassword() {
-  return `${randomBytes(24).toString("base64url")}Aa1!`;
 }
 
 function signupErrorResponse(message: string) {

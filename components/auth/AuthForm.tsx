@@ -23,6 +23,7 @@ const authSchema = z.object({
   name: z.string().trim().min(2, "Use at least 2 characters").optional().or(z.literal("")),
   email: z.string().trim().email("Enter a valid email"),
   password: z.string().optional(),
+  confirmPassword: z.string().optional(),
 });
 
 type AuthValues = z.infer<typeof authSchema>;
@@ -39,6 +40,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<AuthValues>({
     resolver: zodResolver(authSchema),
@@ -47,6 +49,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       name: "",
       email: searchParams.get("email") ?? "",
       password: "",
+      confirmPassword: "",
     },
   });
 
@@ -59,6 +62,16 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     const supabase = await createSupabaseBrowserClient();
 
     if (isSignup) {
+      if (!values.password || values.password.length < 8) {
+        setError("password", { message: "Use at least 8 characters" });
+        return;
+      }
+
+      if (values.password !== values.confirmPassword) {
+        setError("confirmPassword", { message: "Passwords do not match" });
+        return;
+      }
+
       const signupResponse = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -82,7 +95,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       if (signupPayload.code === "signup_admin_unavailable") {
         const { data, error } = await supabase.auth.signUp({
           email: values.email,
-          password: createTemporarySignupPassword(),
+          password: values.password,
           options: {
             data: {
               name: values.name || values.email.split("@")[0],
@@ -214,7 +227,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               {isSignup ? "Create an account" : "Welcome back"}
             </h2>
             <p className="text-muted-foreground">
-              {isSignup ? "Enter your details. You will create a password after email verification." : "Enter your credentials to access your workspace."}
+              {isSignup ? "Create your account. We will verify your email before opening your workspace." : "Enter your credentials to access your workspace."}
             </p>
           </div>
 
@@ -253,16 +266,15 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                 {errors.email ? <p className="text-xs text-red-400">{errors.email.message}</p> : null}
               </div>
 
-              {!isSignup ? (
-                <div className="space-y-2">
+              <div className="space-y-2">
                   <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Password
                   </Label>
                   <Input
                     id="password"
                     type="password"
-                    autoComplete="current-password"
-                    placeholder="••••••••"
+                    autoComplete={isSignup ? "new-password" : "current-password"}
+                    placeholder={isSignup ? "At least 8 characters" : "Enter your password"}
                     className="h-12 rounded-xl bg-muted/40 border-white/10 focus-visible:ring-primary/50"
                     {...register("password", {
                       required: "Enter your password",
@@ -270,6 +282,22 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                     })}
                   />
                   {errors.password ? <p className="text-xs text-red-400">{errors.password.message}</p> : null}
+                </div>
+
+              {isSignup ? (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Confirm password
+                  </Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Repeat your password"
+                    className="h-12 rounded-xl bg-muted/40 border-white/10 focus-visible:ring-primary/50"
+                    {...register("confirmPassword")}
+                  />
+                  {errors.confirmPassword ? <p className="text-xs text-red-400">{errors.confirmPassword.message}</p> : null}
                 </div>
               ) : null}
 
@@ -336,11 +364,4 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 function normalizeNextPath(value: string | null, fallback: string) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return fallback;
   return value;
-}
-
-function createTemporarySignupPassword() {
-  const values = new Uint8Array(24);
-  crypto.getRandomValues(values);
-  const token = btoa(String.fromCharCode(...Array.from(values))).replaceAll("+", "A").replaceAll("/", "b");
-  return `${token}Aa1!`;
 }

@@ -18,7 +18,7 @@ export function VerifyEmailBanner({ email }: { email?: string }) {
         <h1 className="mt-3 text-3xl font-bold tracking-tight">Check your inbox to continue</h1>
         <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
           We sent a confirmation link{email ? ` to ${email}` : ""}. Open it to activate your Recastr
-          workspace. After verification, we will bring you to a secure page to create your password.
+          workspace. After verification, you can continue with the password you just created.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Button asChild className="rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white">

@@ -37,10 +37,10 @@ export async function GET(request: NextRequest) {
     await syncUser(user);
   }
 
-  if (shouldOpenCreatePassword({ otpType, source, user: user ?? null, nextPath })) {
-    return NextResponse.redirect(
-      new URL(`/create-password?verified=1&next=${encodeURIComponent(nextPath)}`, request.url),
-    );
+  if (isEmailVerification({ otpType, source })) {
+    const verifiedUrl = new URL(nextPath, request.url);
+    verifiedUrl.searchParams.set("verified", "1");
+    return NextResponse.redirect(verifiedUrl);
   }
 
   return NextResponse.redirect(new URL(nextPath, request.url));
@@ -91,23 +91,14 @@ function parseOtpType(value: string | null): EmailOtpType | null {
   return null;
 }
 
-function shouldOpenCreatePassword({
+function isEmailVerification({
   otpType,
   source,
-  user,
-  nextPath,
 }: {
   otpType: EmailOtpType | null;
   source: string | null;
-  user: User | null;
-  nextPath: string;
 }) {
   if (source === "email" || source === "signup") return true;
   if (otpType === "signup" || otpType === "email") return true;
-
-  const provider = user?.app_metadata?.provider;
-  const providers = Array.isArray(user?.app_metadata?.providers) ? user.app_metadata.providers : [];
-  const isPasswordlessEmailProvider = provider === "email" || providers.includes("email");
-
-  return isPasswordlessEmailProvider && nextPath.startsWith("/onboarding");
+  return false;
 }
