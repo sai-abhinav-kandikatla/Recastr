@@ -60,9 +60,15 @@ export function ProjectDashboard({
     color: string;
   }> = [
     { label: "Projects this month", value: String(projectsThisMonth), icon: FileText, trend: "This month", color: "from-blue-500 to-cyan-500" },
-    { label: "Content generated", value: String(contentCount), icon: Sparkles, trend: contentCount > 0 ? "Ready to schedule" : "Paste a source to start", color: "from-violet-500 to-purple-500" },
-    { label: "Scheduled posts", value: String(scheduledCount), icon: Clock3, trend: scheduledCount > 0 ? "Email reminders set" : "No posts scheduled", color: "from-amber-500 to-orange-500" },
+    { label: "Content generated", value: String(contentCount), icon: Sparkles, trend: contentCount > 0 ? "Ready to schedule" : "None yet", color: "from-violet-500 to-purple-500" },
+    { label: "Scheduled posts", value: String(scheduledCount), icon: Clock3, trend: scheduledCount > 0 ? "Email reminders set" : "None scheduled", color: "from-amber-500 to-orange-500" },
     { label: "Time saved", value: formatHours(timeSavedHours), icon: Timer, trend: "Estimated", color: "from-emerald-500 to-teal-500" },
+  ];
+  const pipelineSteps = [
+    { step: "1", label: "Paste a URL or text", icon: Link2 },
+    { step: "2", label: "AI extracts hooks", icon: Brain },
+    { step: "3", label: "Posts generated", icon: Sparkles },
+    { step: "4", label: "Schedule reminders", icon: MailCheck },
   ];
 
   return (
@@ -73,7 +79,7 @@ export function ProjectDashboard({
           {contentCount ? (
             <>{firstName}, you have <span className="text-gradient">{contentCount} pieces</span> ready.</>
           ) : (
-            <>{firstName}, paste a source to create your first pack.</>
+            <>{firstName}, paste a source below to get started.</>
           )}
         </h1>
       </section>
@@ -107,39 +113,16 @@ export function ProjectDashboard({
         <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4 flex items-start gap-3">
           <Sparkles className="h-5 w-5 text-violet-400 mt-0.5 shrink-0" />
           <div>
-            <p className="text-sm font-semibold text-violet-200">Workspace ready</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Your first project is below. Open it to review generated content, then use Schedule to plan your posts.
+            <p className="text-sm font-semibold text-violet-200">Your workspace is ready!</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Your first project is in Recent projects below. Open it to review generated content,
+              then use Schedule on any card. You will get an email reminder when it is time to post.
             </p>
           </div>
         </div>
       ) : null}
 
-      {initialProjects.length === 0 ? (
-        <div className="flex items-center gap-2 overflow-x-auto pb-2">
-          {[
-            { step: "1", label: "Paste a URL or text", icon: Link2 },
-            { step: "2", label: "AI extracts hooks", icon: Brain },
-            { step: "3", label: "Generate posts", icon: Sparkles },
-            { step: "4", label: "Schedule reminders", icon: MailCheck },
-          ].map((item, index, items) => {
-            const Icon = item.icon;
-            return (
-              <div key={item.step} className="flex shrink-0 items-center gap-2">
-                <div className="flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/5 px-3 py-1.5">
-                  <Icon className="h-3.5 w-3.5 text-violet-300" />
-                  <span className="text-xs font-medium text-muted-foreground">
-                    <span className="font-semibold text-violet-300">{item.step}.</span> {item.label}
-                  </span>
-                </div>
-                {index < items.length - 1 ? <span className="text-xs text-muted-foreground/40">/</span> : null}
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-
-      <section id="quick-ingest" className="relative rounded-[24px] border border-white/5 bg-card/40 backdrop-blur-md p-1 shadow-lg scroll-mt-24">
+      <section id="source-ingest" className="relative rounded-[24px] border border-white/5 bg-card/40 backdrop-blur-md p-1 shadow-lg scroll-mt-24">
         <div className="absolute inset-0 rounded-[24px] bg-gradient-to-br from-primary/5 via-transparent to-cyan-500/5 pointer-events-none" />
         <div className="relative z-10 bg-card rounded-[20px] p-6 sm:p-8">
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -154,6 +137,24 @@ export function ProjectDashboard({
                 Analyze a source, select hooks, then stream generated content without leaving the page.
               </p>
             </div>
+          </div>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {pipelineSteps.map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.step} className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 rounded-full border border-violet-500/20 bg-violet-500/5 px-3 py-1">
+                    <Icon className="h-3.5 w-3.5 text-violet-300" />
+                    <span className="text-xs text-muted-foreground">
+                      <span className="font-semibold text-violet-300">{item.step}.</span> {item.label}
+                    </span>
+                  </div>
+                  {index < pipelineSteps.length - 1 ? (
+                    <span className="text-xs text-muted-foreground/30" aria-hidden="true">&rarr;</span>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
           {/* Note: passing empty array instead of initialProjects to remove demo links inside IngestFlow */}
           <IngestFlow />
@@ -240,7 +241,7 @@ export function ProjectDashboard({
               <Button
                 size="lg"
                 className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-8 shadow-glow"
-                onClick={() => document.getElementById("quick-ingest")?.scrollIntoView({ behavior: "smooth" })}
+                onClick={() => document.getElementById("source-ingest")?.scrollIntoView({ behavior: "smooth", block: "center" })}
               >
                 <Plus className="mr-2 h-5 w-5" />
                 Paste a source above to start

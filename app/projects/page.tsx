@@ -23,7 +23,7 @@ export default async function ProjectsIndexPage() {
             </p>
           </div>
           <Button asChild className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-6 shadow-glow shrink-0">
-            <Link href="/dashboard#quick-ingest">
+            <Link href="/dashboard#source-ingest">
               <Plus className="mr-2 h-4 w-4" />
               New Project
             </Link>
@@ -42,7 +42,7 @@ export default async function ProjectsIndexPage() {
               Analyze your first source from the dashboard to create a project and start generating content.
             </p>
             <Button asChild size="lg" className="mt-8 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-8 shadow-glow transition-transform hover:scale-105">
-              <Link href="/dashboard#quick-ingest">
+              <Link href="/dashboard#source-ingest">
                 <Plus className="mr-2 h-5 w-5" />
                 Start on dashboard
               </Link>

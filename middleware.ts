@@ -97,13 +97,11 @@ function withCors(request: NextRequest, response: NextResponse) {
     return new NextResponse("CORS origin denied", { status: 403 });
   }
 
-  if (allowedOrigin && origin && origin !== allowedOrigin) {
+  if (allowedOrigin && origin && !isAllowedCorsOrigin(origin, allowedOrigin)) {
     return new NextResponse("CORS origin denied", { status: 403 });
   }
 
-  if (allowedOrigin) {
-    response.headers.set("Access-Control-Allow-Origin", allowedOrigin);
-  }
+  response.headers.set("Access-Control-Allow-Origin", origin ?? allowedOrigin ?? "*");
 
   return response;
 }
@@ -115,6 +113,26 @@ function normalizeOrigin(value: string | undefined) {
     return new URL(trimmed).origin;
   } catch {
     return trimmed;
+  }
+}
+
+function isAllowedCorsOrigin(origin: string, allowedOrigin: string) {
+  if (origin === allowedOrigin) return true;
+
+  try {
+    const originUrl = new URL(origin);
+    const allowedUrl = new URL(allowedOrigin);
+    if (originUrl.protocol !== allowedUrl.protocol) return false;
+
+    const originHost = originUrl.hostname.toLowerCase();
+    const allowedHost = allowedUrl.hostname.toLowerCase();
+
+    return (
+      originHost === `www.${allowedHost}` ||
+      `www.${originHost}` === allowedHost
+    );
+  } catch {
+    return false;
   }
 }
 
