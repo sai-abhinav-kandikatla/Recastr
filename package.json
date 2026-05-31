@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "postinstall": "yt-dlp --version || echo \"yt-dlp not found - video ingest will be disabled\"",
     "lint": "next lint",
