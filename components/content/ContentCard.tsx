@@ -295,6 +295,7 @@ export const ContentCard = memo(function ContentCard({
             compact
             draft={localBody}
             platform={toPreviewPlatform(platform)}
+            theme="dark"
           />
         )}
         <span className={cn("absolute bottom-3 right-5 font-mono text-xs", counterColor)}>

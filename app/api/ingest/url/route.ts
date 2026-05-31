@@ -72,14 +72,33 @@ export async function POST(request: Request) {
     if (source === "youtube") {
       const project = await createYoutubeProject(payload.url);
       saveStoredProject(project);
-      await persistProject(user, project).catch(() => undefined);
+      let savedProject = project;
+      try {
+        await persistProject(user, project);
+        const dbProject = await prisma.project.findUnique({
+          where: { id: project.id },
+          include: {
+            contents: { orderBy: { order: "asc" } },
+            hooks: { orderBy: { reachScore: "desc" } },
+          },
+        });
+        if (dbProject) {
+          savedProject = mergePersistedProject(project, dbProject);
+          saveStoredProject(savedProject);
+        }
+      } catch (error) {
+        console.error(
+          "[ingest/url] YouTube persistProject failed:",
+          error instanceof Error ? error.message : error,
+        );
+      }
       await consumeCredits(user);
       return NextResponse.json({
-        projectId: project.id,
-        title: project.title,
-        duration: project.duration ?? 0,
-        wordCount: project.wordCount ?? 0,
-        project,
+        projectId: savedProject.id,
+        title: savedProject.title,
+        duration: savedProject.duration ?? 0,
+        wordCount: savedProject.wordCount ?? 0,
+        project: savedProject,
         warning:
           project.transcript.length > 1200
             ? "Imported available YouTube metadata and captions."
@@ -582,7 +601,6 @@ function escapeRegExp(value: string) {
 
 function hookCreateRows(project: Project) {
   return (project.hooks ?? []).map((hook) => ({
-    id: hook.id,
     text: hook.text,
     hookType: hook.hookType,
     reachScore: hook.reachScore,
@@ -591,7 +609,6 @@ function hookCreateRows(project: Project) {
 
 function contentCreateRows(project: Project) {
   return (project.contents ?? []).map((item) => ({
-    id: item.id,
     hookId: item.hookId,
     platform: item.platform,
     contentType: item.contentType,
@@ -601,4 +618,55 @@ function contentCreateRows(project: Project) {
     approved: item.approved,
     order: item.order,
   }));
+}
+
+type PersistedProject = Prisma.ProjectGetPayload<{
+  include: {
+    contents: true;
+    hooks: true;
+  };
+}>;
+
+function mergePersistedProject(project: Project, dbProject: PersistedProject): Project {
+  const contents = dbProject.contents.map((content) => ({
+    id: content.id,
+    projectId: content.projectId,
+    hookId: content.hookId ?? undefined,
+    platform: content.platform as Platform,
+    contentType: content.contentType,
+    body: content.body,
+    originalBody: content.originalBody,
+    tone: content.tone,
+    approved: content.approved,
+    order: content.order,
+    createdAt: content.createdAt.toISOString(),
+  }));
+
+  const hooks = dbProject.hooks.map((hook) => ({
+    id: hook.id,
+    projectId: hook.projectId,
+    text: hook.text,
+    hookType: hook.hookType,
+    reachScore: hook.reachScore,
+  }));
+
+  return {
+    ...project,
+    userId: dbProject.userId,
+    contents,
+    hooks,
+    outputs: contents.map((content) => ({
+      id: content.id,
+      projectId: content.projectId,
+      platform: content.platform,
+      outputType: content.contentType,
+      content: content.body,
+      originalContent: content.originalBody,
+      tone: content.tone,
+      approved: content.approved,
+      createdAt: content.createdAt,
+    })),
+    createdAt: dbProject.createdAt.toISOString(),
+    updatedAt: dbProject.updatedAt.toISOString(),
+  };
 }

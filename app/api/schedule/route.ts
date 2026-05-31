@@ -1,16 +1,28 @@
+import { Prisma } from "@prisma/client";
 import { getRequestUser } from "@/lib/auth";
+import type { AuthenticatedUser } from "@/lib/auth";
 import { scheduleSchema } from "@/lib/ai/schemas";
 import { assertEmailConfigured } from "@/lib/email";
 import { env } from "@/lib/env";
 import { getPlatformCharacterLimit } from "@/lib/platform-limits";
 import { prisma } from "@/lib/prisma/client";
-import { createStoredScheduledPost, listStoredScheduledPosts } from "@/lib/projects/store";
+import { createStoredScheduledPost, getStoredProject, listStoredScheduledPosts } from "@/lib/projects/store";
 import { addRecastrJob, jobNames } from "@/lib/queue/client";
 import { apiError } from "@/lib/api/response";
 import { recordAuditLog } from "@/lib/audit-log";
 import { processDueScheduledNotifications } from "@/lib/scheduled-notifications";
 
 export const runtime = "nodejs";
+
+type ScheduleRecoveryPayload = {
+  projectId?: string;
+  projectTitle?: string;
+  body?: string;
+  originalBody?: string;
+  contentType?: string;
+  tone?: string;
+  platform: string;
+};
 
 export async function GET(request: Request) {
   try {
@@ -80,7 +92,7 @@ export async function POST(request: Request) {
         { status: 201 },
       );
     }
-    const content = await prisma.content.findFirst({
+    let content = await prisma.content.findFirst({
       where: {
         id: contentId,
         project: {
@@ -89,6 +101,10 @@ export async function POST(request: Request) {
       },
       select: { id: true, body: true, platform: true },
     });
+
+    if (!content && isLocalDemoContent(contentId)) {
+      content = await persistStoredContentForScheduling(user, contentId, payload);
+    }
 
     if (!content) {
       return Response.json(
@@ -156,6 +172,100 @@ export async function POST(request: Request) {
 
 function shouldUseLocalSchedules() {
   return process.env.NODE_ENV !== "production" || env.demoMode;
+}
+
+function isLocalDemoContent(contentId: string) {
+  return /^(demo|youtube|text|blog|podcast)-/.test(contentId);
+}
+
+async function persistStoredContentForScheduling(
+  user: AuthenticatedUser,
+  contentId: string,
+  payload: ScheduleRecoveryPayload,
+) {
+  const projectId = payload.projectId ?? projectIdFromContentId(contentId);
+  if (!projectId) return null;
+
+  const project = getStoredProject(projectId);
+  const storedContent = project?.contents?.find((item) => item.id === contentId);
+  const body = payload.body ?? storedContent?.body;
+  if (!body) return null;
+
+  const originalBody = payload.originalBody ?? storedContent?.originalBody ?? body;
+  const contentType = payload.contentType ?? storedContent?.contentType ?? "Post";
+  const tone = payload.tone ?? storedContent?.tone ?? "casual";
+  const platform = payload.platform;
+  const title = project?.title ?? payload.projectTitle ?? "Recovered scheduled content";
+  const transcript = project?.transcript ?? body;
+  const sourceType = project?.sourceType.toLowerCase() ?? "text";
+  const summary = project?.summary ? (project.summary as Prisma.InputJsonValue) : undefined;
+
+  const existingProject = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { userId: true },
+  });
+  if (existingProject && existingProject.userId !== user.id) return null;
+
+  await prisma.project.upsert({
+    where: { id: projectId },
+    update: {
+      title,
+      sourceUrl: project?.sourceUrl,
+      sourceType,
+      thumbnailUrl: project?.thumbnailUrl,
+      transcript,
+      summary,
+      duration: project?.duration,
+      wordCount: project?.wordCount ?? body.split(/\s+/).filter(Boolean).length,
+    },
+    create: {
+      id: projectId,
+      userId: user.id,
+      title,
+      sourceUrl: project?.sourceUrl,
+      sourceType,
+      thumbnailUrl: project?.thumbnailUrl,
+      transcript,
+      summary,
+      duration: project?.duration,
+      wordCount: project?.wordCount ?? body.split(/\s+/).filter(Boolean).length,
+    },
+  });
+
+  await prisma.content.upsert({
+    where: { id: contentId },
+    update: {
+      projectId,
+      platform,
+      contentType,
+      body,
+      originalBody,
+      tone,
+      approved: storedContent?.approved ?? false,
+      order: storedContent?.order ?? 0,
+    },
+    create: {
+      id: contentId,
+      projectId,
+      platform,
+      contentType,
+      body,
+      originalBody,
+      tone,
+      approved: storedContent?.approved ?? false,
+      order: storedContent?.order ?? 0,
+    },
+  });
+
+  return {
+    id: contentId,
+    body,
+    platform,
+  };
+}
+
+function projectIdFromContentId(contentId: string) {
+  return contentId.match(/^(.*)-content-\d+$/)?.[1];
 }
 
 function groupByDate<T extends { publishAt: string }>(posts: T[]) {

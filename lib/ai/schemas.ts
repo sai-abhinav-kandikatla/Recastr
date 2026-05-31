@@ -103,6 +103,12 @@ export const exportSchema = z.object({
 export const scheduleSchema = z.object({
   outputId: z.string().optional(),
   contentId: z.string().optional(),
+  projectId: z.string().optional(),
+  projectTitle: z.string().optional(),
+  body: z.string().optional(),
+  originalBody: z.string().optional(),
+  contentType: z.string().optional(),
+  tone: z.string().optional(),
   publishAt: z.string().datetime().optional(),
   scheduledAt: z.string().datetime().optional(),
   platform: z.enum(["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "YOUTUBE", "CAROUSEL", "COMMUNITY", "STORY"]),

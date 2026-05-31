@@ -173,11 +173,17 @@ export function ProjectWorkspace({ project }: { project: Project }) {
       }
       scheduleMutation.mutate({
         contentId: id,
+        projectId: project.id,
+        projectTitle: project.title,
         platform: content.platform,
         scheduledAt: date.toISOString(),
+        body: content.body,
+        originalBody: content.originalBody,
+        contentType: content.contentType,
+        tone: content.tone,
       });
     },
-    [contents, scheduleMutation],
+    [contents, project.id, project.title, scheduleMutation],
   );
 
   const handleCopy = useCallback(
@@ -340,8 +346,14 @@ async function rewriteTone({
 
 async function scheduleContent(payload: {
   contentId: string;
+  projectId: string;
+  projectTitle: string;
   platform: Platform;
   scheduledAt: string;
+  body: string;
+  originalBody: string;
+  contentType: string;
+  tone: string;
 }) {
   const response = await fetch("/api/schedule", {
     method: "POST",
