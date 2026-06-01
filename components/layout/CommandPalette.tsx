@@ -43,7 +43,7 @@ export function CommandPalette({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="overflow-hidden p-0 shadow-2xl glass-modal sm:max-w-[600px] border-white/10 rounded-[16px]">
+      <DialogContent className="overflow-hidden p-0 shadow-2xl bg-[#0B1020] sm:max-w-[600px] border border-white/[0.06] rounded-[16px]">
         <Command className="flex h-full w-full flex-col bg-transparent text-foreground">
           <div className="flex items-center border-b px-4 border-white/5">
             <Sparkles className="mr-2 h-4 w-4 shrink-0 text-primary" />

@@ -84,7 +84,7 @@ export function ExportInlinePanel({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -8, scale: 0.98 }}
         transition={{ duration: 0.18, ease: "easeOut" }}
-        className="fixed right-4 top-[calc(var(--topbar-height)+68px)] z-[90] max-h-[min(640px,calc(100vh-96px))] w-[min(900px,calc(100vw-32px))] overflow-hidden rounded-[18px] border border-white/10 bg-card/95 shadow-soft backdrop-blur-xl sm:right-6"
+        className="fixed right-4 top-[calc(var(--topbar-height)+68px)] z-[90] max-h-[min(640px,calc(100vh-96px))] w-[min(900px,calc(100vw-32px))] overflow-hidden rounded-[18px] border border-white/[0.06] bg-[#0B1020] shadow-soft sm:right-6"
       >
       <div className="grid max-h-[inherit] gap-4 overflow-y-auto p-4 lg:grid-cols-[220px_1fr_220px]">
         <div className="space-y-2">

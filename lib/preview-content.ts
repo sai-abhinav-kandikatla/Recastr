@@ -78,15 +78,17 @@ export function parsePreviewContent(platform: PreviewPlatform, draft: string): P
   }
 
   if (platform === "FACEBOOK") {
+    const facebookPost = extractSection(cleanDraft, "Facebook post");
     const poll = extractSection(cleanDraft, "Poll");
-    const pollData = parsePoll(poll || cleanDraft);
+    const primaryText = facebookPost || extractSection(cleanDraft, "Short post") || cleanDraft;
+    const pollData = parsePoll(poll || primaryText);
     return {
-      primaryText: extractSection(cleanDraft, "Short post") || cleanDraft,
+      primaryText,
       thread: [],
       pollQuestion: pollData.question,
       pollOptions: pollData.options,
-      hashtags: cleanDraft.match(/#[\w]+/g)?.slice(0, 8) ?? [],
-      hook: firstSentence(cleanDraft),
+      hashtags: primaryText.match(/#[\w]+/g)?.slice(0, 8) ?? [],
+      hook: firstSentence(primaryText),
       mediaType: pollData.options.length ? "poll" : "image",
       carouselSlides: fallbackLines.slice(0, 4),
     };

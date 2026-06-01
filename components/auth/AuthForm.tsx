@@ -3,12 +3,10 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { ArrowRight, Loader2, Sparkles } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -164,28 +162,28 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   }
 
   return (
-    <main className="flex min-h-screen bg-background overflow-hidden text-foreground">
-      {/* Left side - Marketing/Visual */}
-      <div className="hidden lg:flex w-[55%] flex-col justify-between p-12 aurora-bg relative border-r border-white/5">
-        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] mix-blend-overlay pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background/80" />
+    <main className="flex min-h-screen bg-[#060A14] text-foreground">
+      {/* Left side — Brand panel */}
+      <div className="hidden lg:flex w-[52%] flex-col justify-between p-12 relative bg-[#080D1A] border-r border-white/[0.06]">
+        {/* Subtle top accent line */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/30 to-transparent" />
 
-        <div className="relative z-10 flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 text-white shadow-glow">
-            <Sparkles className="h-5 w-5" />
+        <div className="relative z-10 flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--violet)]">
+            <Sparkles className="h-4.5 w-4.5 text-white" />
           </span>
-          <span className="font-display text-xl font-bold tracking-wide">Recastr</span>
+          <span className="font-display text-base font-semibold tracking-tight">Recastr</span>
         </div>
 
-        <div className="relative z-10 max-w-xl">
-          <Badge className="bg-primary/20 text-primary border-primary/30 px-3 py-1 mb-6 rounded-full text-xs font-semibold tracking-wide uppercase backdrop-blur-md">
-            AI Content Engine
-          </Badge>
-          <h1 className="text-5xl font-display font-bold leading-[1.1] tracking-tight mb-6">
-            Turn one recording into <br />
-            <span className="text-gradient">30 days of content.</span>
+        <div className="relative z-10 max-w-lg">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-violet-400 mb-5">
+            AI Content Studio
+          </p>
+          <h1 className="text-4xl font-display font-semibold leading-tight tracking-tight mb-5">
+            Turn one recording into<br />
+            30 days of content.
           </h1>
-          <p className="text-lg leading-relaxed text-muted-foreground mb-10">
+          <p className="text-base leading-relaxed text-[#94A3B8] mb-10">
             Join thousands of creators who repurposed their podcasts, videos, and articles into platform-native posts.
           </p>
 
@@ -195,64 +193,79 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               "Smart hook intelligence to grab attention",
               "Visual previews for all major platforms",
             ].map((feature, index) => (
-              <motion.div
+              <div
                 key={index}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 + index * 0.1, duration: 0.5 }}
                 className="flex items-center gap-3"
               >
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-primary shrink-0">
-                  <CheckCircle2 className="h-4 w-4" />
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-violet-500/15 shrink-0">
+                  <svg className="h-3 w-3 text-violet-400" viewBox="0 0 12 12" fill="none">
+                    <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
                 </div>
-                <p className="text-sm font-medium">{feature}</p>
-              </motion.div>
+                <p className="text-sm text-[#CBD5E1]">{feature}</p>
+              </div>
             ))}
+          </div>
+        </div>
+
+        {/* Testimonial */}
+        <div className="relative z-10">
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
+            <p className="text-sm leading-relaxed text-[#94A3B8] italic">
+              &ldquo;Replaced three freelancers. The LinkedIn tone matches my voice better than my own drafts.&rdquo;
+            </p>
+            <div className="mt-4 flex items-center gap-2.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-500/15 text-xs font-semibold text-violet-400">
+                D
+              </div>
+              <div>
+                <p className="text-xs font-medium text-[#E2E8F0]">Diego R.</p>
+                <p className="text-[11px] text-[#64748B]">Founder, B2B SaaS</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Right side - Auth Form */}
-      <div className="flex w-full lg:w-[45%] flex-col justify-center px-6 py-12 sm:px-12 lg:px-16 xl:px-24 relative z-10 bg-background">
-        <div className="mx-auto w-full max-w-md">
+      {/* Right side — Auth Form */}
+      <div className="flex w-full lg:w-[48%] flex-col justify-center px-6 py-12 sm:px-12 lg:px-16 xl:px-20 bg-[#060A14]">
+        <div className="mx-auto w-full max-w-[400px]">
           {/* Mobile logo */}
-          <div className="mb-10 flex lg:hidden items-center justify-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-cyan-500 text-white shadow-glow">
-              <Sparkles className="h-6 w-6" />
+          <div className="mb-10 flex lg:hidden items-center justify-center gap-2.5">
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--violet)]">
+              <Sparkles className="h-5 w-5 text-white" />
             </span>
           </div>
 
-          <div className="text-center lg:text-left mb-10">
-            <h2 className="text-3xl font-bold font-display tracking-tight mb-2">
+          <div className="text-center lg:text-left mb-8">
+            <h2 className="text-2xl font-semibold font-display tracking-tight mb-2">
               {isSignup ? "Create an account" : "Welcome back"}
             </h2>
-            <p className="text-muted-foreground">
-              {isSignup ? "Create your account. We will verify your email before opening your workspace." : "Enter your credentials to access your workspace."}
+            <p className="text-sm text-[#94A3B8]">
+              {isSignup ? "We'll verify your email before opening your workspace." : "Enter your credentials to access your workspace."}
             </p>
           </div>
 
-          <div className="glass-panel p-8 rounded-[24px] border border-white/5 shadow-2xl relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-cyan-500/5 pointer-events-none" />
-
-            <form className="space-y-5 relative z-10" onSubmit={handleSubmit(onSubmit)}>
+          <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] p-6">
+            <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
               {isSignup ? (
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-xs font-medium text-[#94A3B8]">
                     Name
                   </Label>
                   <Input
                     id="name"
                     autoComplete="name"
                     placeholder="John Doe"
-                    className="h-12 rounded-xl bg-muted/40 border-white/10 focus-visible:ring-primary/50"
+                    className="h-11 rounded-lg bg-white/[0.04] border-white/[0.08] text-sm placeholder:text-[#475569] focus-visible:ring-violet-500/40 focus-visible:border-violet-500/40"
                     {...register("name")}
                   />
                   {errors.name ? <p className="text-xs text-red-400">{errors.name.message}</p> : null}
                 </div>
               ) : null}
 
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs font-medium text-[#94A3B8]">
                   Email
                 </Label>
                 <Input
@@ -260,33 +273,33 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                   type="email"
                   autoComplete="email"
                   placeholder="you@example.com"
-                  className="h-12 rounded-xl bg-muted/40 border-white/10 focus-visible:ring-primary/50"
+                  className="h-11 rounded-lg bg-white/[0.04] border-white/[0.08] text-sm placeholder:text-[#475569] focus-visible:ring-violet-500/40 focus-visible:border-violet-500/40"
                   {...register("email")}
                 />
                 {errors.email ? <p className="text-xs text-red-400">{errors.email.message}</p> : null}
               </div>
 
-              <div className="space-y-2">
-                  <Label htmlFor="password" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Password
-                  </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    autoComplete={isSignup ? "new-password" : "current-password"}
-                    placeholder={isSignup ? "At least 8 characters" : "Enter your password"}
-                    className="h-12 rounded-xl bg-muted/40 border-white/10 focus-visible:ring-primary/50"
-                    {...register("password", {
-                      required: "Enter your password",
-                      minLength: { value: 8, message: "Use at least 8 characters" },
-                    })}
-                  />
-                  {errors.password ? <p className="text-xs text-red-400">{errors.password.message}</p> : null}
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-xs font-medium text-[#94A3B8]">
+                  Password
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete={isSignup ? "new-password" : "current-password"}
+                  placeholder={isSignup ? "At least 8 characters" : "Enter your password"}
+                  className="h-11 rounded-lg bg-white/[0.04] border-white/[0.08] text-sm placeholder:text-[#475569] focus-visible:ring-violet-500/40 focus-visible:border-violet-500/40"
+                  {...register("password", {
+                    required: "Enter your password",
+                    minLength: { value: 8, message: "Use at least 8 characters" },
+                  })}
+                />
+                {errors.password ? <p className="text-xs text-red-400">{errors.password.message}</p> : null}
+              </div>
 
               {isSignup ? (
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirmPassword" className="text-xs font-medium text-[#94A3B8]">
                     Confirm password
                   </Label>
                   <Input
@@ -294,7 +307,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                     type="password"
                     autoComplete="new-password"
                     placeholder="Repeat your password"
-                    className="h-12 rounded-xl bg-muted/40 border-white/10 focus-visible:ring-primary/50"
+                    className="h-11 rounded-lg bg-white/[0.04] border-white/[0.08] text-sm placeholder:text-[#475569] focus-visible:ring-violet-500/40 focus-visible:border-violet-500/40"
                     {...register("confirmPassword")}
                   />
                   {errors.confirmPassword ? <p className="text-xs text-red-400">{errors.confirmPassword.message}</p> : null}
@@ -302,29 +315,32 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               ) : null}
 
               <Button
-                className={cn("w-full h-12 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 font-bold shadow-glow text-base transition-all hover:scale-[1.02]", isSubmitting && "opacity-80 scale-100 hover:scale-100")}
+                className={cn(
+                  "w-full h-11 rounded-lg bg-[var(--violet)] text-white hover:brightness-110 font-semibold text-sm transition-all",
+                  isSubmitting && "opacity-80"
+                )}
                 disabled={isSubmitting}
                 type="submit"
               >
-                {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {isSignup ? "Create account" : "Sign in"}
-                {!isSubmitting ? <ArrowRight className="ml-2 h-5 w-5" /> : null}
+                {!isSubmitting ? <ArrowRight className="ml-2 h-4 w-4" /> : null}
               </Button>
             </form>
 
-            <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground uppercase tracking-widest font-semibold relative z-10">
-              <span className="h-px flex-1 bg-border/50" />
+            <div className="my-5 flex items-center gap-3 text-[11px] text-[#475569] uppercase tracking-widest font-medium">
+              <span className="h-px flex-1 bg-white/[0.06]" />
               Or
-              <span className="h-px flex-1 bg-border/50" />
+              <span className="h-px flex-1 bg-white/[0.06]" />
             </div>
 
             <Button
-              className="w-full h-12 rounded-xl bg-card hover:bg-muted border border-white/10 font-semibold relative z-10 transition-colors"
+              className="w-full h-11 rounded-lg bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.08] text-sm font-medium transition-colors"
               onClick={continueWithGoogle}
               type="button"
               variant="outline"
             >
-              <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
+              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                   fill="#4285F4"
@@ -346,10 +362,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
             </Button>
           </div>
 
-          <p className="mt-8 text-center text-sm text-muted-foreground font-medium">
+          <p className="mt-6 text-center text-sm text-[#64748B]">
             {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
             <Link
-              className="font-bold text-primary hover:text-primary/80 transition-colors underline decoration-primary/30 underline-offset-4"
+              className="font-medium text-violet-400 hover:text-violet-300 transition-colors"
               href={`${isSignup ? "/login" : "/signup"}?next=${encodeURIComponent(nextPath)}`}
             >
               {isSignup ? "Sign in instead" : "Create one now"}

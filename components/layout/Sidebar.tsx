@@ -51,14 +51,13 @@ export function Sidebar({
 
   return (
     <>
-      <aside className="z-20 hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col overflow-hidden border-r border-white/10 bg-[#090E1D] text-foreground lg:flex">
-        <div className="flex h-[var(--topbar-height)] items-center gap-3 border-b border-white/10 px-5">
-          <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--violet)]">
+      <aside className="z-20 hidden h-screen w-[var(--sidebar-width)] shrink-0 flex-col overflow-hidden border-r border-white/[0.06] bg-[#080D1A] text-foreground lg:flex">
+        <div className="flex h-[var(--topbar-height)] items-center gap-2.5 border-b border-white/[0.06] px-5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--violet)]">
             <Sparkles className="h-4 w-4 text-white" />
-            <div className="absolute inset-0 rounded-xl bg-white/20 opacity-0 transition-opacity hover:opacity-100" />
           </div>
           <div>
-            <p className="font-display text-[15px] font-semibold tracking-wide">Recastr</p>
+            <p className="font-display text-[15px] font-semibold tracking-tight">Recastr</p>
             <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">AI Content Studio</p>
           </div>
         </div>
@@ -93,14 +92,14 @@ export function Sidebar({
           ))}
         </nav>
 
-        <div className="border-y border-white/10 px-5 py-4">
+        <div className="border-y border-white/[0.06] px-5 py-4">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Recent Projects
             </p>
-            <Badge variant="muted" className="bg-primary/10 text-primary hover:bg-primary/20">
+            <span className="text-[11px] font-medium text-muted-foreground">
               {projects.length}
-            </Badge>
+            </span>
           </div>
         </div>
 
@@ -112,20 +111,20 @@ export function Sidebar({
                 href={`/projects/${project.id}`}
                 key={project.id}
                 className={cn(
-                  "group relative flex gap-3 rounded-[12px] border border-transparent p-2 transition-all duration-200",
+                  "group relative flex gap-3 rounded-lg border border-transparent p-2 transition-all duration-200",
                   active
-                    ? "border-[var(--violet)]/25 bg-[var(--violet)]/10"
-                    : "hover:border-white/10 hover:bg-white/[0.04]"
+                    ? "border-white/[0.08] bg-white/[0.04]"
+                    : "hover:bg-white/[0.03]"
                 )}
               >
-                <div className="relative h-[38px] w-[38px] shrink-0 overflow-hidden rounded-[10px]">
+                <div className="relative h-[38px] w-[38px] shrink-0 overflow-hidden rounded-lg">
                   <Image
                     src={project.thumbnailUrl ?? "/og-image.svg"}
                     alt=""
                     fill
                     className="object-cover transition-transform duration-300 group-hover:scale-110"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                  <div className="absolute inset-0 bg-black/10" />
                 </div>
                 <div className="min-w-0 flex-1 flex flex-col justify-center">
                   <p className={cn(
@@ -141,30 +140,28 @@ export function Sidebar({
           })}
         </div>
 
-        <div className="border-t border-white/10 bg-black/10 p-4">
+        <div className="border-t border-white/[0.06] p-4">
           {user ? (
-            <div className="group flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition-all hover:bg-white/[0.07]">
-              <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--violet)] text-sm font-semibold text-white">
+            <div className="group flex cursor-pointer items-center gap-3 rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 transition-colors hover:bg-white/[0.04]">
+              <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--violet)]/15 text-sm font-semibold text-violet-400">
                 {displayName.slice(0, 1).toUpperCase()}
-                <div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-background bg-green-500" />
+                <div className="absolute bottom-0 right-0 h-2 w-2 rounded-full border-[1.5px] border-[#080D1A] bg-emerald-400" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{displayName}</p>
-                <div className="mt-0.5 flex items-center gap-1.5">
-                  <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{plan} plan</span>
-                </div>
+                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{plan} plan</p>
               </div>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              <div className="h-10 rounded-2xl bg-muted/50 animate-pulse" />
+              <div className="h-10 rounded-lg bg-white/[0.03] animate-pulse" />
             </div>
           )}
         </div>
       </aside>
 
       {/* Mobile Bottom Nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-16 grid-cols-5 border-t border-white/10 bg-[#090E1D]/95 px-2 backdrop-blur-xl lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-50 grid h-16 grid-cols-5 border-t border-white/[0.06] bg-[#080D1A] px-2 lg:hidden">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(pathname, item.href, item.label);
@@ -324,16 +321,38 @@ function useScheduledCount(enabled: boolean) {
   }, [enabled]);
 
   return useMemo(() => {
-    const posts = new Map<string, ScheduledPost>();
+    const contentIds = new Set<string>();
+    const fingerprints = new Set<string>();
+    let count = 0;
+
     for (const post of [...serverPosts, ...localPosts]) {
-      posts.set(post.contentId ?? post.id, post);
+      const contentId = post.contentId?.trim();
+      const fingerprint = getScheduledFingerprint(post);
+      if ((contentId && contentIds.has(contentId)) || (fingerprint && fingerprints.has(fingerprint))) {
+        continue;
+      }
+      if (contentId) contentIds.add(contentId);
+      if (fingerprint) fingerprints.add(fingerprint);
+      count += 1;
     }
-    return posts.size;
+
+    return count;
   }, [localPosts, serverPosts]);
 }
 
 function isActiveScheduledPost(post: ScheduledPost) {
   return ["PENDING", "SCHEDULED"].includes(post.status.toUpperCase());
+}
+
+function getScheduledFingerprint(post: ScheduledPost) {
+  const rawDate = post.publishAt ?? post.scheduledAt;
+  const date = rawDate ? new Date(rawDate) : null;
+  const minuteBucket = date && !Number.isNaN(date.getTime())
+    ? Math.floor(date.getTime() / 60_000)
+    : rawDate;
+  const title = post.title.replace(/\s+/g, " ").trim().toLowerCase().slice(0, 160);
+  if (!minuteBucket || !title) return null;
+  return `${post.platform}:${minuteBucket}:${title}`;
 }
 
 function isActive(pathname: string, href: string, label: string) {

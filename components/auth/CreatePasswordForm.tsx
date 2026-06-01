@@ -36,6 +36,7 @@ export function CreatePasswordForm() {
   const [sessionState, setSessionState] = useState<SessionState>("checking");
   const [email, setEmail] = useState<string | null>(null);
   const verified = searchParams.get("verified") === "1";
+  const isChangeMode = searchParams.get("mode") === "change";
   const nextPath = useMemo(
     () => normalizeNextPath(searchParams.get("next"), "/onboarding"),
     [searchParams],
@@ -95,28 +96,34 @@ export function CreatePasswordForm() {
       return;
     }
 
-    toast.success("Password created. Welcome to Recastr.");
+    toast.success(isChangeMode ? "Password updated." : "Password created. Welcome to Recastr.");
     router.replace(nextPath);
     router.refresh();
   }
 
   return (
     <main className="grid min-h-screen place-items-center bg-background px-6 py-12 text-foreground">
-      <section className="w-full max-w-lg overflow-hidden rounded-[28px] border border-white/10 bg-card/70 p-8 shadow-soft backdrop-blur-xl">
+      <section className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0B1020] p-8 shadow-soft">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
           {verified ? <CheckCircle2 className="h-7 w-7" /> : <KeyRound className="h-7 w-7" />}
         </div>
 
         <div className="mt-6 flex items-center justify-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-primary">
           <Sparkles className="h-4 w-4" />
-          {verified ? "Email verified" : "Secure setup"}
+          {isChangeMode ? "Verified password change" : verified ? "Email verified" : "Secure setup"}
         </div>
 
         <div className="mt-3 text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Create your password</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {isChangeMode ? "Change your password" : "Create your password"}
+          </h1>
           <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-muted-foreground">
-            {email
+            {isChangeMode && email
+              ? `Set a new password for ${email}.`
+              : email
               ? `Set a password for ${email} to finish activating your workspace.`
+              : isChangeMode
+              ? "Set a new password for your Recastr account."
               : "Set a password to finish activating your workspace."}
           </p>
         </div>
@@ -132,7 +139,7 @@ export function CreatePasswordForm() {
           <div className="mt-8 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-center">
             <p className="text-sm font-medium text-red-200">This verification session is missing or expired.</p>
             <p className="mt-2 text-xs leading-5 text-muted-foreground">
-              Open the latest verification email again, or create a new account link.
+              Open the latest verification email again, or request a new password change link from profile settings.
             </p>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Button asChild className="rounded-xl" variant="secondary">
@@ -178,12 +185,12 @@ export function CreatePasswordForm() {
             </div>
 
             <Button
-              className="h-12 w-full rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-base font-bold text-white shadow-glow hover:opacity-90"
+              className="h-12 w-full rounded-xl bg-[var(--violet)] text-base font-bold text-white hover:opacity-90"
               disabled={isSubmitting}
               type="submit"
             >
               {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-              Create password
+              {isChangeMode ? "Update password" : "Create password"}
               {!isSubmitting ? <ArrowRight className="h-5 w-5" /> : null}
             </Button>
           </form>

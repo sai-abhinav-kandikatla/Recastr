@@ -96,7 +96,7 @@ export function GenerateDrawer({
           </ControlGroup>
 
           <ControlGroup title="Content types">
-            {["Tweet", "Thread", "LinkedIn post", "Reel script", "Caption", "Shorts script"].map((type) => (
+            {["Tweet", "Thread", "LinkedIn post", "Facebook post", "Reel script", "Caption", "Shorts script"].map((type) => (
               <TogglePill
                 key={type}
                 active={contentTypes.includes(type)}
@@ -250,6 +250,9 @@ function buildGeneratedBody(
   }
   if (platform === "YouTube Shorts") {
     return `Hook: ${hook}\n\nScene 1: Show the source title.\nScene 2: Name the mistake most viewers make.\nScene 3: Give the quick fix in three beats.\nCTA: Subscribe for the full breakdown.`;
+  }
+  if (platform === "Facebook") {
+    return `${hook}\n\nMost people do not need more content. They need one useful idea translated into a format their audience already understands.\n\nUse "${title}" as the proof source, then turn it into a post people can react to, comment on, and share.\n\nWhat would you want broken down next?`;
   }
   return base.split(/\s+/).slice(0, wordCount).join(" ");
 }

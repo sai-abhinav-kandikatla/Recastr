@@ -36,20 +36,6 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   const supabase = createSupabaseServerClient();
   const fallback = getAuthFallback(canUseDemoUser);
-  let sessionUserEmail: string | undefined;
-
-  try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    sessionUserEmail = session?.user?.email;
-  } catch {
-    return fallback;
-  }
-
-  if (!sessionUserEmail) {
-    return fallback;
-  }
 
   let authUser;
   let authError;
@@ -69,14 +55,31 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   }
 
   try {
-    const dbUser = await prisma.user.upsert({
+    const dbUser = await prisma.user.findUnique({
       where: { supabaseId: authUser.id },
-      update: {
-        email: authUser.email,
-        name: authUser.user_metadata?.name,
-        avatarUrl: authUser.user_metadata?.avatar_url,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        plan: true,
       },
-      create: {
+    });
+
+    if (dbUser) {
+      return {
+        id: dbUser.id,
+        email: dbUser.email,
+        name: dbUser.name ?? undefined,
+        plan: normalizePlan(dbUser.plan),
+      };
+    }
+  } catch {
+    return getAuthUserFallback(authUser);
+  }
+
+  try {
+    const createdUser = await prisma.user.create({
+      data: {
         supabaseId: authUser.id,
         email: authUser.email,
         name: authUser.user_metadata?.name,
@@ -93,18 +96,13 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     });
 
     return {
-      id: dbUser.id,
-      email: dbUser.email,
-      name: dbUser.name ?? undefined,
-      plan: normalizePlan(dbUser.plan),
+      id: createdUser.id,
+      email: createdUser.email,
+      name: createdUser.name ?? undefined,
+      plan: normalizePlan(createdUser.plan),
     };
   } catch {
-    return {
-      id: authUser.id,
-      email: authUser.email,
-      name: authUser.user_metadata?.name,
-      plan: normalizePlan(authUser.user_metadata?.plan),
-    };
+    return getAuthUserFallback(authUser);
   }
 }
 
@@ -118,6 +116,16 @@ function normalizePlan(value: unknown): Plan {
   const plan = String(value ?? "FREE").toUpperCase();
   if (plan === "PRO" || plan === "TEAM" || plan === "AGENCY") return plan;
   return "FREE";
+}
+
+function getAuthUserFallback(authUser: { id: string; email?: string; user_metadata?: Record<string, unknown> }): CurrentUser | null {
+  if (!authUser.email) return null;
+  return {
+    id: authUser.id,
+    email: authUser.email,
+    name: typeof authUser.user_metadata?.name === "string" ? authUser.user_metadata.name : undefined,
+    plan: normalizePlan(authUser.user_metadata?.plan),
+  };
 }
 
 export async function requireCurrentUser(nextPath = "/dashboard") {

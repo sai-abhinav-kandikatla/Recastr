@@ -13,7 +13,7 @@ export function ProjectAuthGate({ project }: { project: Project }) {
 
   return (
     <section className="mx-auto flex min-h-[calc(100vh-160px)] max-w-3xl items-center justify-center px-4 py-12">
-      <div className="w-full rounded-[28px] border border-white/10 bg-card/80 p-8 text-center shadow-soft backdrop-blur-xl">
+      <div className="w-full rounded-2xl border border-white/[0.06] bg-[#0B1020] p-8 text-center shadow-soft">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--violet)] text-white">
           <LockKeyhole className="h-6 w-6" />
         </div>

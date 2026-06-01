@@ -79,6 +79,15 @@
     --linkedin: #0a66c2;
     --instagram: #e1306c;
     --youtube: #ff0000;
+
+    /* Minimal landing page palette */
+    --landing-bg: #0A0F1E;
+    --landing-fg: #F8FAFC;
+    --landing-muted: #94A3B8;
+    --landing-panel: #111827;
+    --landing-soft: #0D1324;
+    --landing-line: rgba(148, 163, 184, 0.16);
+    --landing-accent: #7C3AED;
   }
 
   .dark {
@@ -167,33 +176,12 @@
 }
 
 @layer utilities {
-  .glass-card {
-    @apply bg-card/60 backdrop-blur-xl border border-white/10 dark:border-white/5 shadow-xl shadow-black/5 dark:shadow-black/20;
-  }
-
-  .glass-panel {
-    @apply bg-background/70 backdrop-blur-2xl border border-white/10 dark:border-white/5;
-  }
-
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-violet-500 to-cyan-500;
+    @apply text-violet-400;
   }
 
   .text-gradient-purple {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-purple-500;
-  }
-
-  .aurora-bg {
-    @apply relative overflow-hidden;
-  }
-
-  .aurora-bg::before {
-    content: "";
-    @apply absolute -inset-[100%] opacity-30 dark:opacity-20 z-0;
-    background: radial-gradient(circle at 50% 50%, var(--violet) 0%, transparent 40%),
-                radial-gradient(circle at 80% 20%, var(--cyan) 0%, transparent 30%);
-    filter: blur(80px);
-    animation: rotate 20s linear infinite;
+    @apply text-violet-500;
   }
 
   .workspace-canvas {
@@ -210,7 +198,7 @@
 
   .accent-bar::before {
     content: "";
-    @apply absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-violet-500 to-cyan-500;
+    @apply absolute top-0 left-0 right-0 h-[3px] bg-violet-500;
   }
 
   .scrollbar-thin {
@@ -220,15 +208,11 @@
 
 /* Base Component Styles */
 .content-card {
-  @apply rounded-[16px] border border-border/50 bg-card text-card-foreground shadow-lg shadow-slate-900/5 transition-all duration-300;
+  @apply rounded-xl border border-white/[0.06] bg-[#0B1020] text-card-foreground shadow-lg shadow-black/10 transition-all duration-300;
 }
 
 .dark .content-card {
-  @apply border-border/40 shadow-xl shadow-black/40;
-}
-
-.glass-modal {
-  @apply bg-background/80 backdrop-blur-xl border border-white/10;
+  @apply border-white/[0.06] shadow-xl shadow-black/20;
 }
 
 /* Animations */

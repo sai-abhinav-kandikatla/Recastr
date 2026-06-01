@@ -179,7 +179,7 @@ function ContentCardAdapter({
 
 function PlatformLabel({ platform }: { platform: ContentCardPlatform }) {
   return (
-    <div className="sticky top-0 z-[5] -mx-1 bg-[#0B1020]/95 px-1 py-2 backdrop-blur">
+    <div className="sticky top-0 z-[5] -mx-1 bg-[#0B1020]/95 px-1 py-2">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span className={cn("h-2 w-2 rounded-full", platformDot(platform))} />
         <span className="font-medium text-foreground">{platformLabels[platform]}</span>

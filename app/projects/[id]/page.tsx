@@ -6,12 +6,12 @@ import { ProjectWorkspace } from "@/components/projects/project-workspace";
 import { getCurrentUser } from "@/lib/current-user";
 import { isDemoMode } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
-import { serializeProject } from "@/lib/projects/serialize";
+import { projectWorkspaceSelect, serializeProject } from "@/lib/projects/serialize";
 import { getStoredProject, listStoredProjects } from "@/lib/projects/store";
 import type { Project } from "@/lib/types";
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const project = await findProjectForMetadata(params.id);
+  const project = await findProjectMetadata(params.id);
 
   return {
     title: project ? `${project.title} - Recastr` : "Project - Recastr",
@@ -36,20 +36,21 @@ export default async function ProjectPage({ params }: { params: { id: string } }
   );
 }
 
-async function findProjectForMetadata(id: string): Promise<Project | null> {
+async function findProjectMetadata(id: string): Promise<Pick<Project, "title" | "thumbnailUrl"> | null> {
   const localProject = getStoredProject(id);
-  if (localProject) return localProject;
+  if (localProject) return { title: localProject.title, thumbnailUrl: localProject.thumbnailUrl };
   if (isDemoMode()) return null;
 
   try {
     const project = await prisma.project.findUnique({
       where: { id },
-      include: { contents: { include: { scheduledPost: true } }, hooks: true },
+      select: { title: true, thumbnailUrl: true },
     });
 
-    return project ? serializeProject(project) : null;
+    return project ? { title: project.title, thumbnailUrl: project.thumbnailUrl ?? undefined } : null;
   } catch {
-    return getStoredProject(id) ?? null;
+    const fallback = getStoredProject(id);
+    return fallback ? { title: fallback.title, thumbnailUrl: fallback.thumbnailUrl } : null;
   }
 }
 
@@ -61,7 +62,7 @@ async function findProject(id: string, userId?: string): Promise<Project | null>
   try {
     const project = await prisma.project.findFirst({
       where: { id, userId },
-      include: { contents: { include: { scheduledPost: true } }, hooks: true },
+      select: projectWorkspaceSelect,
     });
 
     return project ? serializeProject(project) : getStoredProject(id) ?? null;

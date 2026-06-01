@@ -3,7 +3,7 @@ import { SettingsPage } from "@/components/settings/settings-page";
 import { getCurrentUser } from "@/lib/current-user";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
-import { serializeProject } from "@/lib/projects/serialize";
+import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
 import type { Project } from "@/lib/types";
 
 export default async function SettingsRoute() {
@@ -24,11 +24,12 @@ async function loadProjects(userId?: string): Promise<Project[]> {
   try {
     const projects = await prisma.project.findMany({
       where: { userId },
-      include: { contents: { include: { scheduledPost: true } }, hooks: true },
+      select: projectShellSelect,
       orderBy: { createdAt: "desc" },
+      take: 8,
     });
 
-    return projects.map(serializeProject);
+    return projects.map(serializeProjectShell);
   } catch {
     return [];
   }

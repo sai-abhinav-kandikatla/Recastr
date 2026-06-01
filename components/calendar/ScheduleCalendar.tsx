@@ -27,7 +27,6 @@ import {
   Clock3,
   MailCheck,
   Plus,
-  Send,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -105,46 +104,29 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
   const dayLabel = view === "day" ? [format(cursor, "EEEE")] : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[24px] border border-white/10 bg-card/60 p-4 shadow-soft sm:p-5">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+    <div className="space-y-4">
+      <section className="rounded-[18px] border border-white/10 bg-card/45 shadow-soft">
+        <div className="flex flex-col gap-3 border-b border-white/10 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              <CalendarDays className="h-3.5 w-3.5" />
-              Schedule
+            <div className="mb-1.5 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              <CalendarDays className="h-3.5 w-3.5 text-primary" />
+              Planner
             </div>
-            <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-              Calendar and email reminders
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Plan posts by date, then Recastr sends the reminder email when it is time to publish manually.
-            </p>
+            <h2 className="truncate font-display text-xl font-semibold tracking-tight">{headingLabel}</h2>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <StatPill label="Scheduled" value={activePosts.length} />
+              <StatPill label="Today" value={todayCount} />
+              <StatPill label="Week" value={weekCount} />
+              <StatPill label="Sent" value={historyPosts.filter((post) => post.status === "NOTIFIED").length} />
+            </div>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-4 xl:min-w-[540px]">
-            <MetricCard label="Scheduled" value={activePosts.length} />
-            <MetricCard label="Today" value={todayCount} />
-            <MetricCard label="This week" value={weekCount} />
-            <MetricCard label="Email sent" value={historyPosts.filter((post) => post.status === "NOTIFIED").length} />
-          </div>
-        </div>
-      </section>
-
-      <section className="rounded-[24px] border border-white/10 bg-card/50 shadow-soft">
-        <div className="flex flex-col gap-4 border-b border-white/10 p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Current view
-            </p>
-            <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight">{headingLabel}</h2>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="inline-flex rounded-2xl border border-white/10 bg-background/50 p-1">
+          <div className="flex flex-wrap gap-2 sm:items-center lg:justify-end">
+            <div className="inline-flex rounded-xl border border-white/10 bg-background/50 p-0.5">
               {(["month", "week", "day"] as const).map((option) => (
                 <button
                   className={cn(
-                    "relative h-9 min-w-20 rounded-xl px-4 text-sm font-medium capitalize transition-colors",
+                    "relative h-8 min-w-16 rounded-lg px-3 text-xs font-semibold capitalize transition-colors",
                     view === option ? "text-white" : "text-muted-foreground hover:text-foreground",
                   )}
                   key={option}
@@ -153,7 +135,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
                 >
                   {view === option ? (
                     <motion.span
-                      className="absolute inset-0 rounded-xl bg-primary"
+                      className="absolute inset-0 rounded-lg bg-primary"
                       layoutId="schedule-view-active"
                       transition={{ duration: 0.2, ease: [0.16, 1, 0.32, 1] }}
                     />
@@ -163,10 +145,10 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
               ))}
             </div>
 
-            <div className="inline-flex rounded-2xl border border-white/10 bg-background/50 p-1">
+            <div className="inline-flex rounded-xl border border-white/10 bg-background/50 p-0.5">
               <Button
                 aria-label="Previous period"
-                className="h-9 w-9 rounded-xl"
+                className="h-8 w-8 rounded-lg"
                 onClick={() => move("prev")}
                 size="icon"
                 variant="ghost"
@@ -174,7 +156,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Button
-                className="h-9 rounded-xl px-4"
+                className="h-8 rounded-lg px-3 text-xs"
                 onClick={() => setCursor(new Date())}
                 size="sm"
                 variant="ghost"
@@ -183,7 +165,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
               </Button>
               <Button
                 aria-label="Next period"
-                className="h-9 w-9 rounded-xl"
+                className="h-8 w-8 rounded-lg"
                 onClick={() => move("next")}
                 size="icon"
                 variant="ghost"
@@ -192,25 +174,25 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
               </Button>
             </div>
 
-            <Button asChild className="h-10 rounded-xl bg-primary px-4 text-white hover:bg-primary/90">
+            <Button asChild className="h-9 rounded-lg bg-primary px-3 text-xs text-white hover:bg-primary/90">
               <Link href="/dashboard#source-ingest">
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
                 Create post
               </Link>
             </Button>
           </div>
         </div>
 
-        <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_292px]">
           <div className="min-w-0">
             <div
               className={cn(
-                "hidden border-b border-white/10 bg-muted/20 text-center text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground md:grid",
+                "hidden border-b border-white/10 bg-muted/10 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground md:grid",
                 view === "day" ? "grid-cols-1" : "grid-cols-7",
               )}
             >
               {dayLabel.map((day) => (
-                <div className="px-3 py-3" key={day}>
+                <div className="px-2 py-2" key={day}>
                   {day}
                 </div>
               ))}
@@ -236,11 +218,11 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
             </div>
           </div>
 
-          <aside className="border-t border-white/10 bg-background/30 xl:border-l xl:border-t-0">
-            <div className="space-y-5 p-4">
+          <aside className="border-t border-white/10 bg-background/25 xl:border-l xl:border-t-0">
+            <div className="space-y-4 p-3">
               <PanelBlock
                 action={
-                  <Button asChild className="h-8 rounded-lg px-3 text-xs" size="sm" variant="outline">
+                  <Button asChild className="h-7 rounded-md px-2.5 text-[11px]" size="sm" variant="outline">
                     <Link href="/tasks?tab=scheduled">Open tasks</Link>
                   </Button>
                 }
@@ -301,26 +283,27 @@ function CalendarDay({
   today: boolean;
   view: ViewMode;
 }) {
-  const visiblePosts = view === "month" ? posts.slice(0, 3) : posts;
+  const visiblePosts = view === "month" ? posts.slice(0, 2) : posts;
   const hiddenCount = posts.length - visiblePosts.length;
 
   return (
     <div
       className={cn(
-        "group min-h-[132px] border-b border-white/10 p-3 transition-colors md:border-r",
-        view === "day" && "min-h-[460px]",
-        currentMonth ? "bg-card/30 hover:bg-muted/20" : "bg-background/40 text-muted-foreground/70",
+        "group min-h-[92px] border-b border-white/10 p-2 transition-colors md:border-r",
+        view === "day" && "min-h-[320px]",
+        view === "week" && "min-h-[220px]",
+        currentMonth ? "bg-card/25 hover:bg-muted/15" : "bg-background/30 text-muted-foreground/60",
         today && "bg-primary/5",
       )}
     >
-      <div className="mb-3 flex items-start justify-between gap-2">
+      <div className="mb-1.5 flex items-start justify-between gap-2">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground md:hidden">
+          <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground md:hidden">
             {format(day, "EEE")}
           </p>
           <span
             className={cn(
-              "mt-1 flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold",
+              "mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
               today ? "bg-primary text-white" : "text-foreground",
             )}
           >
@@ -329,13 +312,13 @@ function CalendarDay({
         </div>
 
         {posts.length ? (
-          <Badge className="bg-background/70 text-muted-foreground ring-white/10" variant="muted">
+          <Badge className="h-5 rounded-full bg-background/70 px-1.5 text-[10px] text-muted-foreground ring-white/10" variant="muted">
             {posts.length}
           </Badge>
         ) : null}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         <AnimatePresence initial={false}>
           {visiblePosts.map((post, index) => (
             <motion.div
@@ -351,14 +334,14 @@ function CalendarDay({
         </AnimatePresence>
 
         {hiddenCount > 0 ? (
-          <p className="rounded-lg border border-primary/20 bg-primary/10 px-2 py-1 text-center text-xs font-medium text-primary">
+          <p className="rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-center text-[10px] font-medium text-primary">
             +{hiddenCount} more
           </p>
         ) : null}
 
         {!posts.length ? (
-          <p className="hidden rounded-lg border border-dashed border-white/10 px-2 py-3 text-center text-xs text-muted-foreground group-hover:block">
-            No reminder
+          <p className="hidden rounded-md border border-dashed border-white/10 px-2 py-2 text-center text-[10px] text-muted-foreground group-hover:block">
+            Empty
           </p>
         ) : null}
       </div>
@@ -370,13 +353,13 @@ function CalendarPostChip({ dense, post }: { dense: boolean; post: ScheduledPost
   const date = getPostDate(post);
 
   return (
-    <div className="rounded-xl border border-white/10 bg-background/80 p-2 shadow-soft transition-colors hover:border-primary/30">
+    <div className="rounded-lg border border-white/10 bg-background/65 px-2 py-1.5 transition-colors hover:border-primary/30">
       <div className="flex min-w-0 items-center gap-2">
-        <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", platformDot(post.platform))} />
-        <span className="shrink-0 font-mono text-[11px] text-muted-foreground">{format(date, "h:mm a")}</span>
-        <span className="truncate text-xs font-semibold text-foreground">{platformLabel(post.platform)}</span>
+        <span className={cn("h-2 w-2 shrink-0 rounded-full", platformDot(post.platform))} />
+        <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{format(date, "h:mm a")}</span>
+        <span className="truncate text-[11px] font-medium text-foreground">{platformLabel(post.platform)}</span>
       </div>
-      <p className={cn("mt-1 text-xs leading-5 text-muted-foreground", dense ? "line-clamp-2" : "line-clamp-4")}>
+      <p className={cn("mt-0.5 text-[11px] leading-4 text-muted-foreground", dense ? "line-clamp-1" : "line-clamp-3")}>
         {post.title}
       </p>
     </div>
@@ -387,52 +370,49 @@ function AgendaItem({ post }: { post: ScheduledPost }) {
   const date = getPostDate(post);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-background/70 p-3">
+    <div className="rounded-xl border border-white/10 bg-background/60 p-2.5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", platformDot(post.platform))} />
-          <p className="truncate text-sm font-semibold">{platformLabel(post.platform)}</p>
+          <span className={cn("h-2 w-2 shrink-0 rounded-full", platformDot(post.platform))} />
+          <p className="truncate text-xs font-semibold">{platformLabel(post.platform)}</p>
         </div>
-        <p className="shrink-0 font-mono text-xs text-muted-foreground">{format(date, "MMM d, h:mm a")}</p>
+        <p className="shrink-0 font-mono text-[10px] text-muted-foreground">{format(date, "MMM d, h:mm a")}</p>
       </div>
-      <p className="mt-2 line-clamp-2 text-sm leading-5 text-muted-foreground">{post.title}</p>
+      <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{post.title}</p>
     </div>
   );
 }
 
 function HistoryItem({ post }: { post: ScheduledPost }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-background/70 p-3">
+    <div className="rounded-xl border border-white/10 bg-background/60 p-2.5">
       <div className="mb-1 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", platformDot(post.platform))} />
-          <p className="truncate text-sm font-semibold">{platformLabel(post.platform)}</p>
+          <span className={cn("h-2 w-2 shrink-0 rounded-full", platformDot(post.platform))} />
+          <p className="truncate text-xs font-semibold">{platformLabel(post.platform)}</p>
         </div>
         <StatusPill status={post.status} />
       </div>
-      <p className="line-clamp-2 text-sm leading-5 text-muted-foreground">{post.title}</p>
+      <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{post.title}</p>
     </div>
   );
 }
 
 function EmptyPanel({ body, title }: { body: string; title: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-white/10 bg-background/50 p-5 text-center">
-      <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <Send className="h-4 w-4" />
-      </div>
-      <p className="text-sm font-semibold">{title}</p>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">{body}</p>
+    <div className="rounded-xl border border-dashed border-white/10 bg-background/40 p-3">
+      <p className="text-xs font-semibold">{title}</p>
+      <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{body}</p>
     </div>
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: number }) {
+function StatPill({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-background/50 px-4 py-3">
-      <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-      <p className="mt-1 font-display text-2xl font-semibold">{value}</p>
-    </div>
+    <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-white/10 bg-background/55 px-2.5 text-[11px]">
+      <span className="font-semibold text-foreground">{value}</span>
+      <span>{label}</span>
+    </span>
   );
 }
 
@@ -451,14 +431,14 @@ function PanelBlock({
 }) {
   return (
     <section>
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="mb-2 flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-2">
-          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-muted/50">
+          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted/45">
             {icon}
           </div>
           <div className="min-w-0">
-            <h3 className="font-semibold">{title}</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
+            <h3 className="text-sm font-semibold">{title}</h3>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{subtitle}</p>
           </div>
         </div>
         {action}

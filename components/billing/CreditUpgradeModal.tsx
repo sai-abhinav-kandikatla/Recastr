@@ -28,7 +28,7 @@ export function CreditUpgradeModal() {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 px-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0B1020] px-4">
       <div
         aria-modal="true"
         className="w-full max-w-md rounded-2xl border bg-card p-5 shadow-soft"

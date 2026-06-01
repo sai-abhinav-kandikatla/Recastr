@@ -5,8 +5,9 @@ import { ProjectIndexGrid } from "@/components/projects/ProjectIndexGrid";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
-import { serializeProject } from "@/lib/projects/serialize";
-import type { Project } from "@/lib/types";
+import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
+import type { DbProjectShell } from "@/lib/projects/serialize";
+import type { Platform, Project } from "@/lib/types";
 
 export default async function ProjectsIndexPage() {
   const user = await getCurrentUser();
@@ -22,7 +23,7 @@ export default async function ProjectsIndexPage() {
               Every source you analyze becomes a project. Go to the dashboard and paste a URL or text to create a new one.
             </p>
           </div>
-          <Button asChild className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-6 shadow-glow shrink-0">
+          <Button asChild className="rounded-full bg-[var(--violet)] text-white hover:opacity-90 px-6 shrink-0">
             <Link href="/dashboard#source-ingest">
               <Plus className="mr-2 h-4 w-4" />
               New Project
@@ -33,15 +34,15 @@ export default async function ProjectsIndexPage() {
         {projects.length ? (
           <ProjectIndexGrid projects={projects} demoLocked={user?.id === "demo-user"} />
         ) : (
-          <div className="rounded-[24px] border border-dashed border-white/20 bg-card/30 p-16 text-center glass-panel mt-8">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary shadow-glow mb-6">
+          <div className="rounded-xl border border-dashed border-white/20 bg-[#0B1020] p-16 text-center mt-8">
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 text-primary mb-6">
               <FolderOpen className="h-10 w-10" />
             </div>
             <h2 className="text-2xl font-bold font-display">No projects yet</h2>
             <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground">
               Analyze your first source from the dashboard to create a project and start generating content.
             </p>
-            <Button asChild size="lg" className="mt-8 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-8 shadow-glow transition-transform hover:scale-105">
+            <Button asChild size="lg" className="mt-8 rounded-full bg-[var(--violet)] text-white hover:opacity-90 px-8 transition-transform hover:scale-105">
               <Link href="/dashboard#source-ingest">
                 <Plus className="mr-2 h-5 w-5" />
                 Start on dashboard
@@ -60,11 +61,42 @@ async function loadProjects(userId?: string): Promise<Project[]> {
   try {
     const projects = await prisma.project.findMany({
       where: { userId },
-      include: { contents: true, hooks: true },
+      select: {
+        ...projectShellSelect,
+        contents: {
+          select: { id: true },
+        },
+      },
       orderBy: { createdAt: "desc" },
+      take: 48,
     });
-    return projects.map(serializeProject);
+    return projects.map(serializeProjectIndex);
   } catch {
     return [];
   }
+}
+
+type ProjectIndexRow = DbProjectShell & {
+  contents: Array<{ id: string }>;
+};
+
+function serializeProjectIndex(project: ProjectIndexRow): Project {
+  const shell = serializeProjectShell(project);
+  return {
+    ...shell,
+    contents: project.contents.map((content, index) => ({
+      id: content.id,
+      projectId: project.id,
+      platform: "TWITTER" as Platform,
+      contentType: "Post",
+      body: "",
+      originalBody: "",
+      tone: "casual",
+      approved: false,
+      order: index,
+      scheduledPost: null,
+      createdAt: project.createdAt.toISOString(),
+    })),
+    outputs: [],
+  };
 }

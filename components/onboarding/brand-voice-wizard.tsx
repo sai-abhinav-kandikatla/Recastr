@@ -89,7 +89,7 @@ export function BrandVoiceWizard() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 pb-12">
-      <div className="glass-panel p-6 rounded-[24px] border border-white/5 relative overflow-hidden">
+      <div className="p-6 rounded-xl border border-white/[0.06] bg-[#0B1020] relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 to-cyan-500/10 pointer-events-none" />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div>
@@ -100,12 +100,12 @@ export function BrandVoiceWizard() {
             <p className="mt-1 text-sm text-muted-foreground font-medium">Configure Recastr for your unique workflow.</p>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest bg-background/50 px-3 py-1 rounded-full border border-white/5">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest bg-[#0B1020] px-3 py-1 rounded-full border border-white/[0.06]">
               Step {Math.min(step + 1, stepTitles.length)} of {stepTitles.length}
             </span>
           </div>
         </div>
-        <div className="mt-6 h-2 overflow-hidden rounded-full bg-background/50 border border-white/5 relative z-10">
+        <div className="mt-6 h-2 overflow-hidden rounded-full bg-[#0B1020] border border-white/[0.06] relative z-10">
           <motion.div
             className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 relative"
             animate={{ width: `${((step + 1) / stepTitles.length) * 100}%` }}
@@ -116,10 +116,10 @@ export function BrandVoiceWizard() {
         </div>
       </div>
 
-      <div className="glass-card rounded-[32px] border border-white/5 bg-card/40 shadow-2xl relative overflow-hidden">
+      <div className="rounded-2xl border border-white/[0.06] bg-[#0B1020] shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-3xl rounded-full -translate-y-1/2 translate-x-1/2" />
 
-        <div className="border-b border-white/5 bg-muted/10 px-8 py-5 relative z-10">
+        <div className="border-b border-white/[0.06] bg-muted/10 px-8 py-5 relative z-10">
           <h2 className="text-xl font-bold font-display">{stepTitles[step]}</h2>
         </div>
 
@@ -136,15 +136,15 @@ export function BrandVoiceWizard() {
               {step === 0 && (
                 <div className="grid gap-8 lg:grid-cols-[1fr_300px] h-full items-center">
                   <div>
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-500 text-white shadow-glow mb-6">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--violet)] text-white mb-6">
                       <Sparkles className="h-8 w-8" />
                     </div>
-                    <h3 className="text-4xl font-bold font-display leading-[1.1] tracking-tight">Turn one source into a <span className="text-gradient">content system</span>.</h3>
+                    <h3 className="text-4xl font-bold font-display leading-[1.1] tracking-tight">Turn one source into a <span className="text-violet-400">content system</span>.</h3>
                     <p className="mt-6 text-base leading-relaxed text-muted-foreground font-medium max-w-lg">
                       In the next few steps, Recastr will learn your creator type, preferred platforms, tone, and analyze your first piece of content.
                     </p>
                   </div>
-                  <div className="rounded-[20px] border border-white/5 bg-background/50 p-6 text-sm leading-relaxed text-muted-foreground glass-panel">
+                  <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] p-6 text-sm leading-relaxed text-muted-foreground">
                     <p className="font-semibold text-foreground mb-2">How it works</p>
                     You can start with a transcript, a blog draft, or a rough idea. If you skip uploading your own source, we&apos;ll start you off with a blank workspace.
                   </div>
@@ -160,10 +160,10 @@ export function BrandVoiceWizard() {
                       <button
                         key={item.id}
                         className={cn(
-                          "rounded-[20px] border p-6 text-left transition-all relative overflow-hidden group",
+                          "rounded-xl border p-6 text-left transition-all relative overflow-hidden group",
                           active
                             ? "border-primary bg-primary/10 shadow-lg scale-[1.02]"
-                            : "border-white/5 bg-card/40 hover:border-white/20 hover:bg-card/60"
+                            : "border-white/[0.06] bg-[#0B1020] hover:border-white/20 hover:bg-card/60"
                         )}
                         onClick={() => setCreatorType(item.id)}
                         type="button"
@@ -171,7 +171,7 @@ export function BrandVoiceWizard() {
                         {active && <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />}
                         <div className={cn(
                           "h-10 w-10 rounded-[12px] flex items-center justify-center mb-4 transition-colors",
-                          active ? "bg-primary text-white shadow-glow" : "bg-muted/50 text-muted-foreground group-hover:text-foreground"
+                          active ? "bg-primary text-white" : "bg-muted/50 text-muted-foreground group-hover:text-foreground"
                         )}>
                           <Icon className="h-5 w-5" />
                         </div>
@@ -201,7 +201,7 @@ export function BrandVoiceWizard() {
                             className={cn(
                               "rounded-xl border px-5 py-3 text-sm font-bold transition-all flex items-center gap-2",
                               active
-                                ? "border-primary bg-primary text-white shadow-glow scale-105"
+                                ? "border-primary bg-primary text-white scale-105"
                                 : "border-white/10 bg-card/50 text-muted-foreground hover:bg-card hover:text-foreground"
                             )}
                             onClick={() =>
@@ -227,10 +227,10 @@ export function BrandVoiceWizard() {
                           <button
                             key={name}
                             className={cn(
-                              "rounded-[20px] border p-5 text-left transition-all relative",
+                              "rounded-xl border p-5 text-left transition-all relative",
                               active
                                 ? "border-primary bg-primary/10 shadow-md"
-                                : "border-white/5 bg-card/40 hover:border-white/20 hover:bg-card/60"
+                                : "border-white/[0.06] bg-[#0B1020] hover:border-white/20 hover:bg-card/60"
                             )}
                             onClick={() => setTone(name)}
                             type="button"
@@ -262,7 +262,7 @@ export function BrandVoiceWizard() {
                       onChange={(event) => setSource(event.target.value)}
                     />
                   </div>
-                  <div className="rounded-[24px] border border-dashed border-white/20 bg-background/30 p-8 text-center flex flex-col items-center justify-center">
+                  <div className="rounded-xl border border-dashed border-white/20 bg-[#0B1020] p-8 text-center flex flex-col items-center justify-center">
                     <div className="h-14 w-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-4">
                       <FileUp className="h-6 w-6" />
                     </div>
@@ -273,7 +273,7 @@ export function BrandVoiceWizard() {
               )}
 
               {step === 4 && (
-                <div className="rounded-[24px] border border-white/5 bg-background/50 p-8 glass-panel relative overflow-hidden">
+                <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] p-8 relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 to-cyan-500" />
                   <div className="flex items-center gap-3 mb-6">
                     <Sparkles className="h-6 w-6 text-primary" />
@@ -321,7 +321,7 @@ export function BrandVoiceWizard() {
           </AnimatePresence>
         </div>
 
-        <div className="bg-muted/10 border-t border-white/5 p-6 sm:px-10 flex items-center justify-between relative z-10">
+        <div className="bg-muted/10 border-t border-white/[0.06] p-6 sm:px-10 flex items-center justify-between relative z-10">
           <Button
             variant="outline"
             className="rounded-xl border-white/10 hover:bg-card"
@@ -341,7 +341,7 @@ export function BrandVoiceWizard() {
             </Button>
           ) : step === 4 ? (
             <Button
-              className="rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 font-bold px-8 shadow-glow"
+              className="rounded-xl bg-[var(--violet)] text-white hover:opacity-90 font-bold px-8"
               disabled={generating}
               onClick={complete}
             >
@@ -363,7 +363,7 @@ export function BrandVoiceWizard() {
 
 function SummaryPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[16px] border border-white/5 bg-card/50 p-4">
+    <div className="rounded-[16px] border border-white/[0.06] bg-[#0B1020] p-4">
       <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">{label}</p>
       <p className="text-base font-bold text-foreground">{value}</p>
     </div>

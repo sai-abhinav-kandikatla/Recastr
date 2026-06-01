@@ -247,7 +247,7 @@ export function OutputTabs({
             animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             exit={{ opacity: 0, y: -12, filter: "blur(8px)" }}
             transition={{ duration: 0.28, ease: "easeOut" }}
-            className="overflow-hidden rounded-[28px] border border-white/10 bg-navy-950/95 shadow-2xl shadow-slate-950/30 backdrop-blur"
+            className="overflow-hidden rounded-[28px] border border-white/10 bg-navy-950/95 shadow-2xl shadow-slate-950/30"
           >
             <div className={cn("h-1 bg-gradient-to-r", activeTab.accent)} />
             <div className="grid gap-6 p-5 xl:grid-cols-[minmax(0,1fr)_390px]">
@@ -340,7 +340,7 @@ function MetricPill({
   value: string;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4 backdrop-blur">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
       <div className="flex items-center gap-2 text-xs text-slate-400">
         <Icon className="h-3.5 w-3.5 text-teal-300" />
         {label}

@@ -5,6 +5,7 @@ export function toCardPlatform(platform: Platform): ContentCardPlatform {
   if (platform === "TWITTER") return "twitter";
   if (platform === "LINKEDIN") return "linkedin";
   if (platform === "INSTAGRAM" || platform === "CAROUSEL" || platform === "STORY") return "instagram";
+  if (platform === "FACEBOOK") return "facebook";
   return "youtube";
 }
 
@@ -12,11 +13,18 @@ export function fromCardPlatform(platform: ContentCardPlatform): Platform {
   if (platform === "twitter") return "TWITTER";
   if (platform === "linkedin") return "LINKEDIN";
   if (platform === "instagram") return "INSTAGRAM";
+  if (platform === "facebook") return "FACEBOOK";
   return "YOUTUBE";
 }
 
 export function normalizeSupportedPlatform(platform: Platform): Platform {
-  if (platform === "TWITTER" || platform === "LINKEDIN" || platform === "INSTAGRAM" || platform === "YOUTUBE") {
+  if (
+    platform === "TWITTER" ||
+    platform === "LINKEDIN" ||
+    platform === "INSTAGRAM" ||
+    platform === "FACEBOOK" ||
+    platform === "YOUTUBE"
+  ) {
     return platform;
   }
   if (platform === "CAROUSEL" || platform === "STORY") return "INSTAGRAM";
@@ -27,6 +35,7 @@ export function platformDot(platform: ContentCardPlatform) {
   if (platform === "twitter") return "bg-sky-500";
   if (platform === "linkedin") return "bg-[#0A66C2]";
   if (platform === "instagram") return "bg-[#E1306C]";
+  if (platform === "facebook") return "bg-[#1877F2]";
   return "bg-[#FF0000]";
 }
 

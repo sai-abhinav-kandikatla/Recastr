@@ -24,7 +24,7 @@ export function ProjectStudioTopBar({
   onGenerateToggle: () => void;
 }) {
   return (
-    <div className="sticky top-0 z-30 -mx-2 -mt-4 border-b border-white/5 bg-background/80 px-2 py-4 backdrop-blur-xl">
+    <div className="sticky top-0 z-30 -mx-2 -mt-4 border-b border-white/[0.06] bg-[#0B1020] px-2 py-4">
       <div className="flex flex-col gap-5 min-[900px]:flex-row min-[900px]:items-center">
         <div className="flex min-w-0 shrink-0 items-center gap-3">
           <Button asChild className="h-9 rounded-lg px-3" variant="ghost">

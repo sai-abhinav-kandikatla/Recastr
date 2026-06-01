@@ -10,10 +10,21 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const authorization = request.headers.get("authorization");
-    if (env.CRON_SECRET && authorization !== `Bearer ${env.CRON_SECRET}`) {
-      const user = await getRequestUser(request).catch(() => null);
-      if (!user) return err("Unauthorized cron request", "unauthorized", 401);
+    const headerSecret = request.headers.get("x-cron-secret");
+    const hasCronSecret = Boolean(env.CRON_SECRET);
+    const isAuthorizedCron = hasCronSecret && (
+      authorization === `Bearer ${env.CRON_SECRET}` ||
+      headerSecret === env.CRON_SECRET
+    );
 
+    if (!isAuthorizedCron) {
+      const user = await getRequestUser(request).catch(() => null);
+      if (!user) {
+        const message = hasCronSecret
+          ? "Unauthorized cron request"
+          : "Set CRON_SECRET in Vercel so scheduled notification cron can run securely";
+        return err(message, "unauthorized", 401);
+      }
       const result = await processDueScheduledNotifications({ userId: user.id, limit: 25 });
       return ok(result);
     }

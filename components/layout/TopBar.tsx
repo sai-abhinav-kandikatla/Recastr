@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Bell, Keyboard, Search, Settings, UserCircle, ChevronRight } from "lucide-react";
+import { ArrowLeft, Bell, Search, Settings, UserCircle, ChevronRight } from "lucide-react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +41,7 @@ export function TopBar({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 flex h-[var(--topbar-height)] items-center gap-4 border-b border-white/10 bg-[#090E1D]/95 px-4 backdrop-blur-xl sm:px-6">
+    <header className="sticky top-0 z-40 flex h-[var(--topbar-height)] items-center gap-4 border-b border-white/10 bg-[#090E1D] px-4 sm:px-6">
       {depth > 1 ? (
         <Button
           aria-label="Go back"
@@ -130,7 +130,7 @@ export function TopBar({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.15, ease: "easeOut" }}
-                  className="absolute right-0 top-12 w-64 overflow-hidden rounded-[16px] border border-border/50 bg-card/95 backdrop-blur-xl shadow-2xl origin-top-right"
+                  className="absolute right-0 top-12 w-64 overflow-hidden rounded-[16px] border border-border/50 bg-[#0B1020] shadow-2xl origin-top-right"
                 >
                   <div className="border-b border-border/50 p-4">
                     <div className="flex items-center gap-3">
@@ -155,20 +155,6 @@ export function TopBar({
                       <Settings className="h-4 w-4" />
                       Profile settings
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        onOpenCommandPalette();
-                      }}
-                      className="flex h-9 w-full items-center gap-2.5 rounded-lg px-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    >
-                      <Keyboard className="h-4 w-4" />
-                      Command menu
-                      <kbd className="ml-auto inline-flex h-5 items-center rounded border border-border/50 bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
-                        ⌘K
-                      </kbd>
-                    </button>
                   </div>
                   <div className="border-t border-border/50 p-2 bg-muted/20">
                     <LogoutButton />

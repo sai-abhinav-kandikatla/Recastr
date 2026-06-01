@@ -25,14 +25,12 @@ const previewPlatforms: PreviewPlatform[] = [
   "LINKEDIN",
   "TWITTER",
   "INSTAGRAM",
+  "FACEBOOK",
   "THREADS",
   "COMMUNITY",
 ];
 
-const fullPreviewPlatforms: PreviewPlatform[] = [
-  ...previewPlatforms,
-  "FACEBOOK",
-];
+const fullPreviewPlatforms: PreviewPlatform[] = previewPlatforms;
 
 const storageKey = "recastr-preview-preferences";
 

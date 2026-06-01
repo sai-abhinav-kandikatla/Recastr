@@ -213,7 +213,7 @@ export function TasksWorkspace({
         </p>
       </div>
 
-      <div className="flex w-full md:w-auto p-1 bg-card/40 backdrop-blur-md rounded-[16px] border border-white/5 relative z-10 glass-panel">
+      <div className="flex w-full md:w-auto p-1 bg-[#0B1020] rounded-[16px] border border-white/[0.06] relative z-10">
         {tabs.map((item) => (
           <button
             key={item.id}
@@ -290,9 +290,9 @@ function ScheduledTab({
 
   return (
     <section className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-panel p-2 px-4 rounded-[16px] border border-white/5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-2 px-4 rounded-[16px] border border-white/[0.06] bg-[#0B1020]">
         <p className="text-sm font-medium text-muted-foreground">Posts scheduled to go out.</p>
-        <div className="flex flex-wrap gap-1 bg-card/50 p-1 rounded-xl border border-white/5">
+        <div className="flex flex-wrap gap-1 bg-card/50 p-1 rounded-xl border border-white/[0.06]">
           {(["upcoming", "today", "week", "all"] as const).map((item) => (
             <button
               className={cn(
@@ -323,20 +323,20 @@ function ScheduledTab({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="rounded-[20px] border border-white/5 glass-card bg-card/40 overflow-hidden shadow-lg"
+            className="rounded-xl border border-white/[0.06] bg-[#0B1020] overflow-hidden shadow-lg"
             key={day}
           >
-            <div className="border-b border-white/5 bg-muted/20 px-5 py-3">
+            <div className="border-b border-white/[0.06] bg-muted/20 px-5 py-3">
               <p className="text-sm font-bold text-foreground">{day}</p>
             </div>
-            <div className="divide-y divide-white/5">
+            <div className="divide-y divide-white/[0.06]">
               {dayPosts.map((post) => {
                 const content = post.contentId ? contentIndex.get(post.contentId) : undefined;
                 const body = getScheduledBody(post, content);
                 return (
                   <div className="grid gap-4 px-5 py-4 md:grid-cols-[120px_140px_1fr_auto] md:items-center hover:bg-muted/10 transition-colors" key={post.id}>
                     <div className="space-y-1">
-                      <span className="inline-flex items-center gap-2 rounded-full bg-background/50 px-2.5 py-1 font-mono text-xs font-semibold border border-white/5">
+                      <span className="inline-flex items-center gap-2 rounded-full bg-background/50 px-2.5 py-1 font-mono text-xs font-semibold border border-white/[0.06]">
                         <Clock3 className="h-3 w-3 text-muted-foreground" />
                         {format(new Date(post.publishAt), "h:mma")}
                       </span>
@@ -396,21 +396,21 @@ function HistoryTab({
   }
 
   return (
-    <div className="overflow-hidden rounded-[20px] border border-white/5 glass-card bg-card/40 shadow-lg">
-      <div className="grid grid-cols-[160px_140px_1fr_120px_130px] gap-4 border-b border-white/5 bg-muted/20 px-5 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+    <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#0B1020] shadow-lg">
+      <div className="grid grid-cols-[160px_140px_1fr_120px_130px] gap-4 border-b border-white/[0.06] bg-muted/20 px-5 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
         <span>Date & time</span>
         <span>Platform</span>
         <span>Content preview</span>
         <span>Status</span>
         <span>Actions</span>
       </div>
-      <div className="divide-y divide-white/5">
+      <div className="divide-y divide-white/[0.06]">
         {posts.map((post) => {
           const content = post.contentId ? contentIndex.get(post.contentId) : undefined;
           const body = getScheduledBody(post, content);
           return (
             <div className="grid grid-cols-[160px_140px_1fr_120px_130px] gap-4 px-5 py-4 text-sm hover:bg-muted/10 transition-colors items-center" key={post.id}>
-              <span className="font-mono text-xs font-medium text-muted-foreground bg-background/50 px-2 py-1 rounded-md border border-white/5 w-max">
+              <span className="font-mono text-xs font-medium text-muted-foreground bg-background/50 px-2 py-1 rounded-md border border-white/[0.06] w-max">
                 {format(new Date(post.publishAt), "MMM d, h:mma")}
               </span>
               <span className="flex items-center gap-2 font-bold text-xs">
@@ -446,7 +446,7 @@ function HistoryTab({
           );
         })}
       </div>
-      <div className="flex items-center justify-between border-t border-white/5 px-5 py-4 text-sm text-muted-foreground bg-card/20">
+      <div className="flex items-center justify-between border-t border-white/[0.06] px-5 py-4 text-sm text-muted-foreground bg-[#0B1020]">
         <span className="font-medium">Showing {posts.length} rows</span>
         <div className="flex gap-2">
           <Button disabled size="sm" variant="secondary" className="rounded-xl h-8">Previous</Button>
@@ -606,7 +606,7 @@ async function copyScheduledContent(body: string) {
 
 function LoadingState({ label }: { label: string }) {
   return (
-    <div className="rounded-[24px] border border-white/10 bg-card/20 p-8 glass-panel">
+    <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] p-8">
       <div className="space-y-3 animate-pulse">
         <div className="h-4 w-40 rounded bg-muted" />
         <div className="h-16 rounded-xl bg-muted/60" />
@@ -631,12 +631,12 @@ function EmptyState({
   subline: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-dashed border-white/10 bg-card/20 p-12 text-center glass-panel">
-      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/5 text-primary shadow-glow mb-6">{icon}</div>
+    <div className="rounded-xl border border-dashed border-white/10 bg-[#0B1020] p-12 text-center">
+      <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/5 text-primary mb-6">{icon}</div>
       <h2 className="text-2xl font-bold font-display">{headline}</h2>
       <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground">{subline}</p>
       {actionHref && actionLabel ? (
-        <Button asChild size="lg" className="mt-8 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-8 shadow-glow transition-transform hover:scale-105">
+        <Button asChild size="lg" className="mt-8 rounded-full bg-[var(--violet)] text-white hover:opacity-90 px-8 transition-transform hover:scale-105">
           <Link href={actionHref}>{actionLabel}</Link>
         </Button>
       ) : null}

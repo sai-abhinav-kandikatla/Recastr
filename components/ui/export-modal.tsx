@@ -59,7 +59,7 @@ export function ExportModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-4 backdrop-blur">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/80 p-4">
       <Card className="w-full max-w-2xl border-white/10 bg-card/95">
         <CardHeader className="flex-row items-center justify-between border-b">
           <CardTitle>Export content pack</CardTitle>

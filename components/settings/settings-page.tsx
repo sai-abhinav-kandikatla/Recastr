@@ -9,6 +9,8 @@ import {
   Bell,
   Check,
   CreditCard,
+  KeyRound,
+  Loader2,
   Mail,
   ReceiptText,
   UserCircle,
@@ -44,6 +46,13 @@ type UsageSummary = {
   scheduled: number;
 };
 
+type UsageMetric = {
+  label: string;
+  used: number;
+  limit: number | "unlimited";
+  value: string;
+};
+
 type NotificationPreferences = {
   notifyContentReady: boolean;
   notifyWeeklyDigest: boolean;
@@ -60,6 +69,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
   const [activeTab, setActiveTab] = useState<SettingsTab>(isSettingsTab(requestedTab) ? requestedTab : "profile");
   const [interval, setInterval] = useState<"monthly" | "annual">("monthly");
   const [plan, setPlan] = useState<Plan>(currentUser?.plan ?? "FREE");
+  const [passwordChangeSending, setPasswordChangeSending] = useState(false);
   const [profile, setProfile] = useState({
     name: currentUser?.name ?? "Creator",
     email: currentUser?.email ?? "",
@@ -80,20 +90,38 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
     queryKey: ["notification-preferences"],
     queryFn: () => fetchApiData<NotificationPreferences>("/api/notifications/preferences"),
   });
-  const usage = useMemo(() => {
+  const usage = useMemo<Record<"projects" | "content" | "scheduled", UsageMetric>>(() => {
     const limit = PLAN_RULES[plan].projectLimit;
     const liveUsage = usageQuery.data;
+    const projectsUsed = liveUsage?.projects ?? 0;
+    const contentUsed = liveUsage?.contentCount ?? 0;
+    const scheduledUsed = liveUsage?.scheduled ?? 0;
     const projectValue = liveUsage
       ? limit === "unlimited"
-        ? `${liveUsage.projects} / unlimited`
-        : `${liveUsage.projects} / ${limit}`
+        ? `${projectsUsed} / unlimited`
+        : `${projectsUsed} / ${limit}`
       : limit === "unlimited"
         ? "0 / unlimited"
         : `0 / ${limit}`;
     return {
-      projects: projectValue,
-      content: `${liveUsage?.contentCount ?? 0} pieces`,
-      scheduled: `${liveUsage?.scheduled ?? 0} posts`,
+      projects: {
+        label: "Projects created",
+        used: projectsUsed,
+        limit,
+        value: projectValue,
+      },
+      content: {
+        label: "Content generated",
+        used: contentUsed,
+        limit: getUsageSoftLimit(contentUsed, plan === "FREE" ? 25 : plan === "PRO" ? 500 : 1000),
+        value: `${contentUsed} ${contentUsed === 1 ? "piece" : "pieces"}`,
+      },
+      scheduled: {
+        label: "Scheduled posts",
+        used: scheduledUsed,
+        limit: getUsageSoftLimit(scheduledUsed, plan === "FREE" ? 10 : plan === "PRO" ? 200 : 500),
+        value: `${scheduledUsed} ${scheduledUsed === 1 ? "post" : "posts"}`,
+      },
     };
   }, [plan, usageQuery.data]);
 
@@ -133,6 +161,26 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
     toast.success("Notification preference saved");
   }
 
+  async function requestPasswordChange() {
+    setPasswordChangeSending(true);
+    try {
+      const response = await fetch("/api/auth/request-password-change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope<{ email: string }> | null;
+
+      if (!response.ok || payload?.error) {
+        toast.error(payload?.error?.message ?? "Could not send password verification email");
+        return;
+      }
+
+      toast.success("Password change email sent. Open the verified link in your inbox.");
+    } finally {
+      setPasswordChangeSending(false);
+    }
+  }
+
   return (
     <div className="space-y-8 pb-10">
       <div>
@@ -145,7 +193,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 rounded-[16px] border border-white/5 bg-card/40 backdrop-blur-md p-1.5 glass-panel">
+      <div className="flex flex-wrap gap-2 rounded-[16px] border border-white/[0.06] bg-[#0B1020] p-1.5">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -182,14 +230,14 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
           transition={{ duration: 0.2 }}
         >
           {activeTab === "profile" && (
-            <div className="rounded-[24px] border border-white/5 glass-card bg-card/40 shadow-xl overflow-hidden">
-              <div className="border-b border-white/5 bg-muted/10 px-6 py-4 flex items-center gap-2">
+            <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] shadow-xl overflow-hidden">
+              <div className="border-b border-white/[0.06] bg-muted/10 px-6 py-4 flex items-center gap-2">
                 <UserCircle className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-bold font-display">Profile Settings</h2>
               </div>
               <div className="p-6 sm:p-8 space-y-8">
                 <div className="flex items-center gap-6">
-                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-2xl font-bold text-white shadow-glow">
+                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-[var(--violet)] text-2xl font-bold text-white">
                     {profile.name.slice(0, 1).toUpperCase() || "C"}
                   </div>
                   <div>
@@ -247,7 +295,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                   </Field>
                 </div>
 
-                <div className="pt-4 border-t border-white/5">
+                <div className="pt-4 border-t border-white/[0.06]">
                   <p className="mb-1 text-sm font-semibold">Content formats</p>
                   <p className="mb-3 text-xs text-muted-foreground">
                     Choose what Recastr generates. Publishing connections are managed separately.
@@ -262,11 +310,37 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                   </div>
                 </div>
 
+                <div className="rounded-[18px] border border-white/10 bg-muted/10 p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <KeyRound className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">Change password</p>
+                        <p className="mt-1 max-w-xl text-xs leading-5 text-muted-foreground">
+                          For security, Recastr sends a verified link to your account email before allowing a password change.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      className="rounded-full"
+                      disabled={passwordChangeSending || !profile.email}
+                      onClick={() => void requestPasswordChange()}
+                      type="button"
+                      variant="secondary"
+                    >
+                      {passwordChangeSending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                      {passwordChangeSending ? "Sending..." : "Verify by email"}
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="pt-4 flex justify-end">
                   <Button
                     onClick={() => toast.success("Profile updated")}
                     size="lg"
-                    className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-8 shadow-glow transition-transform hover:scale-105"
+                    className="rounded-full bg-[var(--violet)] text-white hover:opacity-90 px-8 transition-transform hover:scale-105"
                   >
                     Save changes
                   </Button>
@@ -277,13 +351,13 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
 
           {activeTab === "billing" && (
             <div className="grid gap-6 xl:grid-cols-[1fr_420px]">
-              <div className="rounded-[24px] border border-white/5 glass-card bg-card/40 shadow-xl overflow-hidden h-fit">
-                <div className="border-b border-white/5 bg-muted/10 px-6 py-4 flex items-center gap-2">
+              <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] shadow-xl overflow-hidden h-fit">
+                <div className="border-b border-white/[0.06] bg-muted/10 px-6 py-4 flex items-center gap-2">
                   <CreditCard className="h-5 w-5 text-primary" />
                   <h2 className="text-lg font-bold font-display">Current Plan</h2>
                 </div>
                 <div className="p-6 sm:p-8 space-y-8">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-[20px] border border-white/5 bg-gradient-to-br from-primary/10 to-transparent p-6 relative overflow-hidden">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-gradient-to-br from-primary/10 to-transparent p-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 h-32 w-32 bg-primary/20 blur-[50px] -translate-y-1/2 translate-x-1/4 rounded-full" />
                     <div className="relative z-10">
                       <p className="text-sm font-semibold uppercase tracking-wider text-primary">Your Plan</p>
@@ -295,14 +369,14 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
 
                   <div className="space-y-6">
                     <h3 className="font-semibold">Usage this billing cycle</h3>
-                    <UsageBar label="Projects created" value={usage.projects}  />
-                    <UsageBar label="Content generated" value={usage.content}  />
-                    <UsageBar label="Scheduled posts" value={usage.scheduled}  />
+                    <UsageBar metric={usage.projects} />
+                    <UsageBar metric={usage.content} />
+                    <UsageBar metric={usage.scheduled} />
                   </div>
 
                   <div>
                     <h3 className="font-semibold mb-4">Billing History</h3>
-                    <div className="rounded-[16px] border border-dashed border-white/10 bg-card/30 px-5 py-8 text-center">
+                    <div className="rounded-[16px] border border-dashed border-white/10 bg-[#0B1020] px-5 py-8 text-center">
                       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                         <ReceiptText className="h-5 w-5" />
                       </div>
@@ -315,8 +389,8 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                 </div>
               </div>
 
-              <div className="rounded-[24px] border border-white/5 glass-card bg-card/40 shadow-xl overflow-hidden h-fit">
-                <div className="border-b border-white/5 bg-muted/10 px-6 py-4 flex items-center justify-between">
+              <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] shadow-xl overflow-hidden h-fit">
+                <div className="border-b border-white/[0.06] bg-muted/10 px-6 py-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-primary" />
                     <h2 className="text-lg font-bold font-display">Upgrade</h2>
@@ -342,7 +416,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                     return (
                       <div className={cn(
                         "rounded-[16px] border p-5 transition-all relative overflow-hidden",
-                        isCurrent ? "border-primary/50 bg-primary/5" : "border-white/5 bg-card/50 hover:border-white/20"
+                        isCurrent ? "border-primary/50 bg-primary/5" : "border-white/[0.06] bg-card/50 hover:border-white/20"
                       )} key={planName}>
                         {isCurrent && <div className="absolute top-0 right-0 w-16 h-16 bg-primary/20 blur-2xl rounded-full" />}
                         <div className="flex items-start justify-between relative z-10">
@@ -369,7 +443,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                             </Button>
                           ) : (
                             <RazorpayButton
-                              className="w-full rounded-xl font-bold shadow-glow"
+                              className="w-full rounded-xl font-bold"
                               interval={interval}
                               label={isCurrent ? "Manage plan" : `Upgrade to ${rule.label}`}
                               onSuccess={() => setPlan(planName)}
@@ -386,12 +460,12 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
           )}
 
           {activeTab === "notifications" && (
-            <div className="rounded-[24px] border border-white/5 glass-card bg-card/40 shadow-xl overflow-hidden max-w-3xl">
-              <div className="border-b border-white/5 bg-muted/10 px-6 py-4 flex items-center gap-2">
+            <div className="rounded-xl border border-white/[0.06] bg-[#0B1020] shadow-xl overflow-hidden max-w-3xl">
+              <div className="border-b border-white/[0.06] bg-muted/10 px-6 py-4 flex items-center gap-2">
                 <Mail className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-bold font-display">Email Preferences</h2>
               </div>
-              <div className="divide-y divide-white/5">
+              <div className="divide-y divide-white/[0.06]">
                 {[
                   ["notifyContentReady", "Email when content is ready", "Send an email after an analysis or generation job finishes."],
                   ["notifyWeeklyDigest", "Weekly digest email", "Summarize usage, exports, and scheduled content every week."],
@@ -441,20 +515,36 @@ function Field({ children, label }: { children: ReactNode; label: string }) {
   );
 }
 
-function UsageBar({ label, value }: { label: string; value: string }) {
+function UsageBar({ metric }: { metric: UsageMetric }) {
+  const percent = metric.limit === "unlimited"
+    ? getUnlimitedUsagePercent(metric.used)
+    : Math.min(100, Math.round((metric.used / Math.max(metric.limit, 1)) * 100));
+
   return (
     <div>
       <div className="mb-2 flex items-center justify-between text-sm font-medium">
-        <span>{label}</span>
-        <span className="text-muted-foreground">{value}</span>
+        <span>{metric.label}</span>
+        <span className="text-muted-foreground">{metric.value}</span>
       </div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-muted/50 border border-white/5">
-        <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 relative">
-          <div className="absolute inset-0 bg-white/20 w-full animate-shimmer" />
+      <div className="h-2.5 overflow-hidden rounded-full bg-muted/50 border border-white/[0.06]">
+        <div
+          className="relative h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 transition-[width] duration-500 ease-out"
+          style={{ width: `${percent}%` }}
+        >
+          <div className="absolute inset-0 bg-white/20 animate-shimmer" />
         </div>
       </div>
     </div>
   );
+}
+
+function getUsageSoftLimit(used: number, fallback: number) {
+  return Math.max(fallback, used || 1);
+}
+
+function getUnlimitedUsagePercent(used: number) {
+  if (used <= 0) return 0;
+  return Math.min(100, Math.max(8, Math.round((used / Math.max(used * 1.5, 10)) * 100)));
 }
 
 function isSettingsTab(value: string | null): value is SettingsTab {

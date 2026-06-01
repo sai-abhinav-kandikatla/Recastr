@@ -4,6 +4,7 @@ export const PLATFORM_CHARACTER_LIMITS = {
   TWITTER: 280,
   LINKEDIN: 3000,
   INSTAGRAM: 2200,
+  FACEBOOK: 63206,
   YOUTUBE: 500,
   COMMUNITY: 500,
 } as const;
@@ -17,6 +18,7 @@ export function getPlatformCharacterLimit(platform: Platform | string) {
   if (normalized === "INSTAGRAM" || normalized === "CAROUSEL" || normalized === "STORY") {
     return PLATFORM_CHARACTER_LIMITS.INSTAGRAM;
   }
+  if (normalized === "FACEBOOK") return PLATFORM_CHARACTER_LIMITS.FACEBOOK;
   return PLATFORM_CHARACTER_LIMITS.YOUTUBE;
 }
 

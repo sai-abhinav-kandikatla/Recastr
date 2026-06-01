@@ -26,7 +26,7 @@ import { getPlatformCharacterLimit } from "@/lib/platform-limits";
 import type { PreviewPlatform } from "@/lib/preview-content";
 import { cn } from "@/lib/utils";
 
-export type ContentCardPlatform = "twitter" | "linkedin" | "instagram" | "youtube";
+export type ContentCardPlatform = "twitter" | "linkedin" | "instagram" | "facebook" | "youtube";
 
 export interface ContentCardProps {
   id: string;
@@ -70,6 +70,12 @@ const platformMeta: Record<
     dot: "bg-[var(--platform-instagram)]",
     accent: "border-l-[var(--platform-instagram)]",
     limit: getPlatformCharacterLimit("INSTAGRAM"),
+  },
+  facebook: {
+    label: "Facebook",
+    dot: "bg-[#1877F2]",
+    accent: "border-l-[#1877F2]",
+    limit: getPlatformCharacterLimit("FACEBOOK"),
   },
   youtube: {
     label: "YouTube",
@@ -546,7 +552,6 @@ function SchedulePicker({
               max={59}
               min={0}
               onChange={setMinute}
-              step={5}
               value={minute}
             />
           </div>
@@ -609,6 +614,7 @@ function NumberStepper({
 function toPreviewPlatform(platform: ContentCardPlatform): PreviewPlatform {
   if (platform === "linkedin") return "LINKEDIN";
   if (platform === "instagram") return "INSTAGRAM";
+  if (platform === "facebook") return "FACEBOOK";
   if (platform === "youtube") return "COMMUNITY";
   return "TWITTER";
 }

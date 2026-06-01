@@ -3,7 +3,7 @@ import { ScheduleCalendar } from "@/components/calendar/ScheduleCalendar";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
 import { listStoredScheduledPosts } from "@/lib/projects/store";
-import { serializeProject } from "@/lib/projects/serialize";
+import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
 import type { Platform, PostStatus, Project, ScheduledPost } from "@/lib/types";
 
 export default async function SchedulePage() {
@@ -27,8 +27,9 @@ async function loadScheduleData(userId?: string): Promise<{
   const [projects, scheduledPosts] = await Promise.all([
     prisma.project.findMany({
       where: { userId },
-      include: { contents: true, hooks: true },
+      select: projectShellSelect,
       orderBy: { createdAt: "desc" },
+      take: 8,
     }),
     prisma.scheduledPost.findMany({
       where: { userId },
@@ -40,7 +41,7 @@ async function loadScheduleData(userId?: string): Promise<{
   const localScheduledPosts = process.env.NODE_ENV !== "production" ? listStoredScheduledPosts() : [];
 
   return {
-    projects: projects.map(serializeProject),
+    projects: projects.map(serializeProjectShell),
     scheduledPosts: [
       ...scheduledPosts.map((post) => ({
         id: post.id,

@@ -3,8 +3,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { GeneratePanel } from "@/components/projects/generate-panel";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
-import { serializeProject } from "@/lib/projects/serialize";
-import type { DbProjectWithContent } from "@/lib/projects/serialize";
+import { projectWorkspaceSelect, serializeProject } from "@/lib/projects/serialize";
+import type { DbProjectWorkspace } from "@/lib/projects/serialize";
 import type { Project } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -25,16 +25,16 @@ async function findProject(id: string, userId?: string): Promise<Project | null>
   if (!userId) return null;
   if (!userId) return null;
 
-  const timeout = new Promise<DbProjectWithContent | null>((_, reject) =>
+  const timeout = new Promise<DbProjectWorkspace | null>((_, reject) =>
     setTimeout(() => reject(new Error("DB Timeout")), 2000),
   );
   try {
-    const project = await Promise.race<DbProjectWithContent | null>([
+    const project = await Promise.race<DbProjectWorkspace | null>([
       prisma.project.findFirst({
         where: { id, userId },
-        include: { contents: true, hooks: true },
+        select: projectWorkspaceSelect,
       }),
-      timeout
+      timeout,
     ]);
 
     if (project) return serializeProject(project);

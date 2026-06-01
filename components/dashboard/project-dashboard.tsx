@@ -77,7 +77,7 @@ export function ProjectDashboard({
         <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">{greeting}</p>
         <h1 className="text-3xl font-bold font-display tracking-tight sm:text-4xl">
           {contentCount ? (
-            <>{firstName}, you have <span className="text-gradient">{contentCount} pieces</span> ready.</>
+            <>{firstName}, you have <span className="text-violet-400">{contentCount} pieces</span> ready.</>
           ) : (
             <>{firstName}, paste a source below to get started.</>
           )}
@@ -88,7 +88,7 @@ export function ProjectDashboard({
         {metrics.map(({ icon: Icon, label, trend, value, color }, index) => (
           <motion.div
             animate={{ opacity: 1, y: 0 }}
-            className="group relative overflow-hidden rounded-[20px] glass-card p-5"
+            className="group relative overflow-hidden rounded-xl border border-white/[0.06] bg-[#0B1020] p-5"
             initial={{ opacity: 0, y: 20 }}
             key={label}
             transition={{ delay: index * 0.08, duration: 0.4, ease: "easeOut" }}
@@ -122,9 +122,9 @@ export function ProjectDashboard({
         </div>
       ) : null}
 
-      <section id="source-ingest" className="relative rounded-[24px] border border-white/5 bg-card/40 backdrop-blur-md p-1 shadow-lg scroll-mt-24">
-        <div className="absolute inset-0 rounded-[24px] bg-gradient-to-br from-primary/5 via-transparent to-cyan-500/5 pointer-events-none" />
-        <div className="relative z-10 bg-card rounded-[20px] p-6 sm:p-8">
+      <section id="source-ingest" className="relative rounded-xl border border-white/[0.06] bg-[#0B1020] p-1 shadow-lg scroll-mt-24">
+        <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 via-transparent to-cyan-500/5 pointer-events-none" />
+        <div className="relative z-10 bg-card rounded-xl p-6 sm:p-8">
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -188,7 +188,7 @@ export function ProjectDashboard({
               >
                 <button
                   type="button"
-                  className="group relative flex h-full flex-col overflow-hidden rounded-[20px] glass-card p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-glow"
+                  className="group relative flex h-full flex-col overflow-hidden rounded-xl border border-white/[0.06] bg-[#0B1020] p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-primary/30"
                   onClick={() => {
                     if (demoLocked) {
                       setSelectedProjectTitle(project.title);
@@ -229,8 +229,8 @@ export function ProjectDashboard({
             ))}
           </div>
         ) : (
-          <div className="rounded-[24px] border border-dashed border-white/20 bg-card/30 p-12 text-center glass-panel">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary shadow-glow mb-6">
+          <div className="rounded-xl border border-dashed border-white/20 bg-[#0B1020] p-12 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary mb-6">
               <FolderOpen className="h-8 w-8" />
             </div>
             <h3 className="text-2xl font-bold font-display">No projects yet</h3>
@@ -240,7 +240,7 @@ export function ProjectDashboard({
             <div className="mt-8 flex justify-center">
               <Button
                 size="lg"
-                className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 text-white hover:opacity-90 px-8 shadow-glow"
+                className="rounded-full bg-[var(--violet)] text-white hover:opacity-90 px-8"
                 onClick={() => document.getElementById("source-ingest")?.scrollIntoView({ behavior: "smooth", block: "center" })}
               >
                 <Plus className="mr-2 h-5 w-5" />

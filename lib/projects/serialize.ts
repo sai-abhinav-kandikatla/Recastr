@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type {
   ContentPiece,
   Platform,
@@ -69,6 +70,73 @@ export type DbProjectWithContent = {
   createdAt: Date;
   updatedAt?: Date;
 };
+
+export const projectShellSelect = {
+  id: true,
+  userId: true,
+  title: true,
+  sourceType: true,
+  sourceUrl: true,
+  thumbnailUrl: true,
+  duration: true,
+  wordCount: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.ProjectSelect;
+
+export type DbProjectShell = Prisma.ProjectGetPayload<{ select: typeof projectShellSelect }>;
+
+export const projectContentSelect = {
+  id: true,
+  projectId: true,
+  hookId: true,
+  platform: true,
+  contentType: true,
+  body: true,
+  originalBody: true,
+  tone: true,
+  approved: true,
+  order: true,
+  createdAt: true,
+  scheduledPost: {
+    select: {
+      id: true,
+      contentId: true,
+      platform: true,
+      scheduledAt: true,
+      status: true,
+      publishedAt: true,
+      failReason: true,
+    },
+  },
+} satisfies Prisma.ContentSelect;
+
+export const projectHookSelect = {
+  id: true,
+  projectId: true,
+  text: true,
+  hookType: true,
+  reachScore: true,
+} satisfies Prisma.HookSelect;
+
+export const projectWorkspaceSelect = {
+  ...projectShellSelect,
+  summary: true,
+  contents: {
+    select: projectContentSelect,
+    orderBy: { order: "asc" },
+  },
+  hooks: {
+    select: projectHookSelect,
+    orderBy: { reachScore: "desc" },
+  },
+} satisfies Prisma.ProjectSelect;
+
+export type DbProjectWorkspace = Prisma.ProjectGetPayload<{ select: typeof projectWorkspaceSelect }>;
+
+export function serializeProjectShell(project: DbProjectShell): Project {
+  return serializeProject(project);
+}
 
 export function serializeProject(project: DbProjectWithContent): Project {
   const contents = (project.contents ?? project.outputs ?? []).map(serializeContent);

@@ -39,7 +39,7 @@ export function FacebookPreview({
               </div>
               <p className="flex items-center gap-1 text-[12px] text-[#65676b] dark:text-[#b0b3b8]">
                 2h
-                <span>•</span>
+                <span aria-hidden="true">&middot;</span>
                 <Earth className="h-3 w-3" />
               </p>
             </div>

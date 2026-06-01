@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 export function VerifyEmailBanner({ email }: { email?: string }) {
   return (
     <main className="grid min-h-screen place-items-center bg-background px-6 text-foreground">
-      <section className="w-full max-w-lg overflow-hidden rounded-[28px] border border-white/10 bg-card/70 p-8 text-center shadow-soft backdrop-blur-xl">
+      <section className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0B1020] p-8 text-center shadow-soft">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
           <MailCheck className="h-7 w-7" />
         </div>

@@ -3,7 +3,7 @@ import { TasksWorkspace } from "@/components/tasks/tasks-workspace";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
 import { listStoredScheduledPosts } from "@/lib/projects/store";
-import { serializeProject } from "@/lib/projects/serialize";
+import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
 import type { Platform, PostStatus, Project, ScheduledPost } from "@/lib/types";
 
 export default async function TasksPage() {
@@ -27,8 +27,9 @@ async function loadTasksData(userId?: string): Promise<{
   const [projects, scheduledPosts] = await Promise.all([
     prisma.project.findMany({
       where: { userId },
-      include: { contents: { include: { scheduledPost: true } }, hooks: true },
+      select: projectShellSelect,
       orderBy: { createdAt: "desc" },
+      take: 8,
     }),
     prisma.scheduledPost.findMany({
       where: { userId },
@@ -40,7 +41,7 @@ async function loadTasksData(userId?: string): Promise<{
   const localScheduledPosts = process.env.NODE_ENV !== "production" ? listStoredScheduledPosts() : [];
 
   return {
-    projects: projects.map(serializeProject),
+    projects: projects.map(serializeProjectShell),
     scheduledPosts: [
       ...scheduledPosts.map((post) => ({
         id: post.id,
