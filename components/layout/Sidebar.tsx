@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   CalendarDays,
   Folder,
@@ -37,16 +37,53 @@ export function Sidebar({
   const pathname = usePathname();
   const scheduledCount = useScheduledCount(Boolean(user));
   const [tasksPeekOpen, setTasksPeekOpen] = useState(false);
+  const [tasksPeekPosition, setTasksPeekPosition] = useState<{ left: number; top: number } | null>(null);
+  const tasksLinkRef = useRef<HTMLDivElement | null>(null);
+  const tasksPeekTimerRef = useRef<number | null>(null);
   // Fallback to minimal state if no user, removing "Demo creator" hardcoding
   const displayName = user?.name ?? user?.email?.split("@")[0] ?? "Creator";
   const plan = user?.plan ?? "FREE";
 
+  function clearTasksPeekTimer() {
+    if (tasksPeekTimerRef.current) {
+      window.clearTimeout(tasksPeekTimerRef.current);
+      tasksPeekTimerRef.current = null;
+    }
+  }
+
+  function openTasksPeek(autoClose = false) {
+    clearTasksPeekTimer();
+    const rect = tasksLinkRef.current?.getBoundingClientRect();
+    if (rect) {
+      setTasksPeekPosition({
+        left: rect.right + 10,
+        top: rect.top + rect.height / 2,
+      });
+    }
+    setTasksPeekOpen(true);
+
+    if (autoClose) {
+      tasksPeekTimerRef.current = window.setTimeout(() => setTasksPeekOpen(false), 2400);
+    }
+  }
+
   useEffect(() => {
     if (!pathname.startsWith("/tasks")) return;
+    const rect = tasksLinkRef.current?.getBoundingClientRect();
+    if (rect) {
+      setTasksPeekPosition({
+        left: rect.right + 10,
+        top: rect.top + rect.height / 2,
+      });
+    }
     setTasksPeekOpen(true);
-    const timeout = window.setTimeout(() => setTasksPeekOpen(false), 2200);
+    const timeout = window.setTimeout(() => setTasksPeekOpen(false), 2400);
     return () => window.clearTimeout(timeout);
   }, [pathname, scheduledCount]);
+
+  useEffect(() => {
+    return () => clearTasksPeekTimer();
+  }, []);
 
   return (
     <>
@@ -63,31 +100,30 @@ export function Sidebar({
 
         <nav className="space-y-1.5 px-3 py-6">
           {navItems.map((item) => (
-            <SidebarLink
+            <div
               key={`${item.href}-${item.label}`}
-              active={isActive(pathname, item.href, item.label)}
-              badge={item.id === "tasks" ? scheduledCount : 0}
-              href={item.href}
-              icon={item.icon}
-              label={item.label}
-              onClick={() => {
-                if (item.id === "tasks") {
-                  setTasksPeekOpen(true);
-                  window.setTimeout(() => setTasksPeekOpen(false), 2200);
-                }
-              }}
+              ref={item.id === "tasks" ? tasksLinkRef : undefined}
               onMouseEnter={() => {
-                if (item.id === "tasks") setTasksPeekOpen(true);
+                if (item.id === "tasks") openTasksPeek();
               }}
               onMouseLeave={() => {
                 if (item.id === "tasks" && !pathname.startsWith("/tasks")) setTasksPeekOpen(false);
               }}
-              popover={
-                item.id === "tasks" && tasksPeekOpen ? (
-                  <TasksSchedulePeek scheduledCount={scheduledCount} />
-                ) : null
-              }
-            />
+            >
+              <SidebarLink
+                active={isActive(pathname, item.href, item.label)}
+                badge={item.id === "tasks" ? scheduledCount : 0}
+                href={item.href}
+                icon={item.icon}
+                label={item.label}
+                onClick={() => {
+                  if (item.id === "tasks") openTasksPeek(true);
+                }}
+                onFocus={() => {
+                  if (item.id === "tasks") openTasksPeek();
+                }}
+              />
+            </div>
           ))}
         </nav>
 
@@ -159,6 +195,16 @@ export function Sidebar({
         </div>
       </aside>
 
+      <AnimatePresence>
+        {tasksPeekOpen && tasksPeekPosition ? (
+          <TasksSchedulePeek
+            left={tasksPeekPosition.left}
+            scheduledCount={scheduledCount}
+            top={tasksPeekPosition.top}
+          />
+        ) : null}
+      </AnimatePresence>
+
       {/* Mobile Bottom Nav */}
       <nav className="fixed inset-x-0 bottom-0 z-50 grid h-16 grid-cols-5 border-t border-[var(--app-line)] bg-[var(--app-bg)] px-2 lg:hidden">
         {navItems.map((item) => {
@@ -210,9 +256,7 @@ function SidebarLink({
   label,
   badge = 0,
   onClick,
-  onMouseEnter,
-  onMouseLeave,
-  popover,
+  onFocus,
 }: {
   active: boolean;
   href: string;
@@ -220,18 +264,14 @@ function SidebarLink({
   label: string;
   badge?: number;
   onClick?: () => void;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
-  popover?: ReactNode;
+  onFocus?: () => void;
 }) {
   return (
     <Link
       href={href}
       title={label}
       onClick={onClick}
-      onFocus={onMouseEnter}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onFocus={onFocus}
       className={cn(
         "relative flex h-10 items-center gap-3 rounded-[10px] px-3 text-[14px] font-medium transition-all duration-200 group overflow-visible",
         active
@@ -258,24 +298,39 @@ function SidebarLink({
         </span>
       ) : null}
 
-      {popover}
-
       {/* Hover background effect */}
       {!active ? <div className="absolute inset-0 rounded-[10px] opacity-0 transition-opacity group-hover:opacity-100" /> : null}
     </Link>
   );
 }
 
-function TasksSchedulePeek({ scheduledCount }: { scheduledCount: number }) {
+function TasksSchedulePeek({
+  left,
+  scheduledCount,
+  top,
+}: {
+  left: number;
+  scheduledCount: number;
+  top: number;
+}) {
   return (
-    <span className="pointer-events-none absolute left-12 top-[calc(100%+6px)] z-50 hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] px-3 py-2 text-left shadow-2xl lg:block">
+    <motion.div
+      animate={{ opacity: 1, scale: 1, x: 0 }}
+      className="fixed z-[90] hidden -translate-y-1/2 rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] px-3 py-2 text-left shadow-2xl lg:block"
+      exit={{ opacity: 0, scale: 0.98, x: -4 }}
+      initial={{ opacity: 0, scale: 0.98, x: -4 }}
+      style={{ left, top }}
+      transition={{ duration: 0.16, ease: "easeOut" }}
+    >
       <span className="block whitespace-nowrap text-xs font-semibold text-foreground">
-        {scheduledCount} scheduled {scheduledCount === 1 ? "task" : "tasks"}
+        {scheduledCount === 0
+          ? "No scheduled tasks"
+          : `${scheduledCount} scheduled ${scheduledCount === 1 ? "task" : "tasks"}`}
       </span>
       <span className="mt-0.5 block whitespace-nowrap text-[11px] text-muted-foreground">
-        Click to open schedule queue
+        Click Tasks to open reminders
       </span>
-    </span>
+    </motion.div>
   );
 }
 
