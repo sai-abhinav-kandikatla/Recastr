@@ -37,21 +37,51 @@ function normalizeSupabaseUrl(value: string | undefined) {
 
 function normalizeAppUrl(value: string | undefined) {
   const stripped = stripEnvValue(value);
+  const vercelUrl = getVercelAppUrl();
   const candidate = stripped
     ? /^https?:\/\//i.test(stripped)
       ? stripped
       : `https://${stripped}`
-    : "http://localhost:3000";
+    : vercelUrl ?? "http://localhost:3000";
 
   try {
-    return new URL(candidate).origin;
+    const origin = new URL(candidate).origin;
+    if (process.env.NODE_ENV === "production" && isLocalAppOrigin(origin)) {
+      const vercelOrigin = vercelUrl ? new URL(vercelUrl).origin : null;
+      if (vercelOrigin && !isLocalAppOrigin(vercelOrigin)) return vercelOrigin;
+    }
+    return origin;
   } catch {
+    if (process.env.NODE_ENV === "production" && vercelUrl) {
+      try {
+        return new URL(vercelUrl).origin;
+      } catch {
+        return "https://recastr.vercel.app";
+      }
+    }
     return "http://localhost:3000";
   }
 }
 
 function stripEnvValue(value: string | undefined) {
   return value?.trim().replace(/^['"]|['"]$/g, "");
+}
+
+function getVercelAppUrl() {
+  const productionUrl = stripEnvValue(process.env.VERCEL_PROJECT_PRODUCTION_URL);
+  const deploymentUrl = stripEnvValue(process.env.VERCEL_URL);
+  const candidate = productionUrl ?? deploymentUrl;
+  if (!candidate) return undefined;
+  return /^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`;
+}
+
+function isLocalAppOrigin(value: string) {
+  try {
+    const hostname = new URL(value).hostname;
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0";
+  } catch {
+    return false;
+  }
 }
 
 export const env = envSchema.parse({

@@ -162,8 +162,6 @@ export async function sendScheduledPostNotificationEmail({
       `,
       ctaHref: `${env.appUrl}/tasks?tab=scheduled`,
       ctaLabel: "View scheduled posts",
-      secondaryCtaHref: `mailto:?subject=${encodeURIComponent(`Scheduled ${platform} post`)}&body=${encodeURIComponent(postBody)}`,
-      secondaryCtaLabel: "Open content in email draft",
     }),
   });
 }

@@ -577,10 +577,42 @@ function NumberStepper({
   step?: number;
   value: number;
 }) {
+  const [draft, setDraft] = useState(() => formatStepperValue(value));
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) setDraft(formatStepperValue(value));
+  }, [isFocused, value]);
+
   function clamp(next: number) {
     if (next > max) return min;
     if (next < min) return max;
     return next;
+  }
+
+  function commit(rawValue = draft) {
+    const parsed = Number.parseInt(rawValue, 10);
+    const next = Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : value;
+    setDraft(formatStepperValue(next));
+    onChange(next);
+  }
+
+  function handleTypedValue(rawValue: string) {
+    const cleaned = rawValue.replace(/\D/g, "").slice(0, 2);
+    setDraft(cleaned);
+
+    if (cleaned === "") return;
+
+    const parsed = Number.parseInt(cleaned, 10);
+    if (Number.isFinite(parsed) && parsed >= min && parsed <= max) {
+      onChange(parsed);
+    }
+  }
+
+  function handleStep(next: number) {
+    const clamped = clamp(next);
+    setDraft(formatStepperValue(clamped));
+    onChange(clamped);
   }
 
   return (
@@ -590,16 +622,46 @@ function NumberStepper({
         <button
           aria-label={`Decrease ${label.toLowerCase()}`}
           className="h-full px-3 text-muted-foreground transition hover:text-foreground"
-          onClick={() => onChange(clamp(value - step))}
+          onClick={() => handleStep(value - step)}
           type="button"
         >
           -
         </button>
-        <span className="font-mono text-sm font-semibold">{String(value).padStart(2, "0")}</span>
+        <input
+          aria-label={label}
+          className="h-full w-10 border-0 bg-transparent p-0 text-center font-mono text-sm font-semibold outline-none focus:text-[var(--violet)]"
+          inputMode="numeric"
+          maxLength={2}
+          onBlur={() => {
+            setIsFocused(false);
+            commit();
+          }}
+          onChange={(event) => handleTypedValue(event.currentTarget.value)}
+          onFocus={(event) => {
+            setIsFocused(true);
+            event.currentTarget.select();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowUp") {
+              event.preventDefault();
+              handleStep(value + step);
+            }
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              handleStep(value - step);
+            }
+            if (event.key === "Enter") {
+              event.currentTarget.blur();
+            }
+          }}
+          pattern="[0-9]*"
+          type="text"
+          value={draft}
+        />
         <button
           aria-label={`Increase ${label.toLowerCase()}`}
           className="h-full px-3 text-muted-foreground transition hover:text-foreground"
-          onClick={() => onChange(clamp(value + step))}
+          onClick={() => handleStep(value + step)}
           type="button"
         >
           +
@@ -607,6 +669,10 @@ function NumberStepper({
       </div>
     </div>
   );
+}
+
+function formatStepperValue(value: number) {
+  return String(value).padStart(2, "0");
 }
 
 function toPreviewPlatform(platform: ContentCardPlatform): PreviewPlatform {
