@@ -2,6 +2,7 @@ import { getRequestUser } from "@/lib/auth";
 import { exportSchema } from "@/lib/ai/schemas";
 import { createCsv, createJson, createPdf } from "@/lib/exporters";
 import { trackServerEvent } from "@/lib/analytics";
+import { assertCanExport, planLimitErrorResponse } from "@/lib/plan-limits";
 import { recordUsageEvent } from "@/lib/usage";
 
 export const runtime = "nodejs";
@@ -10,6 +11,7 @@ export async function POST(request: Request) {
   try {
     const user = await getRequestUser(request);
     const payload = exportSchema.parse(await request.json());
+    assertCanExport(user, payload.format);
     await recordUsageEvent({
       userId: user.id,
       eventType: "content_exported",
@@ -41,6 +43,9 @@ export async function POST(request: Request) {
 
     return Response.json({ error: "Unsupported export format", code: "unsupported_export_format" }, { status: 400 });
   } catch (error) {
+    if (error instanceof Response) return error;
+    const planResponse = planLimitErrorResponse(error);
+    if (planResponse) return planResponse;
     return Response.json(
       {
         error: error instanceof Error ? error.message : "export_failed",

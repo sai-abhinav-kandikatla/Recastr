@@ -6,12 +6,14 @@ import { apiError } from "@/lib/api/response";
 import { ingestUrlSchema } from "@/lib/ai/schemas";
 import { consumeCredits, creditErrorResponse, requireCredits } from "@/lib/credits";
 import { hash, ingestBlog } from "@/lib/ingest";
+import { assertCanCreateProject, assertCanGenerateContent, planLimitErrorResponse } from "@/lib/plan-limits";
 import { normalizePlatformCopy } from "@/lib/platform-limits";
+import { PLAN_RULES } from "@/lib/plans";
 import { prisma } from "@/lib/prisma/client";
 import { getStoredProject, saveStoredProject } from "@/lib/projects/store";
 import { addRecastrJob, jobNames } from "@/lib/queue/client";
 import { assertIngestRateLimit } from "@/lib/rate-limit";
-import type { ContentPiece, Platform, Project, SourceSummary, ViralHook } from "@/lib/types";
+import type { ContentPiece, Platform, Plan, Project, SourceSummary, SourceType, ViralHook } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -69,8 +71,15 @@ export async function POST(request: Request) {
       });
     }
 
+    await assertCanCreateProject(user, sourceToSourceType(source));
+
     if (source === "youtube") {
-      const project = await createYoutubeProject(payload.url);
+      const project = restrictProjectToPlan(await createYoutubeProject(payload.url), user.plan);
+      await assertCanGenerateContent(
+        user,
+        project.contents?.map((content) => content.platform) ?? [],
+        project.contents?.length ?? 0,
+      );
       saveStoredProject(project);
       let savedProject = project;
       try {
@@ -138,6 +147,8 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof Response) return error;
+    const planResponse = planLimitErrorResponse(error);
+    if (planResponse) return planResponse;
     const creditResponse = creditErrorResponse(error);
     if (creditResponse) return creditResponse;
     return apiError(error, "ingest_failed", 400);
@@ -146,6 +157,22 @@ export async function POST(request: Request) {
 
 function detectSource(url: string): "youtube" | "blog" {
   return /(?:youtube\.com|youtu\.be)/i.test(url) ? "youtube" : "blog";
+}
+
+function sourceToSourceType(source: "youtube" | "blog"): SourceType {
+  return source === "youtube" ? "YOUTUBE" : "BLOG";
+}
+
+function restrictProjectToPlan(project: Project, plan: Plan): Project {
+  const allowedPlatforms = PLAN_RULES[plan].outputPlatforms;
+  const contents = (project.contents ?? []).filter((content) => allowedPlatforms.includes(content.platform));
+  const allowedIds = new Set(contents.map((content) => content.id));
+  const outputs = project.outputs.filter((output) => allowedPlatforms.includes(output.platform) && allowedIds.has(output.id));
+  return {
+    ...project,
+    contents,
+    outputs,
+  };
 }
 
 async function createYoutubeProject(url: string): Promise<Project> {

@@ -9,18 +9,21 @@ export type AuthenticatedUser = {
   id: string;
   email: string;
   plan: Plan;
+  role: "member" | "admin" | "owner";
 };
 
 const demoUser: AuthenticatedUser = {
   id: "demo-user",
   email: "demo@recastr.app",
   plan: "PRO",
+  role: "owner",
 };
 
 const localDevUser: AuthenticatedUser = {
   id: "local-user",
   email: "local@recastr.app",
   plan: "PRO",
+  role: "owner",
 };
 
 export async function getRequestUser(request: Request): Promise<AuthenticatedUser> {
@@ -85,7 +88,7 @@ export async function getRequestUser(request: Request): Promise<AuthenticatedUse
   return syncAuthenticatedUser(data.user);
 }
 
-export async function ensureUserRecord(user: AuthenticatedUser) {
+export async function ensureUserRecord(user: Pick<AuthenticatedUser, "email" | "id" | "plan">) {
   try {
     const existing = await prisma.user.findFirst({
       where: {
@@ -117,6 +120,7 @@ export async function ensureUserRecord(user: AuthenticatedUser) {
         email: user.email,
         plan: user.plan.toLowerCase(),
         platforms: [],
+        role: "member",
       },
       select: { id: true },
     });
@@ -147,19 +151,23 @@ async function syncAuthenticatedUser(user: SupabaseAuthUser): Promise<Authentica
         id: true,
         email: true,
         plan: true,
+        planExpiresAt: true,
+        role: true,
       },
     });
 
     return {
       id: dbUser.id,
       email: dbUser.email,
-      plan: normalizePlan(dbUser.plan),
+      plan: await resolveEffectivePlan(dbUser.id, dbUser.plan, dbUser.planExpiresAt),
+      role: normalizeRole(dbUser.role),
     };
   } catch {
     return {
       id: user.id,
       email: user.email ?? demoUser.email,
       plan: normalizePlan(user.user_metadata?.plan),
+      role: normalizeRole(user.user_metadata?.role),
     };
   }
 }
@@ -168,4 +176,28 @@ function normalizePlan(value: unknown): Plan {
   const plan = String(value ?? "FREE").toUpperCase();
   if (plan === "PRO" || plan === "TEAM" || plan === "AGENCY") return plan;
   return "FREE";
+}
+
+async function resolveEffectivePlan(userId: string, value: unknown, expiresAt: Date | null): Promise<Plan> {
+  const plan = normalizePlan(value);
+  if (plan === "FREE" || !expiresAt || expiresAt.getTime() > Date.now()) return plan;
+
+  await Promise.all([
+    prisma.user.update({
+      where: { id: userId },
+      data: { plan: "free", planExpiresAt: null },
+    }),
+    prisma.billingSubscription.updateMany({
+      where: { userId, status: "active" },
+      data: { status: "past_due" },
+    }),
+  ]).catch(() => undefined);
+
+  return "FREE";
+}
+
+function normalizeRole(value: unknown): AuthenticatedUser["role"] {
+  const role = String(value ?? "member").toLowerCase();
+  if (role === "owner" || role === "admin") return role;
+  return "member";
 }

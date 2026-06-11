@@ -2,6 +2,9 @@ import { sendScheduledPostNotificationEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma/client";
 
 const ACTIVE_STATUSES = ["pending", "scheduled", "PENDING", "SCHEDULED"];
+const RETRYABLE_STATUSES = [...ACTIVE_STATUSES, "failed", "FAILED"];
+const FAILED_RETRY_DELAY_MS = 10 * 60 * 1000;
+const PROCESSING_STALE_AFTER_MS = 10 * 60 * 1000;
 
 type ProcessDueOptions = {
   userId?: string;
@@ -12,11 +15,18 @@ export async function processDueScheduledNotifications({
   userId,
   limit = 25,
 }: ProcessDueOptions = {}) {
+  const now = new Date();
+  const failedRetryCutoff = new Date(now.getTime() - FAILED_RETRY_DELAY_MS);
+  const staleProcessingCutoff = new Date(now.getTime() - PROCESSING_STALE_AFTER_MS);
   const duePosts = await prisma.scheduledPost.findMany({
     where: {
       ...(userId ? { userId } : {}),
-      status: { in: ACTIVE_STATUSES },
-      scheduledAt: { lte: new Date() },
+      scheduledAt: { lte: now },
+      OR: [
+        { status: { in: ACTIVE_STATUSES } },
+        { status: { in: ["failed", "FAILED"] }, updatedAt: { lte: failedRetryCutoff } },
+        { status: { in: ["processing", "PROCESSING"] }, updatedAt: { lte: staleProcessingCutoff } },
+      ],
     },
     orderBy: { scheduledAt: "asc" },
     select: { id: true },
@@ -47,12 +57,20 @@ export async function notifyScheduledPost(scheduledPostId: string | undefined) {
 
   const existing = await prisma.scheduledPost.findUnique({
     where: { id: scheduledPostId },
-    select: { id: true, status: true, scheduledAt: true },
+    select: { id: true, status: true, scheduledAt: true, updatedAt: true },
   });
 
   if (!existing) throw new Error("Scheduled post not found");
 
-  if (!["pending", "scheduled"].includes(existing.status.toLowerCase())) {
+  const normalizedStatus = existing.status.toLowerCase();
+  const processingIsStale =
+    normalizedStatus === "processing" &&
+    existing.updatedAt.getTime() <= Date.now() - PROCESSING_STALE_AFTER_MS;
+  const canNotify =
+    ["pending", "scheduled", "failed"].includes(normalizedStatus) ||
+    processingIsStale;
+
+  if (!canNotify) {
     return {
       skipped: true,
       reason: `status_${existing.status}`,
@@ -72,7 +90,10 @@ export async function notifyScheduledPost(scheduledPostId: string | undefined) {
   const claim = await prisma.scheduledPost.updateMany({
     where: {
       id: scheduledPostId,
-      status: { in: ACTIVE_STATUSES },
+      OR: [
+        { status: { in: RETRYABLE_STATUSES } },
+        { status: { in: ["processing", "PROCESSING"] }, updatedAt: { lte: new Date(Date.now() - PROCESSING_STALE_AFTER_MS) } },
+      ],
     },
     data: {
       status: "processing",

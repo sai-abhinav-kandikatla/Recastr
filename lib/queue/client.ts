@@ -59,7 +59,18 @@ export async function addRecastrJob(
   delay = 0,
   options: { required?: boolean } = {},
 ) {
-  const recastrQueue = getRecastrQueue();
+  let recastrQueue: Queue | null = null;
+  try {
+    recastrQueue = getRecastrQueue();
+  } catch (error) {
+    if (options.required) throw error;
+    return {
+      id: `skipped-job-${Date.now()}`,
+      skipped: true,
+      reason: error instanceof Error ? error.message : "Queue unavailable",
+    };
+  }
+
   if (!recastrQueue) {
     if (options.required) {
       throw new Error("Scheduled notifications require REDIS_URL and a running Recastr worker.");

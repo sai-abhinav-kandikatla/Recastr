@@ -1,7 +1,7 @@
 import { err, ok } from "@/lib/api-response";
 import { apiError } from "@/lib/api/response";
 import { getRequestUser } from "@/lib/auth";
-import { assertEmailConfigured } from "@/lib/email";
+import { assertEmailTransportReady } from "@/lib/email";
 import { prisma } from "@/lib/prisma/client";
 import { retryStoredScheduledPost } from "@/lib/projects/store";
 import { addRecastrJob, jobNames } from "@/lib/queue/client";
@@ -26,17 +26,17 @@ export async function POST(request: Request, { params }: { params: { id: string 
     });
 
     if (!post) return err("Scheduled post not found", "scheduled_post_not_found", 404);
-    assertEmailConfigured();
+    await assertEmailTransportReady();
 
     await prisma.scheduledPost.update({
       where: { id: params.id },
-      data: { status: "pending", failReason: null },
+      data: { status: "pending", publishedAt: null, failReason: null },
     });
     await addRecastrJob(
       jobNames.publishPost,
       { scheduledPostId: params.id },
       Math.max(0, post.scheduledAt.getTime() - Date.now()),
-      { required: true },
+      { required: false },
     );
 
     return ok({

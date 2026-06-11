@@ -15,10 +15,10 @@ import {
 import { toast } from "sonner";
 import { HookSidebar } from "@/components/content/HookSidebar";
 import { Button } from "@/components/ui/button";
-import { assertApiOk, readApiJson } from "@/lib/client-api";
+import { assertApiOk, emitScheduleCreated, readApiJson } from "@/lib/client-api";
 import { getPlatformCharacterLimit, normalizePlatformCopy } from "@/lib/platform-limits";
 import { cn } from "@/lib/utils";
-import type { ContentPiece, Platform, Project, ViralHook } from "@/lib/types";
+import type { ContentPiece, Platform, Project, ScheduledPost, ViralHook } from "@/lib/types";
 
 import { ProjectStudioTopBar } from "./ProjectStudioTopBar";
 import { ContentFeed, type FeedItem } from "./ContentFeed";
@@ -166,8 +166,9 @@ export function ProjectWorkspace({ project }: { project: Project }) {
         contentType: content.contentType,
         tone: content.tone,
       }, {
-        onSuccess: () => {
+        onSuccess: (scheduledPost) => {
           setScheduledDates((current) => ({ ...current, [id]: date }));
+          emitScheduleCreated(scheduledPost);
         },
       });
     },
@@ -349,8 +350,24 @@ async function scheduleContent(payload: {
     body: JSON.stringify(payload),
   });
   await assertApiOk(response);
-  return response.json() as Promise<{ scheduledPostId: string }>;
+  const data = (await response.json()) as ScheduleResponse;
+  return {
+    id: data.scheduledPostId,
+    outputId: payload.contentId,
+    contentId: payload.contentId,
+    platform: payload.platform,
+    publishAt: data.publishAt ?? payload.scheduledAt,
+    scheduledAt: data.scheduledAt ?? data.publishAt ?? payload.scheduledAt,
+    status: "PENDING",
+    title: payload.contentType,
+  } satisfies ScheduledPost;
 }
+
+type ScheduleResponse = {
+  publishAt?: string;
+  scheduledAt?: string;
+  scheduledPostId: string;
+};
 
 function normalizeContents(project: Project): ContentPiece[] {
   const source = project.contents?.length

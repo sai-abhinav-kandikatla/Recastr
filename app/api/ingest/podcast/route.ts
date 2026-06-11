@@ -3,6 +3,7 @@ import { getRequestUser } from "@/lib/auth";
 import { ingestPodcast } from "@/lib/ingest";
 import { trackServerEvent } from "@/lib/analytics";
 import { consumeCredits, creditErrorResponse, requireCredits } from "@/lib/credits";
+import { assertCanCreateProject, planLimitErrorResponse } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,7 @@ export async function POST(request: Request) {
   try {
     const user = await getRequestUser(request);
     await requireCredits(user);
+    await assertCanCreateProject(user, "PODCAST");
     const contentType = request.headers.get("content-type") ?? "";
     const fileName = contentType.includes("multipart/form-data")
       ? "podcast-upload.mp3"
@@ -30,6 +32,9 @@ export async function POST(request: Request) {
       project,
     });
   } catch (error) {
+    if (error instanceof Response) return error;
+    const planResponse = planLimitErrorResponse(error);
+    if (planResponse) return planResponse;
     const creditResponse = creditErrorResponse(error);
     if (creditResponse) return creditResponse;
     return NextResponse.json(

@@ -20,7 +20,6 @@ import {
   GripVertical,
   RefreshCcw,
 } from "lucide-react";
-import { toast } from "sonner";
 import { PlatformPreviewEngine } from "@/components/preview/PlatformPreview";
 import { getPlatformCharacterLimit } from "@/lib/platform-limits";
 import type { PreviewPlatform } from "@/lib/preview-content";
@@ -179,7 +178,6 @@ export const ContentCard = memo(function ContentCard({
     if (Number.isNaN(date.getTime())) return;
     onSchedule(id, date);
     setScheduleOpen(false);
-    toast.success("Post scheduled. You will get an email when it is time to post.");
   }, [id, onSchedule, scheduleValue]);
 
   return (

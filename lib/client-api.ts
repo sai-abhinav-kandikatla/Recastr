@@ -1,5 +1,7 @@
 "use client";
 
+import type { ScheduledPost } from "@/lib/types";
+
 type CreditPayload = {
   error?: string | { code?: string; message?: string };
   code?: string;
@@ -45,6 +47,15 @@ export function emitCreditExhausted(payload: CreditPayload = {}) {
         credits: payload.credits ?? 0,
         upgradeUrl: payload.upgradeUrl ?? "/settings?tab=billing",
       },
+    }),
+  );
+}
+
+export function emitScheduleCreated(post: ScheduledPost) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("recastr:schedule-created", {
+      detail: { post },
     }),
   );
 }

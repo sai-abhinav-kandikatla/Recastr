@@ -2,9 +2,10 @@ import { Prisma } from "@prisma/client";
 import { getRequestUser } from "@/lib/auth";
 import type { AuthenticatedUser } from "@/lib/auth";
 import { scheduleSchema } from "@/lib/ai/schemas";
-import { assertEmailConfigured } from "@/lib/email";
+import { assertEmailTransportReady } from "@/lib/email";
 import { env } from "@/lib/env";
 import { getPlatformCharacterLimit } from "@/lib/platform-limits";
+import { assertCanScheduleReminder, planLimitErrorResponse } from "@/lib/plan-limits";
 import { prisma } from "@/lib/prisma/client";
 import { createStoredScheduledPost, getStoredProject, listStoredScheduledPosts } from "@/lib/projects/store";
 import { addRecastrJob, jobNames } from "@/lib/queue/client";
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    await assertCanScheduleReminder(user, payload.platform);
 
     const contentId = payload.contentId ?? payload.outputId ?? "";
     if (env.demoMode && !env.requireAuth) {
@@ -85,9 +87,14 @@ export async function POST(request: Request) {
       });
       return Response.json(
         {
+          contentId,
+          outputId: contentId,
+          platform: payload.platform,
           scheduledPostId: post.id,
           publishAt: post.publishAt,
           scheduledAt: post.scheduledAt,
+          status: post.status,
+          title: payload.contentType ?? "Post",
         },
         { status: 201 },
       );
@@ -124,7 +131,7 @@ export async function POST(request: Request) {
         { status: 422 },
       );
     }
-    assertEmailConfigured();
+    await assertEmailTransportReady();
 
     const scheduledPost = await prisma.scheduledPost.upsert({
       where: { contentId },
@@ -132,6 +139,8 @@ export async function POST(request: Request) {
         platform: payload.platform,
         scheduledAt,
         status: "pending",
+        publishedAt: null,
+        failReason: null,
       },
       create: {
         contentId,
@@ -146,7 +155,7 @@ export async function POST(request: Request) {
       jobNames.publishPost,
       { scheduledPostId: scheduledPost.id },
       delay,
-      { required: true },
+      { required: false },
     );
     await recordAuditLog({
       userId: user.id,
@@ -159,13 +168,21 @@ export async function POST(request: Request) {
 
     return Response.json(
       {
+        contentId: scheduledPost.contentId,
+        outputId: scheduledPost.contentId,
+        platform: scheduledPost.platform,
         scheduledPostId: scheduledPost.id,
         publishAt: scheduledAt.toISOString(),
         scheduledAt: scheduledAt.toISOString(),
+        status: scheduledPost.status.toUpperCase(),
+        title: payload.contentType ?? "Post",
       },
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof Response) return error;
+    const planResponse = planLimitErrorResponse(error);
+    if (planResponse) return planResponse;
     return apiError(error, "schedule_failed", 400);
   }
 }

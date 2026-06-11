@@ -34,11 +34,19 @@ type SmtpConfig = {
 };
 
 let smtpTransporter: Transporter | null = null;
+let lastVerifiedAt = 0;
+const EMAIL_VERIFY_CACHE_MS = 5 * 60 * 1000;
 
 export function assertEmailConfigured() {
-  if (!resolveSmtpConfig()) {
+  const config = resolveSmtpConfig();
+  if (!config) {
     throw new Error(
       "Configure free SMTP email with SMTP_HOST/SMTP_USER/SMTP_PASS or Gmail EMAIL_USER/EMAIL_APP_PASSWORD.",
+    );
+  }
+  if (!isValidSenderAddress(config.from)) {
+    throw new Error(
+      "SMTP_FROM_EMAIL must contain a valid email address, for example: Recastr <name@example.com>.",
     );
   }
 }
@@ -46,7 +54,14 @@ export function assertEmailConfigured() {
 export async function verifyEmailTransport() {
   const transporter = getSmtpTransporter();
   await transporter.verify();
+  lastVerifiedAt = Date.now();
   return { ok: true };
+}
+
+export async function assertEmailTransportReady() {
+  assertEmailConfigured();
+  if (Date.now() - lastVerifiedAt < EMAIL_VERIFY_CACHE_MS) return;
+  await verifyEmailTransport();
 }
 
 export async function sendTestEmail(to: string) {
@@ -201,9 +216,12 @@ function getSmtpTransporter() {
   if (!config) throw new Error("SMTP email is not configured.");
 
   smtpTransporter ??= nodemailer.createTransport({
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
     host: config.host,
     port: config.port,
     secure: config.secure,
+    socketTimeout: 15_000,
     auth: {
       user: config.user,
       pass: config.pass,
@@ -231,6 +249,12 @@ function resolveSmtpConfig(): SmtpConfig | null {
     secure: env.SMTP_SECURE === "true" || port === 465,
     user: smtpUser,
   };
+}
+
+function isValidSenderAddress(value: string) {
+  const match = value.match(/<([^<>]+)>/);
+  const address = (match?.[1] ?? value).trim();
+  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address);
 }
 
 function formatScheduledDate(value: Date) {

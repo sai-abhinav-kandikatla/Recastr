@@ -6,6 +6,7 @@ import { ensureUserRecord, getRequestUser } from "@/lib/auth";
 import { ingestTextSchema } from "@/lib/ai/schemas";
 import { apiError } from "@/lib/api/response";
 import { consumeCredits, creditErrorResponse, requireCredits } from "@/lib/credits";
+import { assertCanCreateProject, planLimitErrorResponse } from "@/lib/plan-limits";
 import { summarizeTranscript } from "@/lib/ai/service";
 import { prisma } from "@/lib/prisma/client";
 import { getStoredProject } from "@/lib/projects/store";
@@ -50,6 +51,8 @@ export async function POST(request: Request) {
       });
     }
 
+    await assertCanCreateProject(user, "TEXT");
+
     const payload = await parseTextPayload(request);
     const cleanText = sanitizeHtml(payload.text, {
       allowedTags: [],
@@ -92,6 +95,8 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof Response) return error;
+    const planResponse = planLimitErrorResponse(error);
+    if (planResponse) return planResponse;
     const creditResponse = creditErrorResponse(error);
     if (creditResponse) return creditResponse;
     return apiError(error, "text_ingest_failed", 400);

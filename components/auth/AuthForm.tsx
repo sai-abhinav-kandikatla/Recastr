@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, Loader2, Sparkles } from "lucide-react";
+import { ArrowRight, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -27,11 +28,23 @@ const authSchema = z.object({
 type AuthValues = z.infer<typeof authSchema>;
 
 type AuthMode = "login" | "signup";
+type AuthApiPayload = {
+  data?: {
+    factors?: Array<{ friendlyName: string; id: string }>;
+    mfaRequired?: boolean;
+    signedIn?: boolean;
+    verified?: boolean;
+  };
+  error?: { code?: string; message?: string };
+};
 
 export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isSignup = mode === "signup";
+  const [mfaPending, setMfaPending] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
   const nextPath = normalizeNextPath(searchParams.get("next"), isSignup ? "/onboarding" : "/dashboard");
   const verificationPending = isSignup && searchParams.get("verify") === "pending";
   const pendingEmail = searchParams.get("email");
@@ -57,8 +70,6 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       return;
     }
 
-    const supabase = await createSupabaseBrowserClient();
-
     if (isSignup) {
       if (!values.password || values.password.length < 8) {
         setError("password", { message: "Use at least 8 characters" });
@@ -76,21 +87,17 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         body: JSON.stringify(values),
       });
       const signupPayload = (await signupResponse.json().catch(() => ({}))) as {
-        error?: string;
-        code?: string;
+        data?: { verificationRequired?: boolean };
+        error?: { code?: string; message?: string };
       };
 
-      if (!signupResponse.ok && signupPayload.code !== "signup_admin_unavailable") {
-        if (signupPayload.code === "user_exists") {
-          toast.error("That email already has an account. Sign in instead.");
-          router.replace(`/login?next=${encodeURIComponent(nextPath)}&email=${encodeURIComponent(values.email)}`);
-          return;
-        }
-        toast.error(signupPayload.error ?? "Could not create account");
+      if (!signupResponse.ok && signupPayload.error?.code !== "signup_admin_unavailable") {
+        toast.error(signupPayload.error?.message ?? "Could not create account");
         return;
       }
 
-      if (signupPayload.code === "signup_admin_unavailable") {
+      if (signupPayload.error?.code === "signup_admin_unavailable") {
+        const supabase = await createSupabaseBrowserClient();
         const { data, error } = await supabase.auth.signUp({
           email: values.email,
           password: values.password,
@@ -124,13 +131,61 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: values.email,
-      password: values.password,
-    });
+    if (mfaPending) {
+      if (!mfaFactorId || !/^\d{6}$/.test(mfaCode.trim())) {
+        toast.error("Enter the 6 digit authenticator code.");
+        return;
+      }
 
-    if (error) {
-      toast.error(error.message);
+      const verifyResponse = await fetch("/api/auth/mfa/verify", {
+        body: JSON.stringify({
+          code: mfaCode.trim(),
+          factorId: mfaFactorId,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const verifyPayload = (await verifyResponse.json().catch(() => ({}))) as AuthApiPayload;
+
+      if (!verifyResponse.ok) {
+        toast.error(verifyPayload.error?.message ?? "Invalid verification code");
+        return;
+      }
+
+      setMfaCode("");
+      setMfaFactorId(null);
+      setMfaPending(false);
+      toast.success("Signed in");
+      router.replace(nextPath);
+      router.refresh();
+      return;
+    }
+
+    const response = await fetch("/api/auth/login", {
+      body: JSON.stringify({
+        email: values.email,
+        password: values.password,
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+    const payload = (await response.json().catch(() => ({}))) as AuthApiPayload;
+
+    if (!response.ok) {
+      toast.error(payload.error?.message ?? "Invalid credentials");
+      return;
+    }
+
+    if (payload.data?.mfaRequired) {
+      const firstFactor = payload.data.factors?.[0];
+      if (!firstFactor) {
+        toast.error("MFA is required, but no authenticator factor is available.");
+        return;
+      }
+      setMfaFactorId(firstFactor.id);
+      setMfaPending(true);
+      setMfaCode("");
+      toast.success("Enter your authenticator code to continue.");
       return;
     }
 
@@ -297,6 +352,35 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                 </div>
               ) : null}
 
+              {!isSignup && mfaPending ? (
+                <div className="rounded-2xl border border-violet-500/25 bg-violet-500/10 p-4">
+                  <div className="mb-3 flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-violet-300">
+                      <ShieldCheck className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold">Authenticator required</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Enter the 6 digit code from your authenticator app.
+                      </p>
+                    </div>
+                  </div>
+                  <Label htmlFor="mfaCode" className="text-xs font-medium text-muted-foreground">
+                    Verification code
+                  </Label>
+                  <Input
+                    autoComplete="one-time-code"
+                    className="mt-1.5 h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 text-sm tracking-[0.28em] placeholder:tracking-normal placeholder:text-muted-foreground/60 focus-visible:border-violet-500/40 focus-visible:ring-violet-500/40"
+                    id="mfaCode"
+                    inputMode="numeric"
+                    maxLength={6}
+                    onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="123456"
+                    value={mfaCode}
+                  />
+                </div>
+              ) : null}
+
               <Button
                 className={cn(
                   "h-11 w-full rounded-full bg-[var(--violet)] text-sm font-semibold text-white transition-colors hover:bg-[var(--violet-hover)]",
@@ -306,7 +390,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
                 type="submit"
               >
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                {isSignup ? "Create account" : "Sign in"}
+                {mfaPending ? "Verify code" : isSignup ? "Create account" : "Sign in"}
                 {!isSubmitting ? <ArrowRight className="ml-2 h-4 w-4" /> : null}
               </Button>
             </form>

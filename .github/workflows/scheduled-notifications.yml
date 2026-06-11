@@ -8,9 +8,22 @@ on:
 jobs:
   process-due-reminders:
     runs-on: ubuntu-latest
+    env:
+      RECASTR_APP_URL: ${{ secrets.RECASTR_APP_URL || 'https://recastr.vercel.app' }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
     steps:
       - name: Process due scheduled notification emails
+        shell: bash
         run: |
-          curl --fail --silent --show-error \
-            -H "User-Agent: github-actions-cron" \
-            "https://recastr.vercel.app/api/cron/scheduled-notifications"
+          if [ -n "$CRON_SECRET" ]; then
+            curl --fail --silent --show-error \
+              -X POST \
+              -H "User-Agent: github-actions-cron" \
+              -H "Authorization: Bearer $CRON_SECRET" \
+              "$RECASTR_APP_URL/api/cron/scheduled-notifications"
+          else
+            curl --fail --silent --show-error \
+              -X POST \
+              -H "User-Agent: github-actions-cron" \
+              "$RECASTR_APP_URL/api/cron/scheduled-notifications"
+          fi

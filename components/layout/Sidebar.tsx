@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -35,7 +35,7 @@ export function Sidebar({
   user?: CurrentUser | null;
 }) {
   const pathname = usePathname();
-  const scheduledCount = useScheduledCount(Boolean(user));
+  const { lastScheduledEventId, scheduledCount } = useScheduledCount(Boolean(user));
   const [tasksPeekOpen, setTasksPeekOpen] = useState(false);
   const [tasksPeekPosition, setTasksPeekPosition] = useState<{ left: number; top: number } | null>(null);
   const tasksLinkRef = useRef<HTMLDivElement | null>(null);
@@ -44,14 +44,14 @@ export function Sidebar({
   const displayName = user?.name ?? user?.email?.split("@")[0] ?? "Creator";
   const plan = user?.plan ?? "FREE";
 
-  function clearTasksPeekTimer() {
+  const clearTasksPeekTimer = useCallback(() => {
     if (tasksPeekTimerRef.current) {
       window.clearTimeout(tasksPeekTimerRef.current);
       tasksPeekTimerRef.current = null;
     }
-  }
+  }, []);
 
-  function openTasksPeek(autoClose = false) {
+  const openTasksPeek = useCallback((autoClose = false) => {
     clearTasksPeekTimer();
     const rect = tasksLinkRef.current?.getBoundingClientRect();
     if (rect) {
@@ -65,25 +65,16 @@ export function Sidebar({
     if (autoClose) {
       tasksPeekTimerRef.current = window.setTimeout(() => setTasksPeekOpen(false), 2400);
     }
-  }
+  }, [clearTasksPeekTimer]);
 
   useEffect(() => {
-    if (!pathname.startsWith("/tasks")) return;
-    const rect = tasksLinkRef.current?.getBoundingClientRect();
-    if (rect) {
-      setTasksPeekPosition({
-        left: rect.right + 10,
-        top: rect.top + rect.height / 2,
-      });
-    }
-    setTasksPeekOpen(true);
-    const timeout = window.setTimeout(() => setTasksPeekOpen(false), 2400);
-    return () => window.clearTimeout(timeout);
-  }, [pathname, scheduledCount]);
+    if (!lastScheduledEventId) return;
+    openTasksPeek(true);
+  }, [lastScheduledEventId, openTasksPeek]);
 
   useEffect(() => {
     return () => clearTasksPeekTimer();
-  }, []);
+  }, [clearTasksPeekTimer]);
 
   return (
     <>
@@ -107,7 +98,7 @@ export function Sidebar({
                 if (item.id === "tasks") openTasksPeek();
               }}
               onMouseLeave={() => {
-                if (item.id === "tasks" && !pathname.startsWith("/tasks")) setTasksPeekOpen(false);
+                if (item.id === "tasks") setTasksPeekOpen(false);
               }}
             >
               <SidebarLink
@@ -116,9 +107,6 @@ export function Sidebar({
                 href={item.href}
                 icon={item.icon}
                 label={item.label}
-                onClick={() => {
-                  if (item.id === "tasks") openTasksPeek(true);
-                }}
                 onFocus={() => {
                   if (item.id === "tasks") openTasksPeek();
                 }}
@@ -337,6 +325,8 @@ function TasksSchedulePeek({
 function useScheduledCount(enabled: boolean) {
   const [serverPosts, setServerPosts] = useState<ScheduledPost[]>([]);
   const [localPosts, setLocalPosts] = useState<ScheduledPost[]>([]);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [lastScheduledEventId, setLastScheduledEventId] = useState<string | null>(null);
 
   useEffect(() => {
     function syncLocalPosts() {
@@ -352,6 +342,27 @@ function useScheduledCount(enabled: boolean) {
       window.removeEventListener("storage", syncLocalPosts);
     };
   }, []);
+
+  useEffect(() => {
+    function handleScheduleCreated(event: Event) {
+      const post = (event as CustomEvent<{ post?: ScheduledPost }>).detail?.post;
+      const eventId = post?.id ?? `schedule-${Date.now()}`;
+
+      if (post && isActiveScheduledPost(post)) {
+        if (enabled) {
+          setServerPosts((current) => upsertScheduledPost(current, post));
+        } else {
+          setLocalPosts((current) => upsertScheduledPost(current, post));
+        }
+      }
+
+      setLastScheduledEventId(eventId);
+      setRefreshTick((current) => current + 1);
+    }
+
+    window.addEventListener("recastr:schedule-created", handleScheduleCreated);
+    return () => window.removeEventListener("recastr:schedule-created", handleScheduleCreated);
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -372,9 +383,9 @@ function useScheduledCount(enabled: boolean) {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [enabled]);
+  }, [enabled, refreshTick]);
 
-  return useMemo(() => {
+  const scheduledCount = useMemo(() => {
     const contentIds = new Set<string>();
     const fingerprints = new Set<string>();
     let count = 0;
@@ -394,6 +405,19 @@ function useScheduledCount(enabled: boolean) {
 
     return count;
   }, [enabled, localPosts, serverPosts]);
+
+  return { lastScheduledEventId, scheduledCount };
+}
+
+function upsertScheduledPost(posts: ScheduledPost[], post: ScheduledPost) {
+  return [
+    post,
+    ...posts.filter((item) => {
+      if (item.id === post.id) return false;
+      if (post.contentId && item.contentId === post.contentId) return false;
+      return getScheduledFingerprint(item) !== getScheduledFingerprint(post);
+    }),
+  ];
 }
 
 function isActiveScheduledPost(post: ScheduledPost) {

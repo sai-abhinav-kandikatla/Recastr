@@ -6,6 +6,8 @@ export type PlanRule = {
   monthlyPrice: number;
   annualPrice: number;
   projectLimit: number | "unlimited";
+  contentLimit: number | "unlimited";
+  scheduledPostLimit: number | "unlimited";
   brandVoiceLimit: number | "unlimited";
   sourceTypes: SourceType[];
   outputPlatforms: Platform[];
@@ -21,6 +23,8 @@ export const PLAN_RULES: Record<Plan, PlanRule> = {
     monthlyPrice: 0,
     annualPrice: 0,
     projectLimit: 3,
+    contentLimit: 25,
+    scheduledPostLimit: 0,
     brandVoiceLimit: 0,
     sourceTypes: ["YOUTUBE", "BLOG", "TEXT"],
     outputPlatforms: ["TWITTER", "LINKEDIN"],
@@ -39,6 +43,8 @@ export const PLAN_RULES: Record<Plan, PlanRule> = {
     monthlyPrice: 999,
     annualPrice: 9990,
     projectLimit: 30,
+    contentLimit: 500,
+    scheduledPostLimit: 200,
     brandVoiceLimit: 3,
     sourceTypes: ["YOUTUBE", "PODCAST", "BLOG", "TEXT"],
     outputPlatforms: [
@@ -52,7 +58,7 @@ export const PLAN_RULES: Record<Plan, PlanRule> = {
     scheduling: ["TWITTER", "LINKEDIN"],
     exports: ["PDF", "CSV"],
     features: [
-      "Unlimited projects",
+      "30 projects per month",
       "Podcast upload",
       "All output packs",
       "3 brand voice profiles",
@@ -65,6 +71,8 @@ export const PLAN_RULES: Record<Plan, PlanRule> = {
     monthlyPrice: 2999,
     annualPrice: 29990,
     projectLimit: "unlimited",
+    contentLimit: "unlimited",
+    scheduledPostLimit: "unlimited",
     brandVoiceLimit: "unlimited",
     sourceTypes: ["YOUTUBE", "PODCAST", "BLOG", "TEXT"],
     outputPlatforms: [
@@ -92,6 +100,8 @@ export const PLAN_RULES: Record<Plan, PlanRule> = {
     monthlyPrice: 8200,
     annualPrice: 82000,
     projectLimit: "unlimited",
+    contentLimit: "unlimited",
+    scheduledPostLimit: "unlimited",
     brandVoiceLimit: "unlimited",
     sourceTypes: ["YOUTUBE", "PODCAST", "BLOG", "TEXT"],
     outputPlatforms: [

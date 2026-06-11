@@ -12,8 +12,8 @@ export function apiError(error: unknown, fallback = "request_failed", status = 5
   if (isMissingPrismaTable(error)) {
     return Response.json(
       {
-        error: "Database tables are not created yet. Run `npx prisma db push` after rotating your Supabase secrets.",
-        code: "database_not_migrated",
+        error: "Service unavailable. Try again later.",
+        code: "service_unavailable",
         status: 503,
       } satisfies ApiErrorShape,
       { status: 503 },
@@ -22,7 +22,7 @@ export function apiError(error: unknown, fallback = "request_failed", status = 5
   if (error instanceof ZodError) {
     return Response.json(
       {
-        error: error.issues[0]?.message ?? "Invalid request",
+        error: "Invalid request",
         code: "validation_error",
         status: 400,
       },
@@ -31,7 +31,7 @@ export function apiError(error: unknown, fallback = "request_failed", status = 5
   }
   return Response.json(
     {
-      error: error instanceof Error ? error.message : fallback,
+      error: status >= 500 ? "Request failed. Try again later." : "Invalid request",
       code: fallback,
       status,
     } satisfies ApiErrorShape,

@@ -9,6 +9,7 @@ export type CurrentUser = {
   email: string;
   name?: string;
   plan: Plan;
+  role: "member" | "admin" | "owner";
 };
 
 const localDevUser: CurrentUser = {
@@ -16,6 +17,7 @@ const localDevUser: CurrentUser = {
   email: "local@recastr.app",
   name: "Local workspace",
   plan: "PRO",
+  role: "owner",
 };
 
 const demoUser: CurrentUser = {
@@ -23,6 +25,7 @@ const demoUser: CurrentUser = {
   email: "demo@recastr.app",
   name: "Demo user",
   plan: "PRO",
+  role: "owner",
 };
 
 export async function getCurrentUser(): Promise<CurrentUser | null> {
@@ -62,6 +65,8 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
         email: true,
         name: true,
         plan: true,
+        planExpiresAt: true,
+        role: true,
       },
     });
 
@@ -70,7 +75,8 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
         id: dbUser.id,
         email: dbUser.email,
         name: dbUser.name ?? undefined,
-        plan: normalizePlan(dbUser.plan),
+        plan: await resolveEffectivePlan(dbUser.id, dbUser.plan, dbUser.planExpiresAt),
+        role: normalizeRole(dbUser.role),
       };
     }
   } catch {
@@ -85,6 +91,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
         name: authUser.user_metadata?.name,
         avatarUrl: authUser.user_metadata?.avatar_url,
         plan: "free",
+        role: "member",
         platforms: [],
       },
       select: {
@@ -92,6 +99,8 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
         email: true,
         name: true,
         plan: true,
+        planExpiresAt: true,
+        role: true,
       },
     });
 
@@ -99,7 +108,8 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
       id: createdUser.id,
       email: createdUser.email,
       name: createdUser.name ?? undefined,
-      plan: normalizePlan(createdUser.plan),
+      plan: await resolveEffectivePlan(createdUser.id, createdUser.plan, createdUser.planExpiresAt),
+      role: normalizeRole(createdUser.role),
     };
   } catch {
     return getAuthUserFallback(authUser);
@@ -118,6 +128,30 @@ function normalizePlan(value: unknown): Plan {
   return "FREE";
 }
 
+async function resolveEffectivePlan(userId: string, value: unknown, expiresAt: Date | null): Promise<Plan> {
+  const plan = normalizePlan(value);
+  if (plan === "FREE" || !expiresAt || expiresAt.getTime() > Date.now()) return plan;
+
+  await Promise.all([
+    prisma.user.update({
+      where: { id: userId },
+      data: { plan: "free", planExpiresAt: null },
+    }),
+    prisma.billingSubscription.updateMany({
+      where: { userId, status: "active" },
+      data: { status: "past_due" },
+    }),
+  ]).catch(() => undefined);
+
+  return "FREE";
+}
+
+function normalizeRole(value: unknown): CurrentUser["role"] {
+  const role = String(value ?? "member").toLowerCase();
+  if (role === "owner" || role === "admin") return role;
+  return "member";
+}
+
 function getAuthUserFallback(authUser: { id: string; email?: string; user_metadata?: Record<string, unknown> }): CurrentUser | null {
   if (!authUser.email) return null;
   return {
@@ -125,6 +159,7 @@ function getAuthUserFallback(authUser: { id: string; email?: string; user_metada
     email: authUser.email,
     name: typeof authUser.user_metadata?.name === "string" ? authUser.user_metadata.name : undefined,
     plan: normalizePlan(authUser.user_metadata?.plan),
+    role: normalizeRole(authUser.user_metadata?.role),
   };
 }
 

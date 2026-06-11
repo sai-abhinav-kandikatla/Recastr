@@ -1,4 +1,6 @@
 import { ok, err } from "@/lib/api-response";
+import { checkAuthEndpointRateLimit } from "@/lib/security/auth-protection";
+import { recordSecurityEvent } from "@/lib/security/audit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -14,6 +16,18 @@ export async function POST(request: Request) {
     return err("Sign in again before changing your password.", "unauthorized", 401);
   }
 
+  const rateLimit = await checkAuthEndpointRateLimit({
+    action: "password_change_request",
+    email: user.email,
+    request,
+  });
+  if (!rateLimit.ok) {
+    return Response.json(
+      { data: null, error: { message: "Too many attempts. Try again later.", code: "rate_limited" } },
+      { headers: { "Retry-After": String(rateLimit.retryAfter) }, status: 429 },
+    );
+  }
+
   const origin = getRequestOrigin(request);
   const createPasswordPath = `/create-password?mode=change&verified=1&next=${encodeURIComponent(
     "/settings?tab=profile",
@@ -25,10 +39,21 @@ export async function POST(request: Request) {
   });
 
   if (error) {
-    return err(error.message || "Could not send password verification email.", "password_email_failed", 400);
+    await recordSecurityEvent({
+      action: "auth.password_change_email_failed",
+      request,
+      userId: user.id,
+    });
+    return err("Could not send password verification email.", "password_email_failed", 400);
   }
 
-  return ok({ email: user.email });
+  await recordSecurityEvent({
+    action: "auth.password_change_requested",
+    request,
+    userId: user.id,
+  });
+
+  return ok({ sent: true });
 }
 
 function getRequestOrigin(request: Request) {

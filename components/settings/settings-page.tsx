@@ -2,6 +2,7 @@
 
 import type { ComponentType, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,7 +13,9 @@ import {
   KeyRound,
   Loader2,
   Mail,
+  QrCode,
   ReceiptText,
+  ShieldCheck,
   UserCircle,
   Settings,
   Sparkles
@@ -46,6 +49,27 @@ type UsageSummary = {
   scheduled: number;
 };
 
+type BillingSummary = {
+  currentPlan: Plan;
+  subscription: {
+    id: string;
+    interval: "monthly" | "annual";
+    nextBillingAt: string | null;
+    plan: Plan;
+    status: string;
+  } | null;
+  invoices: Array<{
+    id: string;
+    amount: number;
+    currency: string;
+    interval: "monthly" | "annual";
+    paidAt: string | null;
+    plan: Plan;
+    receipt: string;
+    status: string;
+  }>;
+};
+
 type UsageMetric = {
   label: string;
   used: number;
@@ -69,6 +93,23 @@ type ProfileSettings = {
   avatarUrl: string | null;
 };
 
+type MfaStatus = {
+  currentLevel: "aal1" | "aal2";
+  factors: Array<{
+    friendlyName: string;
+    id: string;
+    status: string;
+  }>;
+  nextLevel: "aal1" | "aal2";
+};
+
+type MfaEnrollment = {
+  factorId: string;
+  qrCode: string;
+  secret: string;
+  uri: string;
+};
+
 const contentFormats = ["Twitter / X", "LinkedIn", "Instagram", "YouTube Shorts", "Threads", "Facebook"];
 
 export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null }) {
@@ -78,8 +119,12 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
   const [activeTab, setActiveTab] = useState<SettingsTab>(isSettingsTab(requestedTab) ? requestedTab : "profile");
   const [interval, setInterval] = useState<"monthly" | "annual">("monthly");
   const [plan, setPlan] = useState<Plan>(currentUser?.plan ?? "FREE");
+  const [billingSaving, setBillingSaving] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [passwordChangeSending, setPasswordChangeSending] = useState(false);
+  const [mfaEnrollment, setMfaEnrollment] = useState<MfaEnrollment | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaBusy, setMfaBusy] = useState(false);
   const [profile, setProfile] = useState({
     name: currentUser?.name ?? "Creator",
     email: currentUser?.email ?? "",
@@ -96,6 +141,10 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
     queryKey: ["usage"],
     queryFn: () => fetchApiData<UsageSummary>("/api/usage"),
   });
+  const billingQuery = useQuery({
+    queryKey: ["billing"],
+    queryFn: () => fetchApiData<BillingSummary>("/api/billing"),
+  });
   const profileQuery = useQuery({
     queryKey: ["profile"],
     queryFn: () => fetchApiData<ProfileSettings>("/api/user/profile"),
@@ -103,6 +152,10 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
   const notificationsQuery = useQuery({
     queryKey: ["notification-preferences"],
     queryFn: () => fetchApiData<NotificationPreferences>("/api/notifications/preferences"),
+  });
+  const mfaQuery = useQuery({
+    queryKey: ["mfa-status"],
+    queryFn: () => fetchApiData<MfaStatus>("/api/auth/mfa"),
   });
   const usage = useMemo<Record<"projects" | "content" | "scheduled", UsageMetric>>(() => {
     const limit = PLAN_RULES[plan].projectLimit;
@@ -127,26 +180,26 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
       content: {
         label: "Content generated",
         used: contentUsed,
-        limit: getUsageSoftLimit(contentUsed, plan === "FREE" ? 25 : plan === "PRO" ? 500 : 1000),
+        limit: PLAN_RULES[plan].contentLimit,
         value: `${contentUsed} ${contentUsed === 1 ? "piece" : "pieces"}`,
       },
       scheduled: {
         label: "Scheduled posts",
         used: scheduledUsed,
-        limit: getUsageSoftLimit(scheduledUsed, plan === "FREE" ? 10 : plan === "PRO" ? 200 : 500),
+        limit: PLAN_RULES[plan].scheduledPostLimit,
         value: `${scheduledUsed} ${scheduledUsed === 1 ? "post" : "posts"}`,
       },
     };
   }, [plan, usageQuery.data]);
 
   useEffect(() => {
-    setPlan(currentUser?.plan ?? "FREE");
+    setPlan(billingQuery.data?.currentPlan ?? currentUser?.plan ?? "FREE");
     setProfile((current) => ({
       ...current,
       name: currentUser?.name ?? current.name,
       email: currentUser?.email ?? current.email,
     }));
-  }, [currentUser?.email, currentUser?.name, currentUser?.plan]);
+  }, [billingQuery.data?.currentPlan, currentUser?.email, currentUser?.name, currentUser?.plan]);
 
   useEffect(() => {
     if (!profileQuery.data) return;
@@ -165,6 +218,15 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
   useEffect(() => {
     if (notificationsQuery.data) setNotifications(notificationsQuery.data);
   }, [notificationsQuery.data]);
+
+  const verifiedMfaFactor = mfaQuery.data?.factors.find((factor) => factor.status === "verified");
+  const activeSubscription = billingQuery.data?.subscription;
+  const billingInvoices = billingQuery.data?.invoices ?? [];
+  const nextBillingLabel = activeSubscription?.nextBillingAt
+    ? formatBillingDate(activeSubscription.nextBillingAt)
+    : plan === "FREE"
+      ? "No renewal on Free"
+      : "Pending payment verification";
 
   async function updateNotificationPref(key: keyof NotificationPreferences, value: boolean) {
     const previous = notifications;
@@ -218,6 +280,31 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
     }
   }
 
+  async function switchToFreePlan() {
+    if (plan === "FREE") return;
+    setBillingSaving(true);
+    try {
+      const response = await fetch("/api/billing", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "FREE" }),
+      });
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope<BillingSummary> | null;
+      if (!response.ok || payload?.error) {
+        toast.error(payload?.error?.message ?? "Could not update billing");
+        return;
+      }
+      setPlan("FREE");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["billing"] }),
+        queryClient.invalidateQueries({ queryKey: ["usage"] }),
+      ]);
+      toast.success("Plan changed to Free");
+    } finally {
+      setBillingSaving(false);
+    }
+  }
+
   async function requestPasswordChange() {
     setPasswordChangeSending(true);
     try {
@@ -225,7 +312,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
-      const payload = (await response.json().catch(() => null)) as ApiEnvelope<{ email: string }> | null;
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope<{ sent: boolean }> | null;
 
       if (!response.ok || payload?.error) {
         toast.error(payload?.error?.message ?? "Could not send password verification email");
@@ -235,6 +322,74 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
       toast.success("Password change email sent. Open the verified link in your inbox.");
     } finally {
       setPasswordChangeSending(false);
+    }
+  }
+
+  async function startMfaEnrollment() {
+    setMfaBusy(true);
+    try {
+      const response = await fetch("/api/auth/mfa/enroll", {
+        body: JSON.stringify({ friendlyName: "Recastr authenticator" }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope<MfaEnrollment> | null;
+      if (!response.ok || payload?.error || !payload?.data) {
+        toast.error(payload?.error?.message ?? "Could not start MFA setup");
+        return;
+      }
+      setMfaEnrollment(payload.data);
+      setMfaCode("");
+    } finally {
+      setMfaBusy(false);
+    }
+  }
+
+  async function verifyMfaEnrollment() {
+    if (!mfaEnrollment || !/^\d{6}$/.test(mfaCode.trim())) {
+      toast.error("Enter the 6 digit authenticator code.");
+      return;
+    }
+
+    setMfaBusy(true);
+    try {
+      const response = await fetch("/api/auth/mfa/verify", {
+        body: JSON.stringify({
+          code: mfaCode.trim(),
+          factorId: mfaEnrollment.factorId,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope<{ verified: boolean }> | null;
+      if (!response.ok || payload?.error) {
+        toast.error(payload?.error?.message ?? "Could not verify MFA code");
+        return;
+      }
+      setMfaEnrollment(null);
+      setMfaCode("");
+      await queryClient.invalidateQueries({ queryKey: ["mfa-status"] });
+      toast.success("Authenticator app enabled");
+    } finally {
+      setMfaBusy(false);
+    }
+  }
+
+  async function disableMfa(factorId: string) {
+    setMfaBusy(true);
+    try {
+      const response = await fetch(`/api/auth/mfa/${encodeURIComponent(factorId)}`, {
+        method: "DELETE",
+      });
+      const payload = (await response.json().catch(() => null)) as ApiEnvelope<{ disabled: boolean }> | null;
+      if (!response.ok || payload?.error) {
+        toast.error(payload?.error?.message ?? "Could not disable MFA");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["mfa-status"] });
+      toast.success("Authenticator app disabled");
+    } finally {
+      setMfaBusy(false);
     }
   }
 
@@ -395,6 +550,111 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                   </div>
                 </div>
 
+                <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)]/45 p-5">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <ShieldCheck className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold">Authenticator app MFA</p>
+                          <Badge className={cn(
+                            "rounded-full border-0 px-2 py-0.5 text-[11px]",
+                            verifiedMfaFactor ? "bg-green-500/15 text-green-300" : "bg-muted text-muted-foreground"
+                          )}>
+                            {verifiedMfaFactor ? "Enabled" : "Off"}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 max-w-xl text-xs leading-5 text-muted-foreground">
+                          Add a time-based one-time code from Google Authenticator, 1Password, Authy, or a compatible app.
+                        </p>
+                      </div>
+                    </div>
+                    {verifiedMfaFactor ? (
+                      <Button
+                        className="rounded-full"
+                        disabled={mfaBusy}
+                        onClick={() => void disableMfa(verifiedMfaFactor.id)}
+                        type="button"
+                        variant="destructive"
+                      >
+                        {mfaBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        Disable
+                      </Button>
+                    ) : (
+                      <Button
+                        className="rounded-full"
+                        disabled={mfaBusy || Boolean(mfaEnrollment)}
+                        onClick={() => void startMfaEnrollment()}
+                        type="button"
+                        variant="secondary"
+                      >
+                        {mfaBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+                        Set up MFA
+                      </Button>
+                    )}
+                  </div>
+
+                  {mfaEnrollment ? (
+                    <div className="mt-5 grid gap-5 rounded-2xl border border-violet-500/20 bg-violet-500/10 p-4 md:grid-cols-[180px_1fr]">
+                      <div className="rounded-2xl bg-white p-3">
+                        <Image
+                          alt="Authenticator QR code"
+                          className="h-auto w-full"
+                          height={156}
+                          src={mfaEnrollment.qrCode}
+                          unoptimized
+                          width={156}
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm font-semibold">Scan the QR code</p>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            Then enter the 6 digit code from your authenticator app to finish setup.
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-bg)]/60 p-3">
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Manual setup key</p>
+                          <p className="mt-1 break-all font-mono text-xs text-foreground">{mfaEnrollment.secret}</p>
+                        </div>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Input
+                            className="h-10 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/60 font-mono tracking-[0.28em]"
+                            inputMode="numeric"
+                            maxLength={6}
+                            onChange={(event) => setMfaCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                            placeholder="123456"
+                            value={mfaCode}
+                          />
+                          <Button
+                            className="rounded-xl bg-[var(--violet)] text-white"
+                            disabled={mfaBusy}
+                            onClick={() => void verifyMfaEnrollment()}
+                            type="button"
+                          >
+                            {mfaBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            Verify
+                          </Button>
+                          <Button
+                            className="rounded-xl"
+                            disabled={mfaBusy}
+                            onClick={() => {
+                              setMfaEnrollment(null);
+                              setMfaCode("");
+                            }}
+                            type="button"
+                            variant="ghost"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
                 <div className="pt-4 flex justify-end">
                   <Button
                     disabled={profileSaving}
@@ -422,9 +682,11 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                     <div className="relative z-10">
                       <p className="text-sm font-semibold uppercase tracking-wider text-primary">Your Plan</p>
                       <h2 className="mt-1 text-3xl font-bold font-display">{PLAN_RULES[plan].label}</h2>
-                      <p className="mt-2 text-sm text-muted-foreground">Next billing: June 29, 2026</p>
+                      <p className="mt-2 text-sm text-muted-foreground">Next billing: {nextBillingLabel}</p>
                     </div>
-                    <Badge variant="success" className="relative z-10 self-start border-0 bg-green-500/15 py-1 text-sm text-green-400 sm:self-center">Active</Badge>
+                    <Badge variant="success" className="relative z-10 self-start border-0 bg-green-500/15 py-1 text-sm text-green-400 sm:self-center">
+                      {activeSubscription?.status ? toTitleCase(activeSubscription.status) : "Active"}
+                    </Badge>
                   </div>
 
                   <div className="space-y-6">
@@ -436,15 +698,39 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
 
                   <div>
                     <h3 className="font-semibold mb-4">Billing History</h3>
-                    <div className="rounded-2xl border border-dashed border-[var(--app-line-strong)] bg-[var(--app-bg)]/45 px-5 py-8 text-center">
-                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        <ReceiptText className="h-5 w-5" />
+                    {billingInvoices.length > 0 ? (
+                      <div className="overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)]/45">
+                        <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-[var(--app-line)] px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          <span>Receipt</span>
+                          <span>Status</span>
+                          <span className="text-right">Amount</span>
+                        </div>
+                        {billingInvoices.map((invoice) => (
+                          <div className="grid grid-cols-[1fr_auto_auto] gap-3 border-b border-[var(--app-line)] px-4 py-3 text-sm last:border-b-0" key={invoice.id}>
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">{invoice.receipt}</p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                {PLAN_RULES[invoice.plan].label} · {invoice.paidAt ? formatBillingDate(invoice.paidAt) : "Awaiting payment"}
+                              </p>
+                            </div>
+                            <Badge className={cn("h-6 rounded-full border-0 px-2 text-[11px]", invoice.status === "paid" ? "bg-green-500/15 text-green-300" : invoice.status === "failed" ? "bg-red-500/15 text-red-300" : "bg-muted text-muted-foreground")}>
+                              {toTitleCase(invoice.status)}
+                            </Badge>
+                            <p className="text-right font-semibold">{formatRupees(invoice.amount)}</p>
+                          </div>
+                        ))}
                       </div>
-                      <p className="mt-4 text-sm font-semibold">No invoices yet</p>
-                      <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
-                        Real billing receipts will appear here after a successful paid subscription payment.
-                      </p>
-                    </div>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-[var(--app-line-strong)] bg-[var(--app-bg)]/45 px-5 py-8 text-center">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <ReceiptText className="h-5 w-5" />
+                        </div>
+                        <p className="mt-4 text-sm font-semibold">No invoices yet</p>
+                        <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
+                          Real billing receipts will appear here after a successful paid subscription payment.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -482,7 +768,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                           <div>
                             <h3 className="font-bold text-lg font-display">{rule.label}</h3>
                             <p className="mt-1 text-2xl font-bold flex items-baseline gap-1">
-                              ${price} <span className="text-sm font-medium text-muted-foreground">/mo</span>
+                              {formatRupees(price * 100)} <span className="text-sm font-medium text-muted-foreground">/{interval === "annual" ? "yr" : "mo"}</span>
                             </p>
                           </div>
                           {isCurrent && <Badge variant="success" className="bg-primary/20 text-primary border-0">Current</Badge>}
@@ -497,7 +783,13 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                         </div>
                         <div className="mt-6 relative z-10">
                           {planName === "FREE" ? (
-                            <Button className="w-full rounded-xl" disabled={isCurrent} variant="secondary">
+                            <Button
+                              className="w-full rounded-xl"
+                              disabled={isCurrent || billingSaving}
+                              onClick={() => void switchToFreePlan()}
+                              variant="secondary"
+                            >
+                              {billingSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                               {isCurrent ? "Current plan" : "Choose free"}
                             </Button>
                           ) : (
@@ -505,7 +797,11 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                               className="w-full rounded-xl font-bold"
                               interval={interval}
                               label={isCurrent ? "Manage plan" : `Upgrade to ${rule.label}`}
-                              onSuccess={() => setPlan(planName)}
+                              onSuccess={() => {
+                                setPlan(planName);
+                                void queryClient.invalidateQueries({ queryKey: ["billing"] });
+                                void queryClient.invalidateQueries({ queryKey: ["usage"] });
+                              }}
                               plan={planName}
                             />
                           )}
@@ -595,10 +891,6 @@ function UsageBar({ metric }: { metric: UsageMetric }) {
   );
 }
 
-function getUsageSoftLimit(used: number, fallback: number) {
-  return Math.max(fallback, used || 1);
-}
-
 function getUnlimitedUsagePercent(used: number) {
   if (used <= 0) return 0;
   return Math.min(100, Math.max(8, Math.round((used / Math.max(used * 1.5, 10)) * 100)));
@@ -614,6 +906,21 @@ function toTitleCase(value: string) {
     .filter(Boolean)
     .map((word) => `${word.slice(0, 1).toUpperCase()}${word.slice(1).toLowerCase()}`)
     .join(" ");
+}
+
+function formatBillingDate(value: string) {
+  return new Intl.DateTimeFormat("en-IN", {
+    dateStyle: "medium",
+    timeZone: "Asia/Kolkata",
+  }).format(new Date(value));
+}
+
+function formatRupees(valueInPaise: number) {
+  return new Intl.NumberFormat("en-IN", {
+    currency: "INR",
+    maximumFractionDigits: 0,
+    style: "currency",
+  }).format(valueInPaise / 100);
 }
 
 async function fetchApiData<T>(url: string): Promise<T> {

@@ -9,54 +9,57 @@ datasource db {
 }
 
 model User {
-  id             String          @id @default(cuid())
-  supabaseId     String          @unique
-  email          String          @unique
-  name           String?
-  avatarUrl      String?
-  creatorType    String?
-  tonePref       String          @default("casual")
-  platforms      String[]
-  role           String          @default("member")
-  plan           String          @default("free")
-  planExpiresAt  DateTime?
-  notifyContentReady Boolean     @default(true)
-  notifyWeeklyDigest Boolean     @default(true)
-  notifyScheduleReminder Boolean @default(true)
-  notifyMarketing Boolean        @default(false)
-  createdAt      DateTime        @default(now())
-  projects       Project[]
-  scheduledPosts ScheduledPost[]
-  brandVoices    BrandVoice[]
-  usageEvents    UsageEvent[]
-  credits        UserCredit?
-  jobRecords     JobRecord[]
-  ownedOrganizations Organization[] @relation("OrganizationOwner")
-  memberships    OrganizationMembership[]
-  auditLogs      AuditLog[]
+  id                     String                   @id @default(cuid())
+  supabaseId             String                   @unique
+  email                  String                   @unique
+  name                   String?
+  avatarUrl              String?
+  creatorType            String?
+  tonePref               String                   @default("casual")
+  platforms              String[]
+  role                   String                   @default("member")
+  plan                   String                   @default("free")
+  planExpiresAt          DateTime?
+  notifyContentReady     Boolean                  @default(true)
+  notifyWeeklyDigest     Boolean                  @default(true)
+  notifyScheduleReminder Boolean                  @default(true)
+  notifyMarketing        Boolean                  @default(false)
+  createdAt              DateTime                 @default(now())
+  projects               Project[]
+  scheduledPosts         ScheduledPost[]
+  brandVoices            BrandVoice[]
+  usageEvents            UsageEvent[]
+  credits                UserCredit?
+  jobRecords             JobRecord[]
+  ownedOrganizations     Organization[]           @relation("OrganizationOwner")
+  memberships            OrganizationMembership[]
+  auditLogs              AuditLog[]
+  billingSubscriptions   BillingSubscription[]
+  billingInvoices        BillingInvoice[]
+  billingEvents          BillingEvent[]
 
   @@index([plan, createdAt])
 }
 
 model Project {
-  id           String    @id @default(cuid())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id])
-  title        String
-  sourceUrl    String?
-  sourceText   String?   @db.Text
-  sourceType   String    @default("text")
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  title          String
+  sourceUrl      String?
+  sourceText     String?       @db.Text
+  sourceType     String        @default("text")
   organizationId String?
-  organization Organization? @relation(fields: [organizationId], references: [id])
-  thumbnailUrl String?
-  transcript   String?   @db.Text
-  summary      Json?
-  duration     Int?
-  wordCount    Int?
-  hooks        Hook[]
-  contents     Content[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  thumbnailUrl   String?
+  transcript     String?       @db.Text
+  summary        Json?
+  duration       Int?
+  wordCount      Int?
+  hooks          Hook[]
+  contents       Content[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([userId, createdAt])
   @@index([organizationId, createdAt])
@@ -125,18 +128,18 @@ model Content {
 }
 
 model ScheduledPost {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  contentId   String   @unique
-  content     Content  @relation(fields: [contentId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+  contentId   String    @unique
+  content     Content   @relation(fields: [contentId], references: [id])
   platform    String
   scheduledAt DateTime
-  status      String   @default("pending")
+  status      String    @default("pending")
   publishedAt DateTime?
   failReason  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([userId, status, scheduledAt])
 }
@@ -167,15 +170,76 @@ model UsageEvent {
   @@index([userId, eventType, createdAt])
 }
 
+model BillingSubscription {
+  id                 String           @id @default(cuid())
+  userId             String
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan               String
+  interval           String           @default("monthly")
+  status             String           @default("pending")
+  razorpayOrderId    String?          @unique
+  razorpayPaymentId  String?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelledAt        DateTime?
+  metadata           Json?
+  invoices           BillingInvoice[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([userId, status, currentPeriodEnd])
+  @@index([plan, status])
+}
+
+model BillingInvoice {
+  id                String               @id @default(cuid())
+  userId            String
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionId    String?
+  subscription      BillingSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  plan              String
+  interval          String               @default("monthly")
+  amount            Int
+  currency          String               @default("INR")
+  status            String               @default("created")
+  receipt           String               @unique
+  razorpayOrderId   String?              @unique
+  razorpayPaymentId String?
+  razorpaySignature String?
+  paidAt            DateTime?
+  failedAt          DateTime?
+  failReason        String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([userId, status, createdAt])
+  @@index([razorpayPaymentId])
+}
+
+model BillingEvent {
+  id          String    @id @default(cuid())
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  eventId     String    @unique
+  eventType   String
+  processed   Boolean   @default(false)
+  payload     Json?
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([userId, receivedAt])
+  @@index([eventType, processed])
+}
+
 model UserCredit {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id])
-  credits   Int      @default(15)
-  used      Int      @default(0)
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  user      User      @relation(fields: [userId], references: [id])
+  credits   Int       @default(15)
+  used      Int       @default(0)
   resetAt   DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([userId, credits])
 }

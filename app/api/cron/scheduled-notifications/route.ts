@@ -6,14 +6,30 @@ import { processDueScheduledNotifications } from "@/lib/scheduled-notifications"
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
+  return handleCronRequest(request);
+}
+
+export async function POST(request: Request) {
+  return handleCronRequest(request);
+}
+
+async function handleCronRequest(request: Request) {
   try {
+    const url = new URL(request.url);
+    const rawLimit = Number(url.searchParams.get("limit") ?? 25);
+    const limit = Number.isFinite(rawLimit) ? Math.min(100, Math.max(1, rawLimit)) : 25;
     const authorization = request.headers.get("authorization");
     const headerSecret = request.headers.get("x-cron-secret");
+    const vercelCronHeader = request.headers.get("x-vercel-cron");
     const userAgent = request.headers.get("user-agent")?.toLowerCase() ?? "";
     const hasCronSecret = Boolean(env.CRON_SECRET);
-    const isTrustedCronAgent = userAgent.includes("vercel-cron") || userAgent.includes("github-actions-cron");
+    const isTrustedCronAgent =
+      userAgent.includes("vercel-cron") ||
+      userAgent.includes("github-actions-cron") ||
+      vercelCronHeader === "1";
     const isAuthorizedCron = hasCronSecret && (
       authorization === `Bearer ${env.CRON_SECRET}` ||
       headerSecret === env.CRON_SECRET
@@ -21,7 +37,7 @@ export async function GET(request: Request) {
 
     if (!isAuthorizedCron) {
       if (!hasCronSecret && isTrustedCronAgent) {
-        const result = await processDueScheduledNotifications({ limit: 100 });
+        const result = await processDueScheduledNotifications({ limit });
         return ok(result);
       }
 
@@ -32,11 +48,11 @@ export async function GET(request: Request) {
           : "Set CRON_SECRET in Vercel so scheduled notification cron can run securely";
         return err(message, "unauthorized", 401);
       }
-      const result = await processDueScheduledNotifications({ userId: user.id, limit: 25 });
+      const result = await processDueScheduledNotifications({ userId: user.id, limit });
       return ok(result);
     }
 
-    const result = await processDueScheduledNotifications({ limit: 100 });
+    const result = await processDueScheduledNotifications({ limit });
     return ok(result);
   } catch (error) {
     return apiError(error, "scheduled_notifications_cron_failed", 500);

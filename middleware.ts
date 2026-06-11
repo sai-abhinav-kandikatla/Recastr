@@ -14,10 +14,10 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (pathname.startsWith("/api") && request.method === "OPTIONS") {
-    return withCors(request, new NextResponse(null, { status: 204 }));
+    return withCors(request, withSecurityHeaders(new NextResponse(null, { status: 204 })));
   }
 
-  let response = NextResponse.next({ request });
+  let response = withSecurityHeaders(NextResponse.next({ request }));
   if (pathname === "/login" || pathname === "/signup") return response;
 
   const supabaseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
@@ -26,15 +26,23 @@ export async function middleware(request: NextRequest) {
 
   if (supabaseUrl && supabaseAnonKey) {
     const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookieOptions: {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      },
       cookies: {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet, headers) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          response = withSecurityHeaders(NextResponse.next({ request }));
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
+          });
+          Object.entries(headers).forEach(([name, value]) => {
+            response.headers.set(name, value);
           });
         },
       },
@@ -59,7 +67,7 @@ export async function middleware(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
-    return NextResponse.redirect(loginUrl);
+    return withSecurityHeaders(NextResponse.redirect(loginUrl));
   }
 
   return withCors(request, response);
@@ -98,14 +106,42 @@ function withCors(request: NextRequest, response: NextResponse) {
   }
 
   if (!allowedOrigin && process.env.NODE_ENV === "production" && isCrossOriginRequest) {
-    return new NextResponse("CORS origin denied", { status: 403 });
+    return withSecurityHeaders(new NextResponse("Invalid request origin", { status: 403 }));
   }
 
   if (allowedOrigin && origin && !isAllowedCorsOrigin(origin, allowedOrigin)) {
-    return new NextResponse("CORS origin denied", { status: 403 });
+    return withSecurityHeaders(new NextResponse("Invalid request origin", { status: 403 }));
   }
 
   response.headers.set("Access-Control-Allow-Origin", origin ?? allowedOrigin ?? "*");
+
+  return response;
+}
+
+function withSecurityHeaders(response: NextResponse) {
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  response.headers.set(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com",
+      "frame-src https://challenges.cloudflare.com",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join("; "),
+  );
+
+  if (process.env.NODE_ENV === "production") {
+    response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  }
 
   return response;
 }

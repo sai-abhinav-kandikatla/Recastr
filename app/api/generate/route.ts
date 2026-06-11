@@ -5,6 +5,12 @@ import { generatePlatformOutputs } from "@/lib/ai/service";
 import { trackServerEvent } from "@/lib/analytics";
 import { consumeCredits, creditErrorResponse, requireCredits } from "@/lib/credits";
 import { sendContentReadyEmail } from "@/lib/email";
+import {
+  assertCanGenerateContent,
+  planLimitErrorResponse,
+  recordGeneratedContentUsage,
+} from "@/lib/plan-limits";
+import { PLAN_RULES } from "@/lib/plans";
 import { prisma } from "@/lib/prisma/client";
 import { recordUsageEvent } from "@/lib/usage";
 import type { Platform, Tone } from "@/lib/types";
@@ -32,9 +38,17 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url);
     const projectId = url.searchParams.get("projectId") ?? "demo-founder-podcast";
-    const platforms = parsePlatforms(url.searchParams.get("platforms"));
+    const platforms = url.searchParams.has("platforms")
+      ? parsePlatforms(url.searchParams.get("platforms"))
+      : PLAN_RULES[user.plan].outputPlatforms;
     const tone = (url.searchParams.get("tone") ?? "Professional") as Tone;
+    await assertCanGenerateContent(user, platforms);
     const outputs = await generatePlatformOutputs({ projectId, platforms, tone });
+    await recordGeneratedContentUsage({
+      userId: user.id,
+      count: outputs.length,
+      metadata: { projectId, platforms, tone },
+    });
     await recordUsageEvent({
       userId: user.id,
       eventType: "content_generated",
@@ -91,6 +105,8 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     if (error instanceof Response) return error;
+    const planResponse = planLimitErrorResponse(error);
+    if (planResponse) return planResponse;
     const creditResponse = creditErrorResponse(error);
     if (creditResponse) return creditResponse;
     return Response.json(
@@ -109,10 +125,21 @@ export async function POST(request: Request) {
     await assertGenerationRateLimit(user.id);
     await requireCredits(user);
     const payload = generatePostSchema.parse(await request.json());
+    await assertCanGenerateContent(user, payload.platforms);
     const outputs = await generatePlatformOutputs({
       projectId: payload.projectId,
       platforms: payload.platforms,
       tone: payload.tone,
+    });
+    await recordGeneratedContentUsage({
+      userId: user.id,
+      count: outputs.length,
+      metadata: {
+        projectId: payload.projectId,
+        platforms: payload.platforms,
+        contentTypes: payload.contentTypes,
+        tone: payload.tone,
+      },
     });
     await recordUsageEvent({
       userId: user.id,
@@ -136,6 +163,8 @@ export async function POST(request: Request) {
     return streamTokens(text);
   } catch (error) {
     if (error instanceof Response) return error;
+    const planResponse = planLimitErrorResponse(error);
+    if (planResponse) return planResponse;
     const creditResponse = creditErrorResponse(error);
     if (creditResponse) return creditResponse;
     return Response.json(

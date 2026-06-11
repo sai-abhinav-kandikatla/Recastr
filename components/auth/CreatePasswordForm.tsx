@@ -11,10 +11,6 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  createSupabaseBrowserClient,
-  hasSupabaseBrowserConfig,
-} from "@/lib/supabase/client";
 
 const createPasswordSchema = z
   .object({
@@ -58,19 +54,14 @@ export function CreatePasswordForm() {
     let mounted = true;
 
     async function checkSession() {
-      if (!hasSupabaseBrowserConfig) {
-        if (mounted) setSessionState("missing");
-        return;
-      }
-
-      const supabase = await createSupabaseBrowserClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const response = await fetch("/api/auth/session", { cache: "no-store" }).catch(() => null);
+      const payload = (await response?.json().catch(() => null)) as
+        | { data?: { email?: string } }
+        | null;
 
       if (!mounted) return;
-      setEmail(session?.user.email ?? null);
-      setSessionState(session ? "ready" : "missing");
+      setEmail(payload?.data?.email ?? null);
+      setSessionState(response?.ok && payload?.data?.email ? "ready" : "missing");
     }
 
     void checkSession();
@@ -81,23 +72,25 @@ export function CreatePasswordForm() {
   }, []);
 
   async function onSubmit(values: CreatePasswordValues) {
-    if (!hasSupabaseBrowserConfig) {
-      toast.error("Supabase auth is not configured.");
-      return;
-    }
-
-    const supabase = await createSupabaseBrowserClient();
-    const { error } = await supabase.auth.updateUser({
-      password: values.password,
+    const response = await fetch("/api/auth/update-password", {
+      body: JSON.stringify({
+        invalidateSessions: isChangeMode,
+        password: values.password,
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
     });
+    const payload = (await response.json().catch(() => null)) as
+      | { error?: { message?: string } }
+      | null;
 
-    if (error) {
-      toast.error(error.message);
+    if (!response.ok) {
+      toast.error(payload?.error?.message ?? "Could not update password. Try again.");
       return;
     }
 
-    toast.success(isChangeMode ? "Password updated." : "Password created. Welcome to Recastr.");
-    router.replace(nextPath);
+    toast.success(isChangeMode ? "Password updated. Sign in again." : "Password created. Welcome to Recastr.");
+    router.replace(isChangeMode ? "/login?password=updated" : nextPath);
     router.refresh();
   }
 

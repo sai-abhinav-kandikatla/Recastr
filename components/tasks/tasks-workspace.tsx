@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { format, formatDistanceToNow, isSameDay, isThisWeek, isToday } from "date-fns";
+import { format, isSameDay, isThisWeek, isToday } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { CalendarDays, CheckCircle2, Clock3, Copy, Eye, History, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -334,8 +334,8 @@ function ScheduledTab({
                 const content = post.contentId ? contentIndex.get(post.contentId) : undefined;
                 const body = getScheduledBody(post, content);
                 return (
-                  <div className="grid gap-4 px-5 py-4 transition-colors hover:bg-[var(--app-panel)]/55 md:grid-cols-[160px_140px_minmax(0,1fr)_auto] md:items-center" key={post.id}>
-                    <div className="flex flex-col items-start gap-1">
+                  <div className="grid gap-4 px-5 py-4 transition-colors hover:bg-[var(--app-panel)]/55 md:grid-cols-[240px_140px_minmax(0,1fr)_auto] md:items-center" key={post.id}>
+                    <div className="flex min-w-max items-center gap-2 whitespace-nowrap">
                       <span className="inline-flex items-center gap-2 rounded-full border border-[var(--app-line)] bg-[var(--app-bg)]/70 px-2.5 py-1 font-mono text-xs font-semibold">
                         <Clock3 className="h-3 w-3 text-muted-foreground" />
                         {format(new Date(post.publishAt), "h:mma")}
@@ -584,15 +584,30 @@ function CountdownTimer({ date }: { date: string }) {
   const isExpired = target <= now;
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    const timer = window.setInterval(() => setNow(Date.now()), 15_000);
     return () => window.clearInterval(timer);
   }, []);
 
   return (
-    <span className={cn("block whitespace-nowrap text-[11px] font-semibold", isExpired ? "text-amber-400" : "text-cyan-300")}>
-      {isExpired ? "Due now" : `${formatDistanceToNow(target, { addSuffix: false })} left`}
+    <span className={cn("inline-flex min-w-max whitespace-nowrap text-[11px] font-semibold", isExpired ? "text-amber-400" : "text-cyan-300")}>
+      {isExpired ? "Due now" : formatCountdown(target - now)}
     </span>
   );
+}
+
+function formatCountdown(diffMs: number) {
+  const minutes = Math.max(1, Math.ceil(diffMs / 60_000));
+  if (minutes < 60) {
+    return `${minutes} ${minutes === 1 ? "minute" : "minutes"} left`;
+  }
+
+  const hours = Math.ceil(minutes / 60);
+  if (hours < 24) {
+    return `${hours} ${hours === 1 ? "hour" : "hours"} left`;
+  }
+
+  const days = Math.ceil(hours / 24);
+  return `${days} ${days === 1 ? "day" : "days"} left`;
 }
 
 async function copyScheduledContent(body: string) {

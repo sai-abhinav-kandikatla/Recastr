@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma/client";
 import { serializeProject } from "@/lib/projects/serialize";
 import { apiError } from "@/lib/api/response";
 import { recordAuditLog } from "@/lib/audit-log";
+import { assertCanCreateProject, planLimitErrorResponse } from "@/lib/plan-limits";
 
 export const runtime = "nodejs";
 
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     const user = await getRequestUser(request);
     const body = createProjectSchema.parse(await request.json());
 
-
+    await assertCanCreateProject(user, body.sourceType);
 
     await ensureUserRecord(user);
     const project = await prisma.project.create({
@@ -60,6 +61,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(serializeProject(project), { status: 201 });
   } catch (error) {
+    if (error instanceof Response) return error;
+    const planResponse = planLimitErrorResponse(error);
+    if (planResponse) return planResponse;
     return apiError(error, "project_create_failed", 400);
   }
 }
