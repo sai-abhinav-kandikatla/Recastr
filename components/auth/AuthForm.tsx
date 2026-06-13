@@ -234,8 +234,11 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-violet-400 mb-5">
             AI Content Studio
           </p>
-          <h1 className="text-4xl font-display font-semibold leading-tight tracking-tight mb-5">
-            Turn one recording into<br />
+          <h1
+            className="text-4xl font-display font-semibold leading-tight tracking-tight mb-5"
+            aria-label="Turn one recording into 30 days of content."
+          >
+            Turn one recording into{" "}<br />
             30 days of content.
           </h1>
           <p className="mb-10 text-base leading-relaxed text-muted-foreground">

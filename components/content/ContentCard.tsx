@@ -12,13 +12,14 @@ import {
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  CalendarDays,
   Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
   GripVertical,
+  Mail,
   RefreshCcw,
+  Send,
 } from "lucide-react";
 import { PlatformPreviewEngine } from "@/components/preview/PlatformPreview";
 import { getPlatformCharacterLimit } from "@/lib/platform-limits";
@@ -39,7 +40,7 @@ export interface ContentCardProps {
   onApprove: (id: string) => void;
   onToneChange: (id: string, tone: string) => void;
   onBodyChange: (id: string, body: string) => void;
-  onSchedule: (id: string, date: Date) => void;
+  onSchedule: (id: string, date: Date, method: "email_reminder" | "direct_post") => void;
   onCopy: (id: string) => void;
   onRegenerate: (id: string) => void;
   onActivate?: (id: string) => void;
@@ -111,6 +112,7 @@ export const ContentCard = memo(function ContentCard({
   const [focused, setFocused] = useState(false);
   const [copied, setCopied] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleMethod, setScheduleMethod] = useState<"email_reminder" | "direct_post">("email_reminder");
   const [scheduleValue, setScheduleValue] = useState(defaultScheduleValue());
   const [streaming, setStreaming] = useState(false);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
@@ -176,9 +178,14 @@ export const ContentCard = memo(function ContentCard({
   const handleSchedule = useCallback(() => {
     const date = new Date(scheduleValue);
     if (Number.isNaN(date.getTime())) return;
-    onSchedule(id, date);
+    onSchedule(id, date, scheduleMethod);
     setScheduleOpen(false);
-  }, [id, onSchedule, scheduleValue]);
+  }, [id, onSchedule, scheduleMethod, scheduleValue]);
+
+  const openScheduleWithMethod = useCallback((method: "email_reminder" | "direct_post") => {
+    setScheduleMethod(method);
+    setScheduleOpen(true);
+  }, []);
 
   return (
     <motion.article
@@ -337,21 +344,24 @@ export const ContentCard = memo(function ContentCard({
           ) : (
             <button
               type="button"
-              onClick={() => setScheduleOpen((current) => !current)}
+              onClick={() => openScheduleWithMethod("email_reminder")}
               disabled={overLimit}
-              title="Schedule this post and receive an email when it is time to publish manually."
+              title="Schedule an email reminder when it is time to publish manually."
               className="h-8 rounded-lg bg-[var(--violet)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--violet-hover)] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-red-500/15 disabled:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
             >
-              {overLimit ? "Over limit" : "Schedule"}
+              <Mail className="mr-1 inline h-3.5 w-3.5" />
+              {overLimit ? "Over limit" : "Remind me"}
             </button>
           )}
           <button
             type="button"
-            onClick={() => setScheduleOpen((current) => !current)}
+            onClick={() => openScheduleWithMethod("direct_post")}
             disabled={overLimit}
-            className="hidden h-8 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 text-xs font-semibold text-foreground transition hover:bg-[var(--app-panel)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
+            title="Schedule and post directly to the platform."
+            className="h-8 rounded-lg border border-[var(--app-line)] bg-[var(--app-bg)] px-3 text-xs font-semibold text-foreground transition hover:bg-[var(--app-panel)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
           >
-            Schedule
+            <Send className="mr-1 inline h-3.5 w-3.5" />
+            Post directly
           </button>
           <button
             type="button"
@@ -373,10 +383,12 @@ export const ContentCard = memo(function ContentCard({
             className="overflow-hidden border-t border-[var(--app-line)]"
           >
             <SchedulePicker
+              method={scheduleMethod}
               value={scheduleValue}
               onCancel={() => setScheduleOpen(false)}
               onChange={setScheduleValue}
               onConfirm={handleSchedule}
+              onMethodChange={setScheduleMethod}
             />
           </motion.div>
         ) : null}
@@ -386,14 +398,18 @@ export const ContentCard = memo(function ContentCard({
 });
 
 function SchedulePicker({
+  method,
   onCancel,
   onChange,
   onConfirm,
+  onMethodChange,
   value,
 }: {
+  method: "email_reminder" | "direct_post";
   onCancel: () => void;
   onChange: (value: string) => void;
   onConfirm: () => void;
+  onMethodChange: (method: "email_reminder" | "direct_post") => void;
   value: string;
 }) {
   const selected = useMemo(() => parseScheduleValue(value), [value]);
@@ -435,11 +451,28 @@ function SchedulePicker({
     <div className="bg-[var(--app-bg)] px-4 py-4">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--violet)]">
-            <CalendarDays className="h-3.5 w-3.5" />
-            Schedule reminder
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">{scheduledLabel}</p>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-full border border-[var(--app-line)] bg-[var(--app-surface)] p-0.5">
+              {(["email_reminder", "direct_post"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => onMethodChange(m)}
+                  className={cn(
+                    "relative h-7 rounded-full px-3 text-xs font-semibold capitalize transition-colors",
+                    method === m ? "bg-[var(--violet)] text-white" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {m === "email_reminder" ? (
+                    <><Mail className="mr-1 inline h-3 w-3" /> Remind me</>
+                  ) : (
+                    <><Send className="mr-1 inline h-3 w-3" /> Post directly</>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground">{scheduledLabel}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -454,7 +487,7 @@ function SchedulePicker({
             onClick={onConfirm}
             type="button"
           >
-            Save schedule
+            {method === "email_reminder" ? "Save reminder" : "Schedule post"}
           </button>
         </div>
       </div>
@@ -554,7 +587,9 @@ function SchedulePicker({
             />
           </div>
           <p className="mt-3 text-xs leading-5 text-muted-foreground">
-            You will receive an email reminder at this local time.
+            {method === "email_reminder"
+              ? "You will receive an email reminder at this local time."
+              : "Your post will be published directly to the platform at this time."}
           </p>
         </div>
       </div>

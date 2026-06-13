@@ -18,11 +18,13 @@ import {
   ShieldCheck,
   Send,
   UserCircle,
+  Users,
   Settings,
   Sparkles
 } from "lucide-react";
 import { toast } from "sonner";
 import { RazorpayButton } from "@/components/billing/RazorpayButton";
+import { SettingsTeamTab } from "./settings-team-tab";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,10 +34,11 @@ import { PLAN_RULES } from "@/lib/plans";
 import type { Plan } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type SettingsTab = "profile" | "posting" | "billing" | "notifications";
+type SettingsTab = "profile" | "team" | "posting" | "billing" | "notifications";
 
 const tabs: Array<{ value: SettingsTab; label: string; icon: ComponentType<{ className?: string }> }> = [
   { value: "profile", label: "Profile", icon: UserCircle },
+  { value: "team", label: "Team & Workspace", icon: Users },
   { value: "posting", label: "Posting", icon: Send },
   { value: "billing", label: "Workspace billing", icon: CreditCard },
   { value: "notifications", label: "Notifications", icon: Bell },
@@ -544,7 +547,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 rounded-full border border-[var(--app-line)] bg-[var(--app-surface)] p-1.5">
+      <div className="-mx-1 flex gap-0.5 overflow-x-auto border-b border-[var(--app-line)] pb-1 sm:mx-0 sm:flex-wrap sm:gap-2 sm:rounded-full sm:border sm:bg-[var(--app-surface)] sm:p-1.5 sm:pb-1.5">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -553,20 +556,21 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
               type="button"
               onClick={() => setActiveTab(tab.value)}
               className={cn(
-                "relative z-10 flex h-10 items-center gap-2 rounded-full px-5 text-sm font-medium transition-colors",
+                "relative z-10 flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-colors sm:h-10 sm:gap-2 sm:rounded-full sm:px-5 sm:text-sm",
                 activeTab === tab.value ? "text-white" : "text-muted-foreground hover:text-foreground"
               )}
             >
               {activeTab === tab.value && (
                 <motion.div
                   layoutId="settings-tab-indicator"
-                  className="absolute inset-0 -z-10 rounded-full bg-[var(--violet)]"
+                  className="absolute inset-0 -z-10 rounded-lg bg-[var(--violet)] sm:rounded-full"
                   initial={false}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />
               )}
-              <Icon className="h-4 w-4" />
-              {tab.label}
+              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden min-[400px]:inline">{tab.label}</span>
+              <span className="min-[400px]:hidden">{tab.label.split(" ")[0]}</span>
             </button>
           );
         })}
@@ -807,6 +811,17 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                 </div>
               </div>
             </div>
+          )}
+
+          {activeTab === "team" && (
+            <motion.div
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.3 }}
+            >
+              <SettingsTeamTab currentUser={currentUser} />
+            </motion.div>
           )}
 
           {activeTab === "posting" && (

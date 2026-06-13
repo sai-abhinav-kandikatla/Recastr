@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { AuthPromptModal } from "@/components/auth/AuthPromptModal";
 import { HookSidebar } from "@/components/content/HookSidebar";
 import { Button } from "@/components/ui/button";
 import { assertApiOk, emitScheduleCreated, readApiJson } from "@/lib/client-api";
@@ -27,7 +28,13 @@ import { GenerateDrawer } from "./GenerateDrawer";
 import { type PlatformFilter, type ExportFormat, platformOrder, platformLabels } from "./types";
 import { toCardPlatform, normalizeSupportedPlatform } from "./utils";
 
-export function ProjectWorkspace({ project }: { project: Project }) {
+export function ProjectWorkspace({
+  project,
+  readOnly = false,
+}: {
+  project: Project;
+  readOnly?: boolean;
+}) {
   const queryClient = useQueryClient();
   const initialContent = useMemo(() => normalizeContents(project), [project]);
   const hooks = useMemo(() => normalizeHooks(project), [project]);
@@ -37,6 +44,7 @@ export function ProjectWorkspace({ project }: { project: Project }) {
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>("pdf");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [authPromptOpen, setAuthPromptOpen] = useState(false);
   const [scheduledDates, setScheduledDates] = useState<Record<string, Date>>({});
   const [selectedContentId, setSelectedContentId] = useState<string | null>(
     () => initialContent[0]?.id ?? null,
@@ -81,6 +89,11 @@ export function ProjectWorkspace({ project }: { project: Project }) {
     },
   });
 
+  const requireAccount = useCallback((action = "continue") => {
+    setAuthPromptOpen(true);
+    toast.info(`Create a free account to ${action}.`);
+  }, []);
+
   const filteredContents = useMemo(() => {
     return contents
       .filter((item) => selectedHookId === null || item.hookId === selectedHookId)
@@ -102,6 +115,10 @@ export function ProjectWorkspace({ project }: { project: Project }) {
 
   const handleApprove = useCallback(
     (id: string) => {
+      if (readOnly) {
+        requireAccount("publish this post");
+        return;
+      }
       const content = contents.find((item) => item.id === id);
       if (!content) return;
       const limit = getPlatformCharacterLimit(content.platform);
@@ -119,11 +136,15 @@ export function ProjectWorkspace({ project }: { project: Project }) {
       );
       updateContentMutation.mutate({ id, approved: true });
     },
-    [contents, updateContentMutation],
+    [contents, readOnly, requireAccount, updateContentMutation],
   );
 
   const handleBodyChange = useCallback(
     (id: string, body: string) => {
+      if (readOnly) {
+        requireAccount("edit generated posts");
+        return;
+      }
       const content = contents.find((item) => item.id === id);
       const overLimit = content ? body.length > getPlatformCharacterLimit(content.platform) : false;
       setContents((current) =>
@@ -131,11 +152,15 @@ export function ProjectWorkspace({ project }: { project: Project }) {
       );
       updateContentMutation.mutate(overLimit ? { id, body, approved: false } : { id, body });
     },
-    [contents, updateContentMutation],
+    [contents, readOnly, requireAccount, updateContentMutation],
   );
 
   const handleToneChange = useCallback(
     (id: string, tone: string) => {
+      if (readOnly) {
+        requireAccount("rewrite tone");
+        return;
+      }
       const content = contents.find((item) => item.id === id);
       if (!content) return;
       setContents((current) =>
@@ -143,11 +168,15 @@ export function ProjectWorkspace({ project }: { project: Project }) {
       );
       toneMutation.mutate({ id, content: content.body, tone });
     },
-    [contents, toneMutation],
+    [contents, readOnly, requireAccount, toneMutation],
   );
 
   const handleSchedule = useCallback(
-    (id: string, date: Date) => {
+    (id: string, date: Date, method: "email_reminder" | "direct_post" = "email_reminder") => {
+      if (readOnly) {
+        requireAccount("schedule reminders");
+        return;
+      }
       const content = contents.find((item) => item.id === id);
       if (!content) return;
       const limit = getPlatformCharacterLimit(content.platform);
@@ -165,6 +194,7 @@ export function ProjectWorkspace({ project }: { project: Project }) {
         originalBody: content.originalBody,
         contentType: content.contentType,
         tone: content.tone,
+        postingMethod: method,
       }, {
         onSuccess: (scheduledPost) => {
           setScheduledDates((current) => ({ ...current, [id]: date }));
@@ -172,7 +202,7 @@ export function ProjectWorkspace({ project }: { project: Project }) {
         },
       });
     },
-    [contents, project.id, project.title, scheduleMutation],
+    [contents, project.id, project.title, readOnly, requireAccount, scheduleMutation],
   );
 
   const handleCopy = useCallback(
@@ -187,13 +217,17 @@ export function ProjectWorkspace({ project }: { project: Project }) {
 
   const handleRegenerate = useCallback(
     (id: string) => {
+      if (readOnly) {
+        requireAccount("generate more variations");
+        return;
+      }
       const content = contents.find((item) => item.id === id);
       if (!content) return;
       const next = regenerateBody(project, content, selectedHookId, hooks);
       streamReplaceContent(id, next, setContents);
       updateContentMutation.mutate({ id, body: next });
     },
-    [contents, hooks, project, selectedHookId, updateContentMutation],
+    [contents, hooks, project, readOnly, requireAccount, selectedHookId, updateContentMutation],
   );
 
   const addGeneratedCards = useCallback(
@@ -220,9 +254,16 @@ export function ProjectWorkspace({ project }: { project: Project }) {
           platformFilter={platformFilter}
           onPlatformFilterChange={setPlatformFilter}
           exportOpen={exportOpen}
-          onExportToggle={() => setExportOpen((current) => !current)}
-          onGenerateToggle={() => setDrawerOpen(true)}
+          onExportToggle={() => readOnly ? requireAccount("export content") : setExportOpen((current) => !current)}
+          onGenerateToggle={() => readOnly ? requireAccount("generate more content") : setDrawerOpen(true)}
         />
+
+        {readOnly ? (
+          <div className="mb-4 rounded-2xl border border-[var(--violet)]/25 bg-[var(--violet-muted)] px-4 py-3 text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">Preview mode.</span>{" "}
+            Browse this project freely. Create an account when you want to edit, export, or schedule.
+          </div>
+        ) : null}
 
         <AnimatePresence initial={false}>
           {exportOpen ? (
@@ -265,7 +306,7 @@ export function ProjectWorkspace({ project }: { project: Project }) {
                 onCopy={handleCopy}
                 onRegenerate={handleRegenerate}
                 onActivate={setSelectedContentId}
-                onGenerateMore={() => setDrawerOpen(true)}
+                onGenerateMore={() => readOnly ? requireAccount("generate more content") : setDrawerOpen(true)}
               />
             ) : (
               <div className="rounded-3xl border border-dashed border-[var(--app-line-strong)] bg-[var(--app-surface)] p-10 text-center">
@@ -274,7 +315,7 @@ export function ProjectWorkspace({ project }: { project: Project }) {
                 <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                   Clear the hook filter or generate more content from the right drawer.
                 </p>
-                <Button className="mt-5 rounded-full bg-[var(--violet)] px-5 text-white hover:bg-[var(--violet-hover)]" onClick={() => setDrawerOpen(true)}>
+                <Button className="mt-5 rounded-full bg-[var(--violet)] px-5 text-white hover:bg-[var(--violet-hover)]" onClick={() => readOnly ? requireAccount("generate more content") : setDrawerOpen(true)}>
                   <Plus className="h-4 w-4" />
                   Generate more
                 </Button>
@@ -294,6 +335,12 @@ export function ProjectWorkspace({ project }: { project: Project }) {
           />
         ) : null}
       </AnimatePresence>
+
+      <AuthPromptModal
+        open={authPromptOpen}
+        onOpenChange={setAuthPromptOpen}
+        projectTitle={project.title}
+      />
     </div>
   );
 }
@@ -343,6 +390,7 @@ async function scheduleContent(payload: {
   originalBody: string;
   contentType: string;
   tone: string;
+  postingMethod: "email_reminder" | "direct_post";
 }) {
   const response = await fetch("/api/schedule", {
     method: "POST",
@@ -356,6 +404,7 @@ async function scheduleContent(payload: {
     outputId: payload.contentId,
     contentId: payload.contentId,
     platform: payload.platform,
+    postingMethod: payload.postingMethod,
     publishAt: data.publishAt ?? payload.scheduledAt,
     scheduledAt: data.scheduledAt ?? data.publishAt ?? payload.scheduledAt,
     status: "PENDING",

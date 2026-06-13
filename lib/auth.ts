@@ -201,3 +201,37 @@ function normalizeRole(value: unknown): AuthenticatedUser["role"] {
   if (role === "owner" || role === "admin") return role;
   return "member";
 }
+
+export function requireAdmin(user: AuthenticatedUser) {
+  if (user.role !== "admin" && user.role !== "owner") {
+    throw new Response("Forbidden: Admin access required", { status: 403 });
+  }
+}
+
+export async function requireOrgAccess(
+  user: AuthenticatedUser,
+  organizationId: string,
+  allowedRoles: ("owner" | "admin" | "editor" | "viewer")[] = ["owner", "admin", "editor", "viewer"]
+) {
+  if (user.role === "admin" || user.role === "owner") return { role: user.role }; // System admins have global access
+
+  const membership = await prisma.organizationMembership.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId,
+        userId: user.id,
+      },
+    },
+    select: { role: true },
+  });
+
+  if (!membership) {
+    throw new Response("Forbidden: Organization access denied", { status: 403 });
+  }
+
+  if (allowedRoles.length > 0 && !allowedRoles.includes(membership.role as any)) {
+    throw new Response("Forbidden: Insufficient organization role", { status: 403 });
+  }
+
+  return membership;
+}

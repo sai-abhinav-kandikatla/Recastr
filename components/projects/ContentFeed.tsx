@@ -33,7 +33,7 @@ export function ContentFeed({
   onApprove: (id: string) => void;
   onToneChange: (id: string, tone: string) => void;
   onBodyChange: (id: string, body: string) => void;
-  onSchedule: (id: string, date: Date) => void;
+  onSchedule: (id: string, date: Date, method: "email_reminder" | "direct_post") => void;
   onCopy: (id: string) => void;
   onRegenerate: (id: string) => void;
   onActivate: (id: string) => void;
@@ -150,7 +150,7 @@ function ContentCardAdapter({
   onApprove: (id: string) => void;
   onToneChange: (id: string, tone: string) => void;
   onBodyChange: (id: string, body: string) => void;
-  onSchedule: (id: string, date: Date) => void;
+  onSchedule: (id: string, date: Date, method: "email_reminder" | "direct_post") => void;
   onCopy: (id: string) => void;
   onRegenerate: (id: string) => void;
   onActivate: (id: string) => void;

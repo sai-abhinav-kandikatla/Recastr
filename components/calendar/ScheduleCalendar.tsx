@@ -183,7 +183,11 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
           </div>
         </div>
 
-        <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_292px]">
+        <div className="border-b border-[var(--app-line)] p-2.5 md:hidden">
+          <MobileScheduleAgenda historyPosts={historyPosts} upcomingPosts={upcomingPosts} />
+        </div>
+
+        <div className="hidden gap-0 md:grid xl:grid-cols-[minmax(0,1fr)_292px]">
           <div className="min-w-0">
             <div
               className={cn(
@@ -266,6 +270,61 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
           </aside>
         </div>
       </section>
+    </div>
+  );
+}
+
+function MobileScheduleAgenda({
+  historyPosts,
+  upcomingPosts,
+}: {
+  historyPosts: ScheduledPost[];
+  upcomingPosts: ScheduledPost[];
+}) {
+  return (
+    <div className="space-y-2">
+      <PanelBlock
+        action={
+          <Button asChild className="h-7 rounded-md px-2.5 text-[11px]" size="sm" variant="outline">
+            <Link href="/tasks?tab=scheduled">Open tasks</Link>
+          </Button>
+        }
+        icon={<Clock3 className="h-4 w-4 text-primary" />}
+        subtitle="Next reminders in order"
+        title="Upcoming"
+      >
+        {upcomingPosts.length ? (
+          <div className="space-y-2">
+            {upcomingPosts.slice(0, 5).map((post) => (
+              <AgendaItem key={post.id} post={post} />
+            ))}
+          </div>
+        ) : (
+          <EmptyPanel
+            body="Schedule any content card and it will appear here."
+            title="Nothing scheduled"
+          />
+        )}
+      </PanelBlock>
+
+      <PanelBlock
+        icon={<MailCheck className="h-4 w-4 text-emerald-400" />}
+        subtitle="Recently notified, failed, or cancelled"
+        title="Email activity"
+      >
+        {historyPosts.length ? (
+          <div className="space-y-2">
+            {historyPosts.slice(0, 3).map((post) => (
+              <HistoryItem key={post.id} post={post} />
+            ))}
+          </div>
+        ) : (
+          <EmptyPanel
+            body="Email reminders move here after their scheduled time arrives."
+            title="No activity yet"
+          />
+        )}
+      </PanelBlock>
     </div>
   );
 }
@@ -400,9 +459,9 @@ function HistoryItem({ post }: { post: ScheduledPost }) {
 
 function EmptyPanel({ body, title }: { body: string; title: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-[var(--app-line)] bg-[var(--app-bg)]/55 p-3">
+    <div className="rounded-xl border border-dashed border-[var(--app-line)] bg-[var(--app-bg)]/55 p-2.5">
       <p className="text-xs font-semibold">{title}</p>
-      <p className="mt-1 text-[11px] leading-5 text-muted-foreground">{body}</p>
+      <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{body}</p>
     </div>
   );
 }

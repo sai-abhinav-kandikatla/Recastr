@@ -80,10 +80,10 @@ const plans = [
   {
     name: "Spark",
     price: "$0",
-    period: "by the demo flow",
+    period: "forever free",
     description: "Test drive with sample projects.",
     features: [
-      "3 demo projects",
+      "3 starter projects",
       "All output formats",
       "Manual copy and export",
     ],
@@ -135,7 +135,7 @@ const faqs = [
   },
   {
     q: "Is there a free plan?",
-    a: "Yes. Start free with 3 demo projects and upgrade when Recastr becomes part of your weekly publishing flow.",
+    a: "Yes. Start free with 3 starter projects and upgrade when Recastr becomes part of your weekly publishing flow.",
   },
 ] as const;
 
@@ -299,10 +299,13 @@ export function LandingPage() {
           </div>
 
           {/* Headline */}
-          <h1 className="max-w-[820px] font-display text-[clamp(2.5rem,6vw,5.5rem)] font-semibold leading-[0.95] tracking-[-0.03em] text-[var(--landing-fg)]">
-            One source.
+          <h1
+            className="max-w-[820px] font-display text-[clamp(2.5rem,6vw,5.5rem)] font-semibold leading-[0.95] tracking-[-0.03em] text-[var(--landing-fg)]"
+            aria-label="One source. Thirty days of content."
+          >
+            <span>One source.</span>{" "}
             <br />
-            Thirty days of content.
+            <span>Thirty days of content.</span>
           </h1>
 
           {/* Subheadline */}
@@ -480,7 +483,7 @@ export function LandingPage() {
                     ))}
                   </ul>
                   <a
-                    href="#cta"
+                    href="/signup"
                     className={`mt-8 inline-flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold transition-all ${
                       featured
                         ? "bg-[var(--landing-accent)] text-white hover:brightness-110"
@@ -522,7 +525,7 @@ export function LandingPage() {
             Stop posting less. Start shipping more.
           </h2>
           <p className="relative mt-4 max-w-md text-sm leading-relaxed text-[var(--landing-bg)]/60">
-            Free to try with three demo projects. No credit card, no prompt
+            Free to try with three starter projects. No credit card, no prompt
             prison.
           </p>
 

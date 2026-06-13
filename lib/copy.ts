@@ -58,7 +58,7 @@ export const copy = {
     proof: "Used by 2,000+ creators",
     hookCallout: "Our AI finds the 3 hooks that will blow up your content.",
     faq: [
-      ["Does Recastr work without API keys?", "Yes. Demo mode returns deterministic data for the complete pitch flow."],
+      ["Does Recastr work without API keys?", "Yes. Local sample data can be used when external services are not configured."],
       ["Can I use Razorpay now?", "Yes. Add Razorpay keys and checkout will create real orders."],
       ["What is the core workflow?", "Paste a source, extract hooks, generate content, then copy or export the pack."],
     ],

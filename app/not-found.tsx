@@ -7,7 +7,7 @@ export default function NotFound() {
       <div className="max-w-lg text-center">
         <p className="text-sm uppercase tracking-[0.18em] text-violet-300">404</p>
         <h1 className="mt-4 text-4xl font-medium tracking-normal">This content pack does not exist.</h1>
-        <p className="mt-4 text-sm leading-6 text-slate-400">Head back to the dashboard and open one of the demo projects.</p>
+        <p className="mt-4 text-sm leading-6 text-slate-400">Head back to the dashboard and open one of your projects.</p>
         <Button asChild className="mt-6 bg-white text-slate-950 hover:bg-slate-200">
           <Link href="/dashboard">Open dashboard</Link>
         </Button>
