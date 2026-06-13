@@ -16,7 +16,10 @@ export async function GET(request: Request) {
       prisma.project.count({ where: { userId: user.id } }),
       prisma.content.count({ where: { project: { userId: user.id } } }),
       prisma.scheduledPost.count({
-        where: { userId: user.id, status: { in: ["pending", "scheduled"] } },
+        where: {
+          userId: user.id,
+          status: { in: ["pending", "scheduled", "PENDING", "SCHEDULED"] },
+        },
       }),
     ]);
 

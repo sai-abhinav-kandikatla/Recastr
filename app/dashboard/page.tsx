@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/layout/AppShell";
-import { ProjectDashboard } from "@/components/dashboard/project-dashboard";
+import { ProjectDashboard, type DashboardMetrics } from "@/components/dashboard/project-dashboard";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
 import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
@@ -8,12 +8,16 @@ import type { Project } from "@/lib/types";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
-  const projects = await loadProjects(user?.id);
+  const [projects, metrics] = await Promise.all([
+    loadProjects(user?.id),
+    loadDashboardMetrics(user?.id),
+  ]);
 
   return (
     <AppShell projects={projects} title="Dashboard" user={user}>
       <ProjectDashboard
         initialProjects={projects}
+        initialMetrics={metrics}
         demoLocked={user?.id === "demo-user"}
         user={user}
       />
@@ -42,5 +46,33 @@ async function loadProjects(userId?: string): Promise<Project[]> {
   } catch (error) {
     console.error("Failed to load projects:", error);
     return [];
+  }
+}
+
+async function loadDashboardMetrics(userId?: string): Promise<DashboardMetrics> {
+  if (!userId) {
+    return { projects: 0, contentCount: 0, scheduled: 0 };
+  }
+
+  if (process.env.RECASTR_DEMO_MODE === "true") {
+    return { projects: 3, contentCount: 42, scheduled: 6 };
+  }
+
+  try {
+    const [projects, contentCount, scheduled] = await Promise.all([
+      prisma.project.count({ where: { userId } }),
+      prisma.content.count({ where: { project: { userId } } }),
+      prisma.scheduledPost.count({
+        where: {
+          userId,
+          status: { in: ["pending", "scheduled", "PENDING", "SCHEDULED"] },
+        },
+      }),
+    ]);
+
+    return { projects, contentCount, scheduled };
+  } catch (error) {
+    console.error("Failed to load dashboard metrics:", error);
+    return { projects: 0, contentCount: 0, scheduled: 0 };
   }
 }

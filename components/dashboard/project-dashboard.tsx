@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentType, type SVGProps } from "react";
+import { useEffect, useState, type ComponentType, type SVGProps } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -12,12 +12,20 @@ import { Button } from "@/components/ui/button";
 import type { CurrentUser } from "@/lib/current-user";
 import type { Project } from "@/lib/types";
 
+export type DashboardMetrics = {
+  projects: number;
+  contentCount: number;
+  scheduled: number;
+};
+
 export function ProjectDashboard({
   initialProjects,
+  initialMetrics,
   demoLocked = false,
   user,
 }: {
   initialProjects: Project[];
+  initialMetrics?: DashboardMetrics;
   demoLocked?: boolean;
   user?: CurrentUser | null;
 }) {
@@ -25,33 +33,30 @@ export function ProjectDashboard({
   const searchParams = useSearchParams();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [selectedProjectTitle, setSelectedProjectTitle] = useState<string | undefined>();
+  const [liveMetrics, setLiveMetrics] = useState<DashboardMetrics>(
+    initialMetrics ?? { projects: initialProjects.length, contentCount: 0, scheduled: 0 },
+  );
   const isWelcome = searchParams.get("welcome") === "1";
   const firstName = user?.name?.split(" ")[0] ?? user?.email.split("@")[0] ?? "there";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-
-  const projectsThisMonth = initialProjects.filter((project) => {
-    const createdAt = new Date(project.createdAt);
-    return createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear;
-  }).length;
-
-  const contentCount = initialProjects.reduce(
+  const fallbackContentCount = initialProjects.reduce(
     (total, project) => total + (project.contents?.length ?? project.outputs.length),
     0,
   );
-  const projectLabel = `${initialProjects.length} ${initialProjects.length === 1 ? "project" : "projects"}`;
 
-  const scheduledCount = initialProjects.reduce((total, project) => {
+  const fallbackScheduledCount = initialProjects.reduce((total, project) => {
     if (project.contents?.length) {
       return total + project.contents.filter((content) => Boolean(content.scheduledPost)).length;
     }
     return total;
   }, 0);
+  const projectCount = Math.max(liveMetrics.projects, initialProjects.length);
+  const contentCount = Math.max(liveMetrics.contentCount, fallbackContentCount);
+  const scheduledCount = Math.max(liveMetrics.scheduled, fallbackScheduledCount);
+  const projectLabel = `${projectCount} ${projectCount === 1 ? "project" : "projects"}`;
 
-  const timeSavedHours = Math.max(0, (contentCount * 8 + initialProjects.length * 20) / 60);
+  const timeSavedHours = Math.max(0, (contentCount * 8 + projectCount * 20) / 60);
 
   const metrics: Array<{
     label: string;
@@ -59,7 +64,7 @@ export function ProjectDashboard({
     icon: ComponentType<{ className?: string }>;
     trend: string;
   }> = [
-    { label: "Projects this month", value: String(projectsThisMonth), icon: FileText, trend: "This month" },
+    { label: "Projects created", value: String(projectCount), icon: FileText, trend: "Live count" },
     { label: "Content generated", value: String(contentCount), icon: Sparkles, trend: contentCount > 0 ? "Ready to schedule" : "None yet" },
     { label: "Scheduled posts", value: String(scheduledCount), icon: Clock3, trend: scheduledCount > 0 ? "Email reminders set" : "None scheduled" },
     { label: "Time saved", value: formatHours(timeSavedHours), icon: Timer, trend: "Estimated" },
@@ -70,6 +75,30 @@ export function ProjectDashboard({
     { step: "3", label: "Posts generated", icon: Sparkles },
     { step: "4", label: "Schedule reminders", icon: MailCheck },
   ];
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function refreshMetrics() {
+      try {
+        const response = await fetch("/api/usage", { cache: "no-store" });
+        const payload = (await response.json()) as {
+          data: DashboardMetrics | null;
+          error: { message: string; code: string } | null;
+        };
+        if (!ignore && response.ok && payload.data) {
+          setLiveMetrics(payload.data);
+        }
+      } catch {
+        // The server-rendered metrics remain visible if the live refresh fails.
+      }
+    }
+
+    void refreshMetrics();
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   return (
     <div className="space-y-10">
