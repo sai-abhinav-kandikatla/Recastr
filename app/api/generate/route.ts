@@ -1,5 +1,6 @@
 import { getRequestUser } from "@/lib/auth";
 import { generatePostSchema } from "@/lib/ai/schemas";
+import { apiError } from "@/lib/api/response";
 import { assertGenerationRateLimit } from "@/lib/rate-limit";
 import { generatePlatformOutputs } from "@/lib/ai/service";
 import { trackServerEvent } from "@/lib/analytics";
@@ -81,11 +82,11 @@ export async function GET(request: Request) {
             await new Promise((resolve) => setTimeout(resolve, 140));
           }
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
-        } catch (error) {
+        } catch {
           controller.enqueue(
             encoder.encode(
               `data: ${JSON.stringify({
-                error: error instanceof Error ? error.message : "generation_failed",
+                error: "Content generation is temporarily unavailable. Try again later.",
                 code: "generation_failed",
               })}\n\n`,
             ),
@@ -167,14 +168,7 @@ export async function POST(request: Request) {
     if (planResponse) return planResponse;
     const creditResponse = creditErrorResponse(error);
     if (creditResponse) return creditResponse;
-    return Response.json(
-      {
-        error: error instanceof Error ? error.message : "generation_failed",
-        code: "generation_failed",
-        status: 400,
-      },
-      { status: 400 },
-    );
+    return apiError(error, "generation_failed", 500);
   }
 }
 

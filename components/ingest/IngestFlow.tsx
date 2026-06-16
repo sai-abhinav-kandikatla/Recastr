@@ -65,7 +65,10 @@ export function IngestFlow() {
     try {
       data = await readApiJson(response);
     } catch (error) {
-      if (error instanceof Error && error.message === "credit_exhausted") return;
+      if (error instanceof Error && error.message === "credit_exhausted") {
+        setPhase("idle");
+        return;
+      }
       toast.error(error instanceof Error ? error.message : "Could not analyze source");
       setPhase("idle");
       return;
