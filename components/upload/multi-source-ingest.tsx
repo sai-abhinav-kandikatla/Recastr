@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProgressStepper, ingestionSteps } from "@/components/ui/progress-stepper";
 import { Textarea } from "@/components/ui/textarea";
+import { AnimatedBorderCard } from "@/components/ui/animated-border";
 import { cn } from "@/lib/utils";
 import type { IngestionStep, SourceType } from "@/lib/types";
 
@@ -117,8 +118,9 @@ export function MultiSourceIngest() {
   }
 
   return (
-    <Card id="source-ingest" className="scroll-mt-24 overflow-hidden">
-      <CardHeader className="border-b bg-card">
+    <AnimatedBorderCard>
+      <Card id="source-ingest" className="scroll-mt-24 overflow-hidden border-0 shadow-none">
+        <CardHeader className="border-b bg-card">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>Ingest a source</CardTitle>
@@ -268,6 +270,7 @@ export function MultiSourceIngest() {
           </motion.div>
         </form>
       </CardContent>
-    </Card>
+      </Card>
+    </AnimatedBorderCard>
   );
 }
