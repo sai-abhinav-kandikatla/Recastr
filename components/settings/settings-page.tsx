@@ -1034,7 +1034,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                       onClick={() => void updateNotificationPref(prefKey, !notifications[prefKey])}
                       className={cn(
                         "relative h-6 w-11 rounded-full border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background shrink-0",
-                        notifications[prefKey] ? "bg-primary" : "bg-muted-foreground/30",
+                        notifications[prefKey] ? "bg-[var(--violet)]" : "bg-muted-foreground/30",
                       )}
                     >
                       <span
