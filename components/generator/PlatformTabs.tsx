@@ -1,15 +1,15 @@
 "use client";
 
-import { Twitter, Linkedin, Facebook, Instagram, Mail, Globe } from "lucide-react";
+import { MessageCircle, Briefcase, Users, Image as ImageIcon, Mail, Globe } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 const platforms = [
-  { id: "twitter", name: "Twitter Thread", icon: Twitter },
-  { id: "linkedin", name: "LinkedIn Post", icon: Linkedin },
+  { id: "twitter", name: "Twitter Thread", icon: MessageCircle },
+  { id: "linkedin", name: "LinkedIn Post", icon: Briefcase },
   { id: "blog", name: "Blog Post", icon: Globe },
   { id: "newsletter", name: "Newsletter", icon: Mail },
-  { id: "instagram", name: "Instagram Caption", icon: Instagram },
-  { id: "facebook", name: "Facebook Post", icon: Facebook },
+  { id: "instagram", name: "Instagram Caption", icon: ImageIcon },
+  { id: "facebook", name: "Facebook Post", icon: Users },
 ];
 
 export function PlatformTabs({ selected, onSelect }: { selected: string, onSelect: (id: string) => void }) {
