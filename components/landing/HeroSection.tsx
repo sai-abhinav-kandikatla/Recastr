@@ -39,7 +39,7 @@ export function HeroSection() {
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <Button size="lg" asChild>
-            <Link href="#cta" onClick={handleStartFreeClick}>Start Now</Link>
+            <Link href="#cta" onClick={handleStartFreeClick}>Get Started</Link>
           </Button>
 
           <Button variant="secondary" size="lg" asChild>
