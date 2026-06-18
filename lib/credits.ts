@@ -63,5 +63,5 @@ export function creditErrorResponse(error: unknown) {
 function defaultCreditsForPlan(plan: AuthenticatedUser["plan"]) {
   if (plan === "AGENCY" || plan === "TEAM") return 250;
   if (plan === "PRO") return 100;
-  return 3;
+  return 5; // FREE plan: matches project limit
 }
