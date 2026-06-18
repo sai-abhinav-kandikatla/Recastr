@@ -153,7 +153,9 @@ export function ActionBar() {
         throw new Error(data.error || "Failed to schedule");
       }
 
-      toast.success("Reminder scheduled successfully!");
+      toast.success("Reminder scheduled successfully!", {
+        description: "Please check your spam or promotions folder if you don't see our emails.",
+      });
       setIsModalOpen(false);
     } catch (err: any) {
       toast.error(err.message || "Failed to schedule reminder");
