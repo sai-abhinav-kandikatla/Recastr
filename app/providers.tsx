@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { Suspense } from "react";
 import { Toaster } from "sonner";
 import { PostHogPageView } from "@/components/analytics/PostHogPageView";
+import { AnimatePresence } from "framer-motion";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -13,7 +14,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <Suspense fallback={null}>
           <PostHogPageView />
         </Suspense>
-        {children}
+        <AnimatePresence mode="wait">
+          {children}
+        </AnimatePresence>
         <Toaster richColors position="top-right" />
       </QueryProvider>
     </ThemeProvider>

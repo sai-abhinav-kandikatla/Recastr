@@ -114,7 +114,7 @@
   }
 
   button, [role="button"], a {
-    @apply transition-transform duration-200 active:scale-[0.98];
+    @apply transition-all duration-200 active:scale-[0.98];
   }
 
 
