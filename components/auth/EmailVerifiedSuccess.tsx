@@ -60,7 +60,7 @@ export function EmailVerifiedSuccess() {
             </DialogDescription>
           </DialogHeader>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Button className="rounded-full bg-[var(--violet)] text-white hover:bg-[var(--violet-hover)]" onClick={goToDashboard}>
+            <Button className="rounded-full bg-[var(--violet)] text-black hover:bg-[var(--violet-hover)]" onClick={goToDashboard}>
               Go to dashboard
             </Button>
             <Button className="rounded-full" onClick={clearVerifiedParam} variant="secondary">

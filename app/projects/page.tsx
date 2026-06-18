@@ -23,7 +23,7 @@ export default async function ProjectsIndexPage() {
               Every source you analyze becomes a project. Go to the dashboard and paste a URL or text to create a new one.
             </p>
           </div>
-          <Button asChild className="rounded-full bg-[var(--violet)] text-white hover:opacity-90 px-6 shrink-0">
+          <Button asChild className="rounded-full bg-[var(--violet)] text-black hover:opacity-90 px-6 shrink-0">
             <Link href="/dashboard#source-ingest">
               <Plus className="mr-2 h-4 w-4" />
               New Project
@@ -42,7 +42,7 @@ export default async function ProjectsIndexPage() {
             <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground">
               Analyze your first source from the dashboard to create a project and start generating content.
             </p>
-            <Button asChild size="lg" className="mt-8 rounded-full bg-[var(--violet)] px-8 text-white hover:bg-[var(--violet-hover)]">
+            <Button asChild size="lg" className="mt-8 rounded-full bg-[var(--violet)] px-8 text-black hover:bg-[var(--violet-hover)]">
               <Link href="/dashboard#source-ingest">
                 <Plus className="mr-2 h-5 w-5" />
                 Start on dashboard

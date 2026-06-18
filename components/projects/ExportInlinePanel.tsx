@@ -123,7 +123,7 @@ export function ExportInlinePanel({
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {selectedIds.length} pieces will be exported as {format.toUpperCase()} with platform labels and source metadata.
           </p>
-          <Button className="mt-4 w-full rounded-full bg-[var(--violet)] text-white hover:bg-[var(--violet-hover)]" onClick={download}>
+          <Button className="mt-4 w-full rounded-full bg-[var(--violet)] text-black hover:bg-[var(--violet-hover)]" onClick={download}>
             <Download className="h-4 w-4" />
             Download
           </Button>

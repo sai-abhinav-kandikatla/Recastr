@@ -117,7 +117,7 @@ export function TopBar({
               onClick={() => setMenuOpen((current) => !current)}
               className="flex h-9 items-center gap-2 rounded-full border border-[var(--app-line)] bg-[var(--app-surface)] pl-1 pr-3 text-sm transition-colors hover:border-[var(--app-line-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--violet)] text-xs font-semibold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--violet)] text-xs font-semibold text-black">
                 {displayName.slice(0, 1).toUpperCase()}
               </span>
               <span className="hidden max-w-32 truncate font-medium xl:inline">{displayName}</span>
@@ -134,7 +134,7 @@ export function TopBar({
                 >
                   <div className="border-b border-[var(--app-line)] p-4">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--violet)] text-sm font-bold text-white">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--violet)] text-sm font-bold text-black">
                         {displayName.slice(0, 1).toUpperCase()}
                       </span>
                       <div className="min-w-0">

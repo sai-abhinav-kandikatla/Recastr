@@ -178,7 +178,7 @@ export function CreatePasswordForm() {
             </div>
 
             <Button
-              className="h-12 w-full rounded-full bg-[var(--violet)] text-base font-bold text-white hover:bg-[var(--violet-hover)]"
+              className="h-12 w-full rounded-full bg-[var(--violet)] text-base font-bold text-black hover:bg-[var(--violet-hover)]"
               disabled={isSubmitting}
               type="submit"
             >

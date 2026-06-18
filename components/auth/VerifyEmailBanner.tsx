@@ -21,7 +21,7 @@ export function VerifyEmailBanner({ email, next }: { email?: string; next?: stri
           workspace. After verification, you can continue with the password you just created.
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Button asChild className="rounded-full bg-[var(--violet)] text-white hover:bg-[var(--violet-hover)]">
+          <Button asChild className="rounded-full bg-[var(--violet)] text-black hover:bg-[var(--violet-hover)]">
             <Link href={`/login${next ? `?next=${encodeURIComponent(next)}` : ""}`}>Go to sign in</Link>
           </Button>
           <Button asChild className="rounded-xl" variant="outline">

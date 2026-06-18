@@ -29,7 +29,7 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex w-[260px] flex-col border-r border-[#232323] bg-[#090909] p-4 transition-all duration-300">
       <div className="flex items-center h-12 px-2 mb-6">
-        <div className="h-6 w-6 rounded bg-white mr-3"></div>
+        <div className="h-6 w-6 rounded bg-white mr-3 flex items-center justify-center font-extrabold text-black text-[13px]">R</div>
         <span className="text-lg font-semibold tracking-tight text-white">ReCastr</span>
       </div>
 

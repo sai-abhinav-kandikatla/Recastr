@@ -44,7 +44,7 @@ export function WelcomeScreen() {
           We will set up your workspace in a few quick questions, then take you to the dashboard so the flow feels calm instead of dumping you into a demo project.
         </p>
         <Button
-          className="mt-7 rounded-full bg-[var(--violet)] px-6 font-bold text-white hover:bg-[var(--violet-hover)]"
+          className="mt-7 rounded-full bg-[var(--violet)] px-6 font-bold text-black hover:bg-[var(--violet-hover)]"
           onClick={() => router.push("/onboarding?setup=1")}
         >
           Get started

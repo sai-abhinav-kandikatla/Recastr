@@ -127,7 +127,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
                 <button
                   className={cn(
                     "relative h-8 min-w-16 rounded-full px-3 text-xs font-semibold capitalize transition-colors",
-                    view === option ? "text-white" : "text-muted-foreground hover:text-foreground",
+                    view === option ? "text-black" : "text-muted-foreground hover:text-foreground",
                   )}
                   key={option}
                   onClick={() => setView(option)}
@@ -174,7 +174,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
               </Button>
             </div>
 
-            <Button asChild className="h-9 rounded-full bg-[var(--violet)] px-4 text-xs text-white hover:bg-[var(--violet-hover)]">
+            <Button asChild className="h-9 rounded-full bg-[var(--violet)] px-4 text-xs text-black hover:bg-[var(--violet-hover)]">
               <Link href="/dashboard#source-ingest">
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
                 Create post

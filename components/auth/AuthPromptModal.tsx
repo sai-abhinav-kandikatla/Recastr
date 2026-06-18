@@ -55,7 +55,7 @@ export function AuthPromptModal({
       <DialogContent className="max-w-[560px] overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] p-0 shadow-soft">
         <div className="grid gap-0 sm:grid-cols-[0.95fr_1.05fr]">
           <div className="border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 p-6 sm:border-b-0 sm:border-r">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--violet)] text-white">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--violet)] text-black">
               <Sparkles className="h-5 w-5" />
             </div>
             <DialogHeader className="mt-5 text-left">
@@ -127,7 +127,7 @@ function FeatureLine({
 function buttonClass(kind: "primary" | "secondary" | "ghost") {
   return cn(
     "inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2",
-    kind === "primary" && "bg-[var(--violet)] text-white hover:bg-[var(--violet-hover)]",
+    kind === "primary" && "bg-[var(--violet)] text-black hover:bg-[var(--violet-hover)]",
     kind === "secondary" && "border border-[var(--app-line)] bg-[var(--app-bg)] text-foreground hover:bg-[var(--app-panel)]",
     kind === "ghost" && "text-muted-foreground hover:bg-[var(--app-panel)] hover:text-foreground",
   );

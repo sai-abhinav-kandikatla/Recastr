@@ -245,7 +245,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
         <Link href="/" className="relative z-10 flex items-center gap-2.5 hover:opacity-95 transition-opacity">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--violet)]">
-            <Sparkles className="h-4.5 w-4.5 text-white" />
+            <Sparkles className="h-4.5 w-4.5 text-black" />
           </span>
           <span className="font-display text-base font-semibold tracking-tight">Recastr</span>
         </Link>
@@ -294,7 +294,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           {/* Mobile logo */}
           <Link href="/" className="mb-10 flex lg:hidden items-center justify-center gap-2.5 hover:opacity-95 transition-opacity">
             <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--violet)]">
-              <Sparkles className="h-5 w-5 text-white" />
+              <Sparkles className="h-5 w-5 text-black" />
             </span>
             <span className="font-display text-lg font-semibold tracking-tight">Recastr</span>
           </Link>
@@ -461,7 +461,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
 
               <Button
                 className={cn(
-                  "h-11 w-full rounded-full bg-[var(--violet)] text-sm font-semibold text-white transition-colors hover:bg-[var(--violet-hover)]",
+                  "h-11 w-full rounded-full bg-[var(--violet)] text-sm font-semibold text-black transition-colors hover:bg-[var(--violet-hover)]",
                   isSubmitting && "opacity-80"
                 )}
                 disabled={isSubmitting}

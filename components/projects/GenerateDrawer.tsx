@@ -146,7 +146,7 @@ export function GenerateDrawer({
             />
           </div>
 
-          <Button className="w-full bg-[var(--violet)] text-white hover:bg-[var(--violet-dark)]" disabled={generating} onClick={generate}>
+          <Button className="w-full bg-[var(--violet)] text-black hover:bg-[var(--violet-hover)]" disabled={generating} onClick={generate}>
             <Sparkles className="h-4 w-4" />
             {generating ? "Generating" : "Generate"}
           </Button>
@@ -185,7 +185,7 @@ function TogglePill({
       onClick={onClick}
       className={cn(
         "rounded-full border px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground",
-        active && "border-[var(--violet)] bg-[var(--violet)] text-white hover:text-white",
+        active && "border-[var(--violet)] bg-[var(--violet)] text-black hover:text-black",
       )}
     >
       {active ? <Check className="mr-1 inline h-3 w-3" /> : null}

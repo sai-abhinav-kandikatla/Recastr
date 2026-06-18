@@ -227,7 +227,7 @@ export function ProjectDashboard({
             <div className="mt-8 flex justify-center">
               <Button
                 size="lg"
-                className="rounded-full bg-[var(--violet)] px-8 text-white hover:bg-[var(--violet-hover)]"
+                className="rounded-full bg-[var(--violet)] px-8 text-black hover:bg-[var(--violet-hover)]"
                 asChild
               >
                 <Link href="/generate">

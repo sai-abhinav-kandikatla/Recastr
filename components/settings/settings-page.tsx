@@ -592,7 +592,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
               </div>
               <div className="p-6 sm:p-8 space-y-8">
                 <div className="flex items-center gap-6">
-                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-[var(--violet)] text-2xl font-bold text-white">
+                  <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-[var(--violet)] text-2xl font-bold text-black">
                     {profile.name.slice(0, 1).toUpperCase() || "C"}
                   </div>
                   <div>
@@ -772,7 +772,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                             value={mfaCode}
                           />
                           <Button
-                            className="rounded-xl bg-[var(--violet)] text-white"
+                            className="rounded-xl bg-[var(--violet)] text-black"
                             disabled={mfaBusy}
                             onClick={() => void verifyMfaEnrollment()}
                             type="button"
@@ -803,7 +803,7 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
                     disabled={profileSaving}
                     onClick={() => void saveProfile()}
                     size="lg"
-                    className="rounded-full bg-[var(--violet)] text-white hover:opacity-90 px-8 transition-transform hover:scale-105"
+                    className="rounded-full bg-[var(--violet)] text-black hover:opacity-90 px-8 transition-transform hover:scale-105"
                   >
                     {profileSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                     {profileSaving ? "Saving..." : "Save changes"}

@@ -65,7 +65,7 @@ export function ProjectStudioTopBar({
             Export
             <ChevronDown className={cn("h-3.5 w-3.5 transition", exportOpen && "rotate-180")} />
           </Button>
-          <Button onClick={onGenerateToggle} className="h-10 rounded-full bg-[var(--violet)] px-5 text-sm font-semibold text-white hover:bg-[var(--violet-hover)]">
+          <Button onClick={onGenerateToggle} className="h-10 rounded-full bg-[var(--violet)] px-5 text-sm font-semibold text-black hover:bg-[var(--violet-hover)]">
             + Generate more
           </Button>
         </div>
@@ -77,7 +77,7 @@ export function ProjectStudioTopBar({
 function filterPillClass(filter: PlatformFilter, active: boolean) {
   const base =
     "relative h-10 rounded-full px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-background";
-  if (active) return cn(base, "bg-[var(--violet)] text-white");
+  if (active) return cn(base, "bg-[var(--violet)] text-black");
   return cn(
     base,
     "border border-[var(--app-line)] bg-[var(--app-surface)] text-muted-foreground hover:border-[var(--app-line-strong)] hover:bg-[var(--app-panel)] hover:text-foreground",

@@ -315,7 +315,7 @@ export function ProjectWorkspace({
                 <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                   Clear the hook filter or generate more content from the right drawer.
                 </p>
-                <Button className="mt-5 rounded-full bg-[var(--violet)] px-5 text-white hover:bg-[var(--violet-hover)]" onClick={() => readOnly ? requireAccount("generate more content") : setDrawerOpen(true)}>
+                <Button className="mt-5 rounded-full bg-[var(--violet)] px-5 text-black hover:bg-[var(--violet-hover)]" onClick={() => readOnly ? requireAccount("generate more content") : setDrawerOpen(true)}>
                   <Plus className="h-4 w-4" />
                   Generate more
                 </Button>

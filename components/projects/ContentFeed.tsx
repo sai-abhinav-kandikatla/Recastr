@@ -56,7 +56,7 @@ export function ContentFeed({
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
           Clear the hook filter or generate more content from the right drawer.
         </p>
-        <Button className="mt-5 rounded-full bg-[var(--violet)] text-white hover:bg-[var(--violet-hover)]" onClick={onGenerateMore}>
+        <Button className="mt-5 rounded-full bg-[var(--violet)] text-black hover:bg-[var(--violet-hover)]" onClick={onGenerateMore}>
           <Plus className="h-4 w-4" />
           Generate more
         </Button>

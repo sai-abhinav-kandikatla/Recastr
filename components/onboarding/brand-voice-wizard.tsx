@@ -134,7 +134,7 @@ export function BrandVoiceWizard() {
               {step === 0 && (
                 <div className="grid gap-8 lg:grid-cols-[1fr_300px] h-full items-center">
                   <div>
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--violet)] text-white mb-6">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--violet)] text-black mb-6">
                       <Sparkles className="h-8 w-8" />
                     </div>
                     <h3 className="text-4xl font-bold font-display leading-[1.1] tracking-tight">Turn one source into a <span className="text-violet-400">content system</span>.</h3>
@@ -337,7 +337,7 @@ export function BrandVoiceWizard() {
             </Button>
           ) : step === 4 ? (
             <Button
-              className="rounded-full bg-[var(--violet)] px-8 font-bold text-white hover:bg-[var(--violet-hover)]"
+              className="rounded-full bg-[var(--violet)] px-8 font-bold text-black hover:bg-[var(--violet-hover)]"
               disabled={generating}
               onClick={complete}
             >

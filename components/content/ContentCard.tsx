@@ -236,7 +236,7 @@ export const ContentCard = memo(function ContentCard({
                 onClick={() => setMode(item)}
                 className={cn(
                   "h-6 rounded-full px-2 text-[11px] font-medium capitalize text-muted-foreground transition",
-                  mode === item && "bg-[var(--violet)] text-white",
+                  mode === item && "bg-[var(--violet)] text-black",
                 )}
               >
                 {item}
@@ -271,7 +271,7 @@ export const ContentCard = memo(function ContentCard({
                   onClick={() => handleToneChange(item)}
                   className={cn(
                     "h-7 rounded-full border px-3 text-xs capitalize text-muted-foreground transition hover:text-foreground",
-                    active && "border-transparent bg-[var(--violet)] text-white hover:text-white",
+                    active && "border-transparent bg-[var(--violet)] text-black hover:text-black",
                   )}
                 >
                   {item}
@@ -347,7 +347,7 @@ export const ContentCard = memo(function ContentCard({
               onClick={() => openScheduleWithMethod("email_reminder")}
               disabled={overLimit}
               title="Schedule an email reminder when it is time to publish manually."
-              className="h-8 rounded-lg bg-[var(--violet)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--violet-hover)] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-red-500/15 disabled:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
+              className="h-8 rounded-lg bg-[var(--violet)] px-3 text-xs font-semibold text-black transition hover:bg-[var(--violet-hover)] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-red-500/15 disabled:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
             >
               <Mail className="mr-1 inline h-3.5 w-3.5" />
               {overLimit ? "Over limit" : "Remind me"}
@@ -459,7 +459,7 @@ function SchedulePicker({
             Cancel
           </button>
           <button
-            className="h-9 rounded-lg bg-[var(--violet)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--violet-hover)] active:scale-[0.98]"
+            className="h-9 rounded-lg bg-[var(--violet)] px-4 text-sm font-semibold text-black transition hover:bg-[var(--violet-hover)] active:scale-[0.98]"
             onClick={onConfirm}
             type="button"
           >
@@ -506,7 +506,7 @@ function SchedulePicker({
                 <button
                   className={cn(
                     "flex h-9 items-center justify-center rounded-lg text-sm font-semibold transition",
-                    selectedDay && "bg-[var(--violet)] text-white",
+                    selectedDay && "bg-[var(--violet)] text-black",
                     !selectedDay && today && "border border-[var(--violet)]/60 text-[var(--violet)]",
                     !selectedDay && !today && "text-foreground hover:bg-[var(--app-panel)]",
                     outside && "text-muted-foreground/45",

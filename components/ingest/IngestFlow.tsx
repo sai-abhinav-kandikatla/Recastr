@@ -229,7 +229,7 @@ export function IngestFlow() {
                   <button
                     className={cn(
                       "rounded-full border px-3 py-1.5 text-xs font-medium text-muted-foreground transition",
-                      tone === item.id && "border-[var(--violet)] bg-[var(--violet)] text-white",
+                      tone === item.id && "border-[var(--violet)] bg-[var(--violet)] text-black",
                     )}
                     key={item.id}
                     onClick={() => setTone(item.id)}
@@ -332,7 +332,7 @@ function ControlPills({
           <button
             className={cn(
               "rounded-full border px-3 py-1.5 text-xs font-medium text-muted-foreground transition",
-              selected.includes(item.id) && "border-[var(--violet)] bg-[var(--violet)] text-white",
+              selected.includes(item.id) && "border-[var(--violet)] bg-[var(--violet)] text-black",
             )}
             key={item.id}
             onClick={() => onToggle(item.id)}
