@@ -9,6 +9,10 @@ const protectedPrefixes = [
   "/tasks",
   "/settings",
   "/onboarding",
+  "/analytics",
+  "/media",
+  "/assistant",
+  "/billing",
 ];
 
 export async function middleware(request: NextRequest) {
@@ -187,5 +191,9 @@ export const config = {
     "/tasks/:path*",
     "/settings/:path*",
     "/onboarding/:path*",
+    "/analytics/:path*",
+    "/media/:path*",
+    "/assistant/:path*",
+    "/billing/:path*",
   ],
 };

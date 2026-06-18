@@ -8,7 +8,15 @@ import { useGenerator } from "./GeneratorProvider";
 function getActiveContent(outputs: ReturnType<typeof useGenerator>["outputs"], activeTab: string): string {
   const match = outputs.find((o) => o.platform === activeTab);
   if (!match) return "";
-  return match.content ?? match.text ?? "";
+  if (typeof match.content === "string") {
+    return match.content;
+  }
+  if (match.content && typeof match.content === "object") {
+    const obj = match.content as Record<string, unknown>;
+    if (typeof obj.text === "string") return obj.text;
+    if (typeof obj.content === "string") return obj.content;
+  }
+  return "";
 }
 
 export function ActionBar() {

@@ -23,7 +23,7 @@ const actions = [
     title: "Use Template",
     description: "Pre-built workflows",
     icon: LayoutTemplate,
-    href: "/templates",
+    href: "/generate",
   },
   {
     title: "Paste Text",
