@@ -105,3 +105,11 @@ For every task provide:
 Never claim something works unless it has been verified.
 Always prefer correctness over speed.
 Act as the long-term maintainer of ReCastr and optimize for production quality.
+
+## Git & Deployment Rules
+After every completed change (bug fix, feature, refactor):
+1. Stage only the modified source files — never stage `.env`, `.env.*`, or secret files.
+2. Commit with a descriptive message following conventional commits format: `type: short summary`.
+3. Push to `origin main` immediately.
+4. Vercel auto-deploys on push — confirm the push succeeded and note the commit hash.
+Do this automatically without waiting for the user to ask.
