@@ -26,6 +26,15 @@ type Membership = {
   };
 };
 
+function getErrorMessage(errorPayload: any): string {
+  if (!errorPayload) return "An unknown error occurred";
+  if (typeof errorPayload.error === "string") return errorPayload.error;
+  if (typeof errorPayload.error === "object" && errorPayload.error !== null) {
+    return errorPayload.error.message || "An unknown error occurred";
+  }
+  return errorPayload.message || "An unknown error occurred";
+}
+
 export function SettingsTeamTab({ currentUser }: { currentUser?: CurrentUser | null }) {
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
@@ -64,8 +73,8 @@ export function SettingsTeamTab({ currentUser }: { currentUser?: CurrentUser | n
         body: JSON.stringify({ name: newOrgName, slug: newOrgSlug }),
       });
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to create organization");
+        const error = await res.json().catch(() => null);
+        throw new Error(getErrorMessage(error) || "Failed to create organization");
       }
       return res.json();
     },
@@ -90,8 +99,8 @@ export function SettingsTeamTab({ currentUser }: { currentUser?: CurrentUser | n
         body: JSON.stringify({ email: inviteEmail, role: "member" }),
       });
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to invite user");
+        const error = await res.json().catch(() => null);
+        throw new Error(getErrorMessage(error) || "Failed to invite user");
       }
       return res.json();
     },

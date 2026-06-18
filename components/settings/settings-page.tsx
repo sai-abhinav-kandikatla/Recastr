@@ -825,141 +825,42 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
           )}
 
           {activeTab === "posting" && (
-            <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
-              <div className="h-fit overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)]">
-                <div className="flex items-center gap-2 border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 px-6 py-4">
-                  <Send className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-bold font-display">Posting Workflow</h2>
-                </div>
-                <div className="space-y-6 p-6">
-                  <div>
-                    <p className="text-sm font-semibold">Default posting method</p>
-                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      Email reminders are sent to your inbox when it is time to publish.
-                    </p>
-                  </div>
-
-                  <div className="grid gap-3">
-                    <div className="rounded-2xl border border-primary/60 bg-primary/10 p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-sm font-semibold">Email reminder</p>
-                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                            Send the full post to your inbox when it is time to publish.
-                          </p>
-                        </div>
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Field label="Timezone">
-                    <Input
-                      className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/55"
-                      onBlur={() => void updatePostingPreference({ timezone: postingPreference.timezone || "Asia/Kolkata" })}
-                      onChange={(event) => setPostingPreference((current) => ({ ...current, timezone: event.target.value }))}
-                      placeholder="Asia/Kolkata"
-                      value={postingPreference.timezone}
-                    />
-                  </Field>
-                </div>
+            <div className="overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)]">
+              <div className="flex items-center gap-2 border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 px-6 py-4">
+                <Send className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-bold font-display">Posting Workflow</h2>
               </div>
-
-              <div className="overflow-hidden rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)]">
-                <div className="flex flex-col gap-1 border-b border-[var(--app-line)] bg-[var(--app-bg)]/45 px-6 py-4">
-                  <h2 className="text-lg font-bold font-display">Platform Credentials</h2>
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    Store credentials for platforms you want to manage.
+              <div className="p-6 sm:p-8 space-y-8">
+                <div>
+                  <p className="text-sm font-semibold">Default posting method</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Email reminders are sent to your inbox when it is time to publish.
                   </p>
                 </div>
-                <div className="grid gap-4 p-6 lg:grid-cols-2">
-                  {postingPlatforms.map(({ helper, label, platform }) => {
-                    const account = postingAccountsQuery.data?.find((item) => item.platform === platform);
-                    const form = postingCredentialForms[platform];
-                    const saving = postingSavingPlatform === platform;
-                    const connected = Boolean(account?.isActive);
 
-                    return (
-                      <div className="rounded-2xl border border-[var(--app-line)] bg-[var(--app-bg)]/45 p-5" key={platform}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className={cn("h-2.5 w-2.5 rounded-full", connected ? "bg-green-400" : "bg-muted-foreground")} />
-                              <h3 className="font-bold">{label}</h3>
-                            </div>
-                            <p className="mt-1 text-xs leading-5 text-muted-foreground">{helper}</p>
-                          </div>
-                          <Badge className={cn("rounded-full border-0", connected ? "bg-green-500/15 text-green-300" : "bg-muted text-muted-foreground")}>
-                            {connected ? "Connected" : "Not connected"}
-                          </Badge>
-                        </div>
-
-                        {connected ? (
-                          <div className="mt-5 space-y-4">
-                            <div className="rounded-xl border border-[var(--app-line)] bg-[var(--app-surface)] p-3">
-                              <p className="text-xs font-semibold">{account?.handle || "Handle not set"}</p>
-                              <p className="mt-1 text-[11px] text-muted-foreground">
-                                Connected {account?.connectedAt ? formatDateTime(account.connectedAt) : "recently"}
-                              </p>
-                              {account?.lastError ? <p className="mt-2 text-xs text-red-300">{account.lastError}</p> : null}
-                            </div>
-                            <Button
-                              className="rounded-xl"
-                              disabled={saving}
-                              onClick={() => void disconnectPostingAccount(platform)}
-                              type="button"
-                              variant="destructive"
-                            >
-                              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                              Disconnect
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="mt-5 grid gap-3">
-                            <Input
-                              className="h-10 rounded-xl border-[var(--app-line)] bg-[var(--app-surface)]"
-                              onChange={(event) => updatePostingCredentialForm(platform, "handle", event.target.value, setPostingCredentialForms)}
-                              placeholder="@handle or page name"
-                              value={form.handle}
-                            />
-                            <Input
-                              className="h-10 rounded-xl border-[var(--app-line)] bg-[var(--app-surface)]"
-                              onChange={(event) => updatePostingCredentialForm(platform, "accessToken", event.target.value, setPostingCredentialForms)}
-                              placeholder="Access token or API token"
-                              type="password"
-                              value={form.accessToken}
-                            />
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <Input
-                                className="h-10 rounded-xl border-[var(--app-line)] bg-[var(--app-surface)]"
-                                onChange={(event) => updatePostingCredentialForm(platform, "apiKey", event.target.value, setPostingCredentialForms)}
-                                placeholder="API key"
-                                type="password"
-                                value={form.apiKey}
-                              />
-                              <Input
-                                className="h-10 rounded-xl border-[var(--app-line)] bg-[var(--app-surface)]"
-                                onChange={(event) => updatePostingCredentialForm(platform, "apiSecret", event.target.value, setPostingCredentialForms)}
-                                placeholder="API secret"
-                                type="password"
-                                value={form.apiSecret}
-                              />
-                            </div>
-                            <Button
-                              className="mt-1 rounded-xl bg-[var(--violet)] text-white"
-                              disabled={saving}
-                              onClick={() => void savePostingAccount(platform)}
-                              type="button"
-                            >
-                              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                              Save credentials
-                            </Button>
-                          </div>
-                        )}
+                <div className="grid gap-3">
+                  <div className="rounded-2xl border border-primary/60 bg-primary/10 p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold">Email reminder</p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          Send the full post to your inbox when it is time to publish.
+                        </p>
                       </div>
-                    );
-                  })}
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    </div>
+                  </div>
                 </div>
+
+                <Field label="Timezone">
+                  <Input
+                    className="h-11 rounded-xl border-[var(--app-line)] bg-[var(--app-bg)]/55"
+                    onBlur={() => void updatePostingPreference({ timezone: postingPreference.timezone || "Asia/Kolkata" })}
+                    onChange={(event) => setPostingPreference((current) => ({ ...current, timezone: event.target.value }))}
+                    placeholder="Asia/Kolkata"
+                    value={postingPreference.timezone}
+                  />
+                </Field>
               </div>
             </div>
           )}
