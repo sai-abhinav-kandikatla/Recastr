@@ -75,6 +75,13 @@ const bannedPhrases = [
   "in conclusion",
   "it is important to note",
   "i hope this helps",
+  "delve",
+  "transformative",
+  "landscape",
+  "testament",
+  "revolutionize",
+  "beacon",
+  "tapestry",
 ];
 
 export async function summarizeTranscript(transcript: string): Promise<SourceSummary> {
@@ -269,7 +276,13 @@ function platformPrompt({
 
 function basePrompt(brief: ContentBrief, tone: Tone | string) {
   return [
-    "You are a top social media creator. Write finished, ready-to-post content from this brief.",
+    "You are the core AI engine for Recastr, an elite content repurposing platform. Your role is to act as an expert Social Media Growth Hacker and Ghostwriter.",
+    "Your task is to analyze the provided brief and atomize it into platform-native social media assets. You must strictly avoid generic summaries and instead extract the highest-signal tactical insights.",
+    "CRITICAL CONSTRAINTS:",
+    "- NO AI BUZZWORDS (delve, transformative, landscape, etc.)",
+    "- Max 1-2 emojis per asset.",
+    "- DO NOT invent external context.",
+    "- Output ONLY the drafted posts in Markdown. No meta-commentary.",
     "",
     "CONTENT BRIEF:",
     `Core insight: ${brief.core_insight}`,
@@ -287,31 +300,23 @@ function platformInstruction(platform: Platform) {
     case "TWITTER":
       return [
         "TWITTER/X THREAD RULES:",
-        "- First tweet: bold hook, max 220 chars.",
-        '- Tweets 2-6: numbered with "N/".',
-        "- One idea per tweet. Use line breaks.",
-        "- Last tweet: clear CTA.",
-        "- Total 6-8 tweets. Each tweet max 280 chars.",
+        "- 5-Part Sequence.",
+        "- Max 280 chars per tweet.",
+        "- Tweets must be numbered.",
         "- Separate tweets with ---.",
       ].join("\n");
     case "LINKEDIN":
       return [
         "LINKEDIN RULES:",
-        "- Line 1: one powerful hook sentence.",
-        "- Short paragraphs with blank lines.",
-        "- Use a personal or direct teaching voice.",
-        "- Include a numbered list of 3-5 points.",
-        "- End with one CTA and 3-5 hashtags.",
-        "- 150-250 words.",
+        '- "Broetry" Format.',
+        "- Single-sentence paragraphs.",
       ].join("\n");
     case "INSTAGRAM":
       return [
         "INSTAGRAM CAPTION RULES:",
-        "- Line 1: punchy hook under 125 chars.",
-        "- 3-5 short value lines.",
-        "- Use arrows or checkmarks for lists.",
-        "- CTA: save this or link in bio.",
-        "- End with 8-15 hashtags.",
+        "- High-energy summary.",
+        "- 3 bullet points.",
+        "- Max 5 hashtags.",
       ].join("\n");
     case "YOUTUBE":
       return [
