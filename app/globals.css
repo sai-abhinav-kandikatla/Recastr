@@ -4,170 +4,97 @@
 
 @layer base {
   :root {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 100%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 100%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 100%;
 
-    --primary: 262.1 83.3% 57.8%; /* Violet */
-    --primary-foreground: 210 40% 98%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 4%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 55%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 0 0% 10%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --border: 0 0% 14%;
+    --input: 0 0% 14%;
+    --ring: 0 0% 30%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 262.1 83.3% 57.8%;
-
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     /* Recastr brand tokens */
-    --page-bg: 222.2 84% 4.9%;
+    --page-bg: 0 0% 4%;
     --sidebar-width: 260px;
     --topbar-height: 64px;
-    --card-radius: 16px;
+    --card-radius: 1rem;
 
-    --violet: #7C3AED;
-    --violet-hover: #6D28D9;
-    --violet-light: #2d1f5e;
-    --violet-muted: rgba(124, 58, 237, 0.1);
-    --violet-dark: #5B21B6;
-    --cyan: #06b6d4;
-    --navy: #0F172A;
+    --violet: #ffffff;
+    --violet-hover: #e5e5e5;
+    --violet-light: #151515;
+    --violet-muted: #111111;
+    --violet-dark: #1b1b1b;
+    --cyan: #8a8a8a;
+    --navy: #111111;
 
     /* Status colors */
-    --green-approve: #16a34a;
-    --green-approve-bg: #dcfce7;
-    --amber-schedule: #d97706;
-    --amber-schedule-bg: #fef3c7;
-    --status-approved: #16a34a;
-    --status-approved-bg: #dcfce7;
-    --status-scheduled: #d97706;
-    --status-scheduled-bg: #fef3c7;
-    --status-failed: #dc2626;
-    --status-failed-bg: #fee2e2;
+    --green-approve: #ffffff;
+    --green-approve-bg: #151515;
+    --amber-schedule: #8a8a8a;
+    --amber-schedule-bg: #111111;
+    --status-approved: #ffffff;
+    --status-approved-bg: #151515;
+    --status-scheduled: #8a8a8a;
+    --status-scheduled-bg: #111111;
+    --status-failed: #ef4444;
+    --status-failed-bg: rgba(239, 68, 68, 0.1);
 
     /* Platform colors */
-    --platform-twitter: #0ea5e9;
-    --platform-linkedin: #0a66c2;
-    --platform-instagram: #e1306c;
-    --platform-youtube: #ff0000;
-    --platform-facebook: #1877f2;
-    --platform-threads: #000000;
+    --platform-twitter: #ffffff;
+    --platform-linkedin: #ffffff;
+    --platform-instagram: #ffffff;
+    --platform-youtube: #ffffff;
+    --platform-facebook: #ffffff;
+    --platform-threads: #ffffff;
 
-    --platform-twitter-bg: #e0f2fe;
-    --platform-linkedin-bg: #dbeafe;
-    --platform-instagram-bg: #fce7f3;
-    --platform-youtube-bg: #fee2e2;
-    --platform-facebook-bg: #dbeafe;
-    --platform-threads-bg: #f1f5f9;
+    --platform-twitter-bg: #151515;
+    --platform-linkedin-bg: #151515;
+    --platform-instagram-bg: #151515;
+    --platform-youtube-bg: #151515;
+    --platform-facebook-bg: #151515;
+    --platform-threads-bg: #151515;
 
-    --twitter: #0ea5e9;
-    --linkedin: #0a66c2;
-    --instagram: #e1306c;
-    --youtube: #ff0000;
+    --twitter: #ffffff;
+    --linkedin: #ffffff;
+    --instagram: #ffffff;
+    --youtube: #ffffff;
 
     /* Minimal landing page palette */
-    --landing-bg: #0A0F1E;
-    --landing-fg: #F8FAFC;
-    --landing-muted: #94A3B8;
-    --landing-panel: #111827;
-    --landing-soft: #0D1324;
-    --landing-line: rgba(148, 163, 184, 0.16);
-    --landing-accent: #7C3AED;
+    --landing-bg: #090909;
+    --landing-fg: #ffffff;
+    --landing-muted: #8a8a8a;
+    --landing-panel: #111111;
+    --landing-soft: #151515;
+    --landing-line: #232323;
+    --landing-accent: #ffffff;
 
     /* Minimal app shell palette */
-    --app-bg: #080D18;
-    --app-surface: #0B1020;
-    --app-panel: #0F1628;
-    --app-panel-strong: #111827;
-    --app-line: rgba(148, 163, 184, 0.14);
-    --app-line-strong: rgba(148, 163, 184, 0.22);
-    --app-text: #F8FAFC;
-    --app-muted: #94A3B8;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 262.1 83.3% 57.8%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 262.1 83.3% 57.8%;
-
-    --page-bg: 222.2 84% 4.9%; /* Base dark slate */
-    --violet-light: #2d1f5e;
-    --platform-threads: #ffffff;
-    --platform-threads-bg: #1e293b;
-  }
-
-  .light {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 262.1 83.3% 57.8%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 262.1 83.3% 57.8%;
-
-    --page-bg: 210 40% 98%;
-    --violet-light: #EDE9FE;
-    --platform-threads: #000000;
-    --platform-threads-bg: #f1f5f9;
+    --app-bg: #090909;
+    --app-surface: #111111;
+    --app-panel: #151515;
+    --app-panel-strong: #1b1b1b;
+    --app-line: #232323;
+    --app-line-strong: #232323;
+    --app-text: #ffffff;
+    --app-muted: #8a8a8a;
   }
 }
 
@@ -187,12 +114,13 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    background: #090909;
+    color: white;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   ::selection {
-    background: rgba(124, 58, 237, 0.25);
+    background: rgba(255,255,255,.15);
   }
 }
 
