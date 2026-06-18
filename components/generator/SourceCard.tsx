@@ -6,9 +6,10 @@ import { FileText, Video, PlayCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { readApiJson } from "@/lib/client-api";
 import { useGenerator } from "./GeneratorProvider";
+import type { Project } from "@/lib/types";
 
 export function SourceCard() {
-  const { project } = useGenerator();
+  const { project, setProject } = useGenerator();
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [isIngesting, setIsIngesting] = useState(false);
@@ -25,10 +26,10 @@ export function SourceCard() {
         body: JSON.stringify({ url: url.trim() }),
       });
       
-      const data = await readApiJson<{ project?: { id: string }; error?: string }>(response).catch(() => ({ error: "Network error" }));
+      const data = await readApiJson<{ project?: Project; error?: string }>(response).catch(() => ({ error: "Network error" }));
       if ("project" in data && data.project) {
         toast.success("Source ingested successfully!");
-        router.push(`/projects/${data.project.id}/generate`);
+        setProject(data.project);
       } else if ("error" in data && data.error) {
         toast.error(data.error);
       } else {

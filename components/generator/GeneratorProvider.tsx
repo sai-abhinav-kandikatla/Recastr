@@ -1,12 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { emitCreditExhausted } from "@/lib/client-api";
 import type { Platform, Project, SocialOutput } from "@/lib/types";
 
 type GeneratorState = {
   project: Project | null;
+  setProject: (p: Project | null) => void;
   selectedPlatforms: Platform[];
   togglePlatform: (p: Platform) => void;
   tone: string;
@@ -28,12 +29,24 @@ export function GeneratorProvider({
   children: React.ReactNode; 
   project: Project | null 
 }) {
+  const [currentProject, setCurrentProject] = useState<Project | null>(project);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(["TWITTER", "LINKEDIN", "INSTAGRAM"]);
   const [tone, setTone] = useState("Professional");
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState<string>("idle");
   const [outputs, setOutputs] = useState<SocialOutput[]>([]);
   const [activePreviewTab, setActivePreviewTab] = useState<Platform>("TWITTER");
+
+  // Sync state with prop if it changes
+  useEffect(() => {
+    setCurrentProject(project);
+    if (project) {
+      // If project has content, mark as completed to show preview directly
+      setProgress(project.contents && project.contents.length > 0 ? "completed" : "idle");
+    } else {
+      setProgress("idle");
+    }
+  }, [project]);
 
   const togglePlatform = (p: Platform) => {
     setSelectedPlatforms((prev) => 
@@ -42,7 +55,7 @@ export function GeneratorProvider({
   };
 
   const generate = async () => {
-    if (!project) {
+    if (!currentProject) {
       toast.error("No project found");
       return;
     }
@@ -56,7 +69,7 @@ export function GeneratorProvider({
     setOutputs([]);
     
     const params = new URLSearchParams();
-    params.set("projectId", project.id);
+    params.set("projectId", currentProject.id);
     params.set("platforms", selectedPlatforms.join(","));
     params.set("tone", tone);
 
@@ -117,7 +130,8 @@ export function GeneratorProvider({
 
   return (
     <GeneratorContext.Provider value={{
-      project,
+      project: currentProject,
+      setProject: setCurrentProject,
       selectedPlatforms,
       togglePlatform,
       tone,
