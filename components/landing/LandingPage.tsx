@@ -8,7 +8,6 @@ import { PricingSection } from "./PricingSection";
 import { FAQSection } from "./FAQSection";
 import { CTASection } from "./CTASection";
 import { Footer } from "./Footer";
-import { CursorSpotlight } from "./CursorSpotlight";
 import { motion } from "framer-motion";
 
 export function LandingPage() {
@@ -29,7 +28,6 @@ export function LandingPage() {
 
   return (
     <main className="relative min-h-screen bg-[#090909] text-white selection:bg-white selection:text-black">
-      <CursorSpotlight />
       <Navbar />
 
       <motion.div

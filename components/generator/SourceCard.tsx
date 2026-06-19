@@ -11,34 +11,66 @@ import type { Project } from "@/lib/types";
 export function SourceCard() {
   const { project, setProject } = useGenerator();
   const router = useRouter();
+  const [mode, setMode] = useState<"url" | "text">("url");
   const [url, setUrl] = useState("");
+  const [text, setText] = useState("");
+  const [title, setTitle] = useState("");
   const [isIngesting, setIsIngesting] = useState(false);
 
   async function handleIngest(e?: React.FormEvent) {
     if (e) e.preventDefault();
-    if (!url.trim()) return;
     
-    setIsIngesting(true);
-    try {
-      const response = await fetch("/api/ingest/url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-      
-      const data = await readApiJson<{ project?: Project; error?: string }>(response).catch(() => ({ error: "Network error" }));
-      if ("project" in data && data.project) {
-        toast.success("Source ingested successfully!");
-        setProject(data.project);
-      } else if ("error" in data && data.error) {
-        toast.error(data.error);
-      } else {
-        toast.error("Failed to ingest source");
+    if (mode === "url") {
+      if (!url.trim()) return;
+      setIsIngesting(true);
+      try {
+        const response = await fetch("/api/ingest/url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: url.trim() }),
+        });
+        
+        const data = await readApiJson<{ project?: Project; error?: string }>(response).catch(() => ({ error: "Network error" }));
+        if ("project" in data && data.project) {
+          toast.success("Source ingested successfully!");
+          setProject(data.project);
+        } else if ("error" in data && data.error) {
+          toast.error(data.error);
+        } else {
+          toast.error("Failed to ingest source");
+        }
+      } catch (error) {
+        toast.error("Failed to analyze source");
+      } finally {
+        setIsIngesting(false);
       }
-    } catch (error) {
-      toast.error("Failed to analyze source");
-    } finally {
-      setIsIngesting(false);
+    } else {
+      if (!text.trim()) return;
+      setIsIngesting(true);
+      try {
+        const response = await fetch("/api/ingest/text", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            title: title.trim() || undefined,
+            text: text.trim() 
+          }),
+        });
+        
+        const data = await readApiJson<{ project?: Project; error?: string }>(response).catch(() => ({ error: "Network error" }));
+        if ("project" in data && data.project) {
+          toast.success("Text ingested successfully!");
+          setProject(data.project);
+        } else if ("error" in data && data.error) {
+          toast.error(data.error);
+        } else {
+          toast.error("Failed to ingest text");
+        }
+      } catch (error) {
+        toast.error("Failed to analyze text");
+      } finally {
+        setIsIngesting(false);
+      }
     }
   }
 
@@ -85,25 +117,61 @@ export function SourceCard() {
       ) : (
         <>
           <div className="flex gap-2 mb-3">
-            <button className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[#232323] py-2 text-xs font-medium text-white transition-colors">
+            <button
+              type="button"
+              onClick={() => setMode("url")}
+              className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-medium transition-colors ${
+                mode === "url"
+                  ? "bg-[#232323] text-white"
+                  : "bg-[#090909] border border-[#232323] text-[#8A8A8A] hover:text-white"
+              }`}
+            >
               <Video className="h-3.5 w-3.5 text-red-500" /> URL
             </button>
-            <button className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[#090909] border border-[#232323] py-2 text-xs font-medium text-[#8A8A8A] hover:text-white transition-colors">
+            <button
+              type="button"
+              onClick={() => setMode("text")}
+              className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-medium transition-colors ${
+                mode === "text"
+                  ? "bg-[#232323] text-white"
+                  : "bg-[#090909] border border-[#232323] text-[#8A8A8A] hover:text-white"
+              }`}
+            >
               <FileText className="h-3.5 w-3.5" /> Text
             </button>
           </div>
           <form onSubmit={handleIngest} className="flex flex-col gap-3">
-            <input
-              placeholder="Paste YouTube or Article URL..."
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              disabled={isIngesting}
-              className="w-full rounded-xl border border-[#232323] bg-[#090909] px-3 py-2.5 text-sm text-white placeholder:text-[#8A8A8A] focus:border-[#8A8A8A] focus:outline-none disabled:opacity-50"
-            />
+            {mode === "url" ? (
+              <input
+                placeholder="Paste YouTube or Article URL..."
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                disabled={isIngesting}
+                className="w-full rounded-xl border border-[#232323] bg-[#090909] px-3 py-2.5 text-sm text-white placeholder:text-[#8A8A8A] focus:border-[#8A8A8A] focus:outline-none disabled:opacity-50"
+              />
+            ) : (
+              <>
+                <input
+                  placeholder="Enter title (optional)..."
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  disabled={isIngesting}
+                  className="w-full rounded-xl border border-[#232323] bg-[#090909] px-3 py-2.5 text-sm text-white placeholder:text-[#8A8A8A] focus:border-[#8A8A8A] focus:outline-none disabled:opacity-50"
+                />
+                <textarea
+                  placeholder="Paste or type your text content..."
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  disabled={isIngesting}
+                  rows={4}
+                  className="w-full rounded-xl border border-[#232323] bg-[#090909] px-3 py-2.5 text-sm text-white placeholder:text-[#8A8A8A] focus:border-[#8A8A8A] focus:outline-none disabled:opacity-50 resize-none"
+                />
+              </>
+            )}
             <button 
               type="submit"
-              disabled={isIngesting || !url.trim()}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-50"
+              disabled={isIngesting || (mode === "url" ? !url.trim() : !text.trim())}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-white hover:bg-[#E5E5E5] py-2.5 text-sm font-semibold text-black transition-colors disabled:opacity-50"
             >
               {isIngesting ? <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing...</> : "Analyze Source"}
             </button>

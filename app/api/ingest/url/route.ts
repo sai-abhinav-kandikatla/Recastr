@@ -134,7 +134,7 @@ export async function POST(request: Request) {
           })),
         },
       },
-      include: { hooks: true },
+      include: { hooks: true, contents: true },
     });
     await addRecastrJob(jobNames.extractHooks, { projectId: project.id, userId: user.id });
     await consumeCredits(user);
@@ -144,6 +144,7 @@ export async function POST(request: Request) {
       title: project.title,
       duration: project.duration ?? 0,
       wordCount: project.wordCount ?? 0,
+      project,
     });
   } catch (error) {
     if (error instanceof Response) return error;

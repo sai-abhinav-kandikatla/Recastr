@@ -4,6 +4,7 @@ import { Providers } from "@/app/providers";
 import { env } from "@/lib/env";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { CursorSpotlight } from "@/components/landing/CursorSpotlight";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -45,7 +46,10 @@ export default function RootLayout({
           jetbrainsMono.variable
         )}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          <CursorSpotlight />
+          {children}
+        </Providers>
       </body>
     </html>
   );
