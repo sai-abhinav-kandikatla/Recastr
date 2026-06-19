@@ -234,3 +234,8 @@ html {
   }
 }
 
+input[type="datetime-local"] {
+  accent-color: #ffffff;
+  color-scheme: dark;
+}
+
