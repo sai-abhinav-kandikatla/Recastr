@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { LayoutDashboard, Sparkles, FolderOpen, Calendar, BarChart3, Settings, Video, Bot } from "lucide-react";
 import { useAppStore } from "@/store/app-store";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
@@ -20,6 +21,7 @@ const bottomItems = [
 ];
 
 export function Sidebar() {
+  const pathname = usePathname();
   const { sidebarOpen, setSidebarOpen } = useAppStore();
 
   useKeyboardShortcut("b", () => setSidebarOpen(!sidebarOpen));
@@ -36,11 +38,16 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1">
         {items.map((item) => {
           const Icon = item.icon;
+          const active = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
           return (
             <Link
               key={item.label}
               href={item.href}
-              className="group flex h-10 items-center gap-3 rounded-[12px] px-3 text-sm font-medium text-[#8A8A8A] transition-colors hover:bg-[#151515] hover:text-white"
+              className={`group flex h-10 items-center gap-3 rounded-[12px] px-3 text-sm font-medium transition-all duration-300 border ${
+                active
+                  ? "bg-[#151515] text-white border-white/10 shadow-[0_0_12px_rgba(255,255,255,0.03)]"
+                  : "text-[#8A8A8A] border-transparent hover:bg-[#151515]/50 hover:text-white hover:border-white/5 hover:shadow-[0_0_12px_rgba(255,255,255,0.02)]"
+              }`}
             >
               <Icon className="h-4 w-4" />
               <span>{item.label}</span>
@@ -53,11 +60,16 @@ export function Sidebar() {
         <nav className="space-y-1">
           {bottomItems.map((item) => {
             const Icon = item.icon;
+            const active = pathname === item.href || pathname.startsWith(item.href);
             return (
               <Link
                 key={item.label}
                 href={item.href}
-                className="group flex h-10 items-center gap-3 rounded-[12px] px-3 text-sm font-medium text-[#8A8A8A] transition-colors hover:bg-[#151515] hover:text-white"
+                className={`group flex h-10 items-center gap-3 rounded-[12px] px-3 text-sm font-medium transition-all duration-300 border ${
+                  active
+                    ? "bg-[#151515] text-white border-white/10 shadow-[0_0_12px_rgba(255,255,255,0.03)]"
+                    : "text-[#8A8A8A] border-transparent hover:bg-[#151515]/50 hover:text-white hover:border-white/5 hover:shadow-[0_0_12px_rgba(255,255,255,0.02)]"
+                }`}
               >
                 <Icon className="h-4 w-4" />
                 <span>{item.label}</span>

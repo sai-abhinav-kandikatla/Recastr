@@ -113,7 +113,7 @@ export function ProjectDashboard({
         {metrics.map(({ icon: Icon, label, trend, value }, index) => (
           <motion.div
             animate={{ opacity: 1, y: 0 }}
-            className="group relative overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-5"
+            className="group relative overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-5 transition-all duration-300 hover:scale-[1.01] hover:border-white/30 hover:bg-[#111111]/40 hover:shadow-[0_8px_30px_rgba(255,255,255,0.04)]"
             initial={{ opacity: 0, y: 20 }}
             key={label}
             transition={{ delay: index * 0.08, duration: 0.4, ease: "easeOut" }}
@@ -173,7 +173,7 @@ export function ProjectDashboard({
               >
                 <button
                   type="button"
-                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-5 text-left transition-colors duration-200 hover:border-[var(--app-line-strong)]"
+                  className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-5 text-left transition-all duration-300 hover:scale-[1.01] hover:border-white/30 hover:bg-[#111111]/40 hover:shadow-[0_8px_30px_rgba(255,255,255,0.04)]"
                   onClick={() => {
                     if (demoLocked) {
                       setSelectedProjectTitle(project.title);

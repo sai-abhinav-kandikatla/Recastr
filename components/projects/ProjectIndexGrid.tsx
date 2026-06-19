@@ -26,7 +26,7 @@ export function ProjectIndexGrid({
           <button
             key={project.id}
             type="button"
-            className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-6 text-left transition-colors duration-200 hover:border-[var(--app-line-strong)]"
+            className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-6 text-left transition-all duration-300 hover:scale-[1.01] hover:border-white/30 hover:bg-[#111111]/40 hover:shadow-[0_8px_30px_rgba(255,255,255,0.04)]"
             onClick={() => {
               if (demoLocked) {
                 setSelectedProjectTitle(project.title);

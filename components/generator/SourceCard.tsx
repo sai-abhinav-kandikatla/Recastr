@@ -75,7 +75,7 @@ export function SourceCard() {
   }
 
   return (
-    <div className="rounded-[32px] border border-[#232323] bg-[#151515] p-5">
+    <div className="rounded-[32px] border border-[#232323] bg-[#151515] p-5 transition-all duration-300 hover:border-white/30 hover:shadow-[0_8px_30px_rgba(255,255,255,0.04)]">
       <h3 className="text-base font-semibold text-white mb-3">Source Content</h3>
       
       {project ? (
