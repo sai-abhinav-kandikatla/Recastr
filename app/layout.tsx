@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, DM_Sans, JetBrains_Mono } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Providers } from "@/app/providers";
 import { env } from "@/lib/env";
 import "./globals.css";
@@ -49,6 +50,7 @@ export default function RootLayout({
         <Providers>
           <CursorSpotlight />
           {children}
+          <SpeedInsights />
         </Providers>
       </body>
     </html>
