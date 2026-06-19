@@ -72,7 +72,7 @@ export async function sendTestEmail(to: string) {
     html: baseEmailTemplate({
       heading: "SMTP email is working",
       intro: "Your Recastr scheduled reminder emails can now be delivered through your free SMTP provider.",
-      body: "<p style=\"margin:0;color:#334155;line-height:1.6\">This is a test message from Recastr.</p>",
+      body: "<p style=\"margin:0;color:#e5e5e5;line-height:1.6\">This is a test message from Recastr.</p>",
       ctaHref: `${env.appUrl}/tasks?tab=scheduled`,
       ctaLabel: "Open scheduled posts",
     }),
@@ -86,7 +86,7 @@ export async function sendContentReadyEmail(userEmail: string, projectTitle: str
     html: baseEmailTemplate({
       heading: "Your content is ready",
       intro: `Your AI content generation for "${escapeHtml(projectTitle)}" has finished.`,
-      body: "<p style=\"margin:0;color:#334155;line-height:1.6\">Open Recastr to review, copy, and schedule your generated content.</p>",
+      body: "<p style=\"margin:0;color:#e5e5e5;line-height:1.6\">Open Recastr to review, copy, and schedule your generated content.</p>",
       ctaHref: `${env.appUrl}/dashboard`,
       ctaLabel: "View your dashboard",
     }),
@@ -101,7 +101,7 @@ export async function sendWeeklyDigestEmail(userEmail: string, stats: WeeklyStat
       heading: "Your weekly Recastr digest",
       intro: "A quick snapshot of your content workflow this week.",
       body: `
-        <ul style="margin:0;padding-left:20px;color:#334155;line-height:1.7">
+        <ul style="margin:0;padding-left:20px;color:#e5e5e5;line-height:1.7">
           <li>${stats.projects} projects</li>
           <li>${stats.content} content pieces</li>
           <li>${stats.scheduled} scheduled posts</li>
@@ -126,7 +126,7 @@ export async function sendScheduleReminderEmail(
     html: baseEmailTemplate({
       heading: `Reminder for ${escapeHtml(platform)}`,
       intro: `Your post is scheduled for ${escapeHtml(scheduledLabel)}.`,
-      body: "<p style=\"margin:0;color:#334155;line-height:1.6\">Open Recastr to review your scheduled content.</p>",
+      body: "<p style=\"margin:0;color:#e5e5e5;line-height:1.6\">Open Recastr to review your scheduled content.</p>",
       ctaHref: `${env.appUrl}/tasks?tab=scheduled`,
       ctaLabel: "View scheduled posts",
     }),
@@ -153,10 +153,10 @@ export async function sendScheduledPostNotificationEmail({
       heading: `Time to post on ${escapedPlatform}`,
       intro: `Project: ${escapeHtml(projectTitle)}<br />Scheduled for ${escapeHtml(scheduledLabel)}`,
       body: `
-        <div style="background:#f8fafc;border-left:4px solid #7C3AED;border-radius:8px;padding:16px;margin-bottom:20px">
-          <p style="margin:0;font-size:15px;line-height:1.6;white-space:pre-wrap;color:#0f172a">${escapedBody}</p>
+        <div style="background:#151515;border-left:3px solid #ffffff;border-radius:12px;padding:20px;margin-bottom:20px">
+          <p style="margin:0;font-size:15px;line-height:1.6;white-space:pre-wrap;color:#e5e5e5">${escapedBody}</p>
         </div>
-        <p style="color:#334155;margin:0 0 16px;line-height:1.6">
+        <p style="color:#8A8A8A;margin:0 0 16px;line-height:1.6;font-size:14px">
           Copy this content and post it manually to <strong>${escapedPlatform}</strong>.
         </p>
       `,
@@ -173,7 +173,7 @@ export async function sendPublishedEmail(userEmail: string, platform: string) {
     html: baseEmailTemplate({
       heading: "Reminder email sent",
       intro: `Your scheduled reminder for ${escapeHtml(platform)} was delivered.`,
-      body: "<p style=\"margin:0;color:#334155;line-height:1.6\">Open Recastr to see your notification history.</p>",
+      body: "<p style=\"margin:0;color:#e5e5e5;line-height:1.6\">Open Recastr to see your notification history.</p>",
       ctaHref: `${env.appUrl}/tasks?tab=history`,
       ctaLabel: "View history",
     }),
@@ -281,25 +281,25 @@ function baseEmailTemplate({
   secondaryCtaLabel?: string;
 }) {
   return `
-    <div style="margin:0;background:#f8fafc;padding:28px 12px;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#0f172a">
-      <div style="max-width:600px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden">
-        <div style="padding:24px 24px 18px;background:#0f172a;color:#f8fafc">
-          <div style="font-size:13px;letter-spacing:0.16em;text-transform:uppercase;color:#c4b5fd;font-weight:700">Recastr</div>
-          <h1 style="margin:12px 0 0;font-size:24px;line-height:1.2">${heading}</h1>
-          <p style="margin:10px 0 0;color:#cbd5e1;line-height:1.6">${intro}</p>
+    <div style="margin:0;background:#090909;padding:40px 16px;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#ffffff">
+      <div style="max-width:580px;margin:0 auto;background:#000000;border:1px solid #232323;border-radius:16px;overflow:hidden">
+        <div style="padding:32px 32px 24px;border-bottom:1px solid #232323;background:#000000;">
+          <div style="font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#8A8A8A;font-weight:700">Recastr</div>
+          <h1 style="margin:16px 0 0;font-size:24px;font-weight:800;line-height:1.2;color:#ffffff;letter-spacing:-0.02em">${heading}</h1>
+          <p style="margin:12px 0 0;color:#8A8A8A;font-size:14px;line-height:1.6">${intro}</p>
         </div>
-        <div style="padding:24px">
+        <div style="padding:32px;background:#000000;">
           ${body}
-          <div style="margin-top:24px">
-            <a href="${ctaHref}" style="display:inline-block;background:#7C3AED;color:#ffffff;text-decoration:none;border-radius:10px;padding:11px 18px;font-size:14px;font-weight:700">${ctaLabel}</a>
+          <div style="margin-top:28px">
+            <a href="${ctaHref}" style="display:inline-block;background:#ffffff;color:#000000;text-decoration:none;border-radius:9999px;padding:12px 24px;font-size:14px;font-weight:700;transition:background 0.2s">${ctaLabel}</a>
             ${
               secondaryCtaHref && secondaryCtaLabel
-                ? `<a href="${secondaryCtaHref}" style="display:inline-block;margin-left:10px;color:#7C3AED;text-decoration:none;font-size:14px;font-weight:700">${secondaryCtaLabel}</a>`
+                ? `<a href="${secondaryCtaHref}" style="display:inline-block;margin-left:16px;color:#ffffff;text-decoration:none;font-size:14px;font-weight:700">${secondaryCtaLabel}</a>`
                 : ""
             }
           </div>
         </div>
-        <div style="padding:16px 24px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px;line-height:1.5">
+        <div style="padding:20px 32px;border-top:1px solid #232323;background:#050505;color:#666666;font-size:12px;line-height:1.6">
           You received this because you scheduled a reminder in Recastr.
         </div>
       </div>

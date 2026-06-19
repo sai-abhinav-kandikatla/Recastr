@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Sparkles, FolderOpen, Calendar, BarChart3, Settings, Video, Bot } from "lucide-react";
+import { LayoutDashboard, Sparkles, FolderOpen, Calendar, BarChart3, Settings, Bot, CheckSquare } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { useAppStore } from "@/store/app-store";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
@@ -13,7 +13,7 @@ const items = [
   { icon: FolderOpen, label: "Projects", href: "/projects" },
   { icon: Calendar, label: "Calendar", href: "/schedule" },
   { icon: BarChart3, label: "Analytics", href: "/analytics" },
-  { icon: Video, label: "Media", href: "/media" },
+  { icon: CheckSquare, label: "Tasks", href: "/tasks" },
   { icon: Bot, label: "AI Assistant", href: "/assistant" },
 ];
 
