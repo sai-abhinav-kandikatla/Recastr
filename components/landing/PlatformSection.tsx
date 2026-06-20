@@ -39,7 +39,7 @@ export function PlatformSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: idx * 0.05, duration: 0.4 }}
-              className="rounded-full border border-[#232323] bg-[#111111]/60 px-6 py-3 text-sm font-semibold text-slate-200 transition-colors hover:border-white/30 hover:bg-[#151515]"
+              className="rounded-full border border-[#232323] bg-[#111111]/60 px-6 py-3 text-sm font-semibold text-slate-200 cursor-default btn-edge-light"
             >
               {format}
             </motion.div>
