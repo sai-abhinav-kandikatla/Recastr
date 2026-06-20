@@ -86,8 +86,15 @@ function friendlyApiMessage(response: Response, payload: CreditPayload) {
       : "The AI service is temporarily quota-limited. Try again later.";
   }
 
+  if (code === "NO_TRANSCRIPT") {
+    return raw ?? "No transcript available for this video. Enable captions in YouTube Studio or try a different video.";
+  }
+
   if (path.startsWith("/api/ingest")) {
-    return "We could not analyze that source. Try another URL or paste the transcript.";
+    // Pass through the raw message if available (e.g. specific ingest errors)
+    return raw && !looksLikeProviderError(raw)
+      ? raw
+      : "We could not analyze that source. Try another URL or paste the transcript.";
   }
 
   if (path.startsWith("/api/generate") || path.startsWith("/api/tone")) {

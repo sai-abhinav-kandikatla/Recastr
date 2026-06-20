@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import axios from "axios";
-import { YoutubeTranscript } from "youtube-transcript";
+import { fetchTranscript } from "@/lib/transcript";
 import { ensureUserRecord, getRequestUser } from "@/lib/auth";
 import { apiError } from "@/lib/api/response";
 import { ingestUrlSchema } from "@/lib/ai/schemas";
@@ -27,52 +27,7 @@ type YoutubeMetadata = {
   warning?: string;
 };
 
-async function getYouTubeTranscript(videoId: string): Promise<string | null> {
-  if (!videoId) {
-    console.error("[getYouTubeTranscript] No videoId provided");
-    return null;
-  }
 
-  try {
-    console.log(`[getYouTubeTranscript] Fetching transcript via youtube-transcript package for videoId: ${videoId}`);
-    const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-    if (!transcript) {
-      console.error(`[getYouTubeTranscript] Silent Failure - transcript is null or undefined for videoId: ${videoId}`);
-      return null;
-    }
-    if (transcript.length === 0) {
-      console.error(`[getYouTubeTranscript] Silent Failure - transcript returned an empty array for videoId: ${videoId}`);
-      return null;
-    }
-
-    const fullTranscript = transcript.map((item) => item.text).join(" ");
-    const wordCount = fullTranscript.split(/\s+/).filter(Boolean).length;
-    console.log(`[getYouTubeTranscript] Success - Word count: ${wordCount} for videoId: ${videoId}`);
-
-    if (wordCount < 50) {
-      console.warn(`[getYouTubeTranscript Warning] Video ${videoId} has transcript but only ${wordCount} words`);
-      return null;
-    }
-
-    return fullTranscript;
-  } catch (error) {
-    console.error(`[getYouTubeTranscript] Error fetching transcript for videoId: ${videoId}`);
-    console.error("[getYouTubeTranscript] Full error object:", error);
-    if (error instanceof Error) {
-      console.error("[getYouTubeTranscript] Error message:", error.message);
-      console.error("[getYouTubeTranscript] Error stack:", error.stack);
-      console.error("[getYouTubeTranscript] Error name:", error.name);
-      console.error("[getYouTubeTranscript] Error constructor:", error.constructor.name);
-    }
-    if (typeof error === "object" && error !== null) {
-      console.error("[getYouTubeTranscript] Error keys:", Object.keys(error));
-      for (const key of Object.keys(error)) {
-        console.error(`[getYouTubeTranscript] error.${key}:`, (error as Record<string, unknown>)[key]);
-      }
-    }
-    return null;
-  }
-}
 
 type CaptionTrack = {
   baseUrl?: string;
@@ -316,8 +271,8 @@ async function fetchYoutubeMetadata(url: string): Promise<YoutubeMetadata> {
   let transcript = page.transcript;
 
   if (!transcript && videoId) {
-    console.log(`[Transcript] Caption parsing failed for ${videoId}, trying youtube-transcript API...`);
-    transcript = await getYouTubeTranscript(videoId);
+    console.log(`[Transcript] Caption parsing failed for ${videoId}, trying unified transcript fetcher...`);
+    transcript = await fetchTranscript(videoId);
   }
 
   return {

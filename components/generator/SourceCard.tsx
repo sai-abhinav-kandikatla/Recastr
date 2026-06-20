@@ -63,7 +63,7 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
           body: JSON.stringify({ url: url.trim() }),
         });
         
-        const data = await readApiJson<{ project?: Project; error?: string }>(response).catch(() => ({ error: "Network error" }));
+        const data = await readApiJson<{ project?: Project; error?: string }>(response).catch((err: unknown) => ({ error: err instanceof Error ? err.message : "Network error" }));
         if ("project" in data && data.project) {
           toast.success("Source ingested successfully!");
           setProject(data.project);
@@ -90,7 +90,7 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
           }),
         });
         
-        const data = await readApiJson<{ project?: Project; error?: string }>(response).catch(() => ({ error: "Network error" }));
+        const data = await readApiJson<{ project?: Project; error?: string }>(response).catch((err: unknown) => ({ error: err instanceof Error ? err.message : "Network error" }));
         if ("project" in data && data.project) {
           toast.success("Text ingested successfully!");
           setProject(data.project);
