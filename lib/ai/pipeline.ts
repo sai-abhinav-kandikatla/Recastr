@@ -110,7 +110,7 @@ async function extractTranscriptStage(options: PipelineOptions): Promise<string>
   // Fallback chain for YouTube
   if (options.sourceType === "YOUTUBE") {
     // 1. Scraping caption watch page
-    const videoId = extractVideoId(options.url);
+    const videoId = extractYouTubeVideoId(options.url);
     if (!videoId) {
       throw new Error("Invalid YouTube URL - Unable to extract video ID");
     }
