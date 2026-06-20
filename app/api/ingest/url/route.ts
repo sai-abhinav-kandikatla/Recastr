@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import axios from "axios";
 import { fetchTranscript } from "@/lib/transcript";
+import { generateContentPack } from "@/lib/ai/content-pack";
 import { ensureUserRecord, getRequestUser } from "@/lib/auth";
 import { apiError } from "@/lib/api/response";
 import { ingestUrlSchema } from "@/lib/ai/schemas";
@@ -49,26 +50,16 @@ export async function POST(request: Request) {
 
     if (process.env.RECASTR_DEMO_MODE === "true") {
       if (source === "youtube" && !/demo/i.test(payload.url)) {
-        try {
-          const project = await createYoutubeProject(payload.url, user.id);
-          saveStoredProject(project);
-          await consumeCredits(user);
-          return NextResponse.json({
-            projectId: project.id,
-            title: project.title,
-            duration: project.duration ?? 0,
-            wordCount: project.wordCount ?? 0,
-            project,
-          });
-        } catch (error) {
-          if (error instanceof Error && (error as any).code === "NO_TRANSCRIPT") {
-            return NextResponse.json(
-              { error: error.message, code: "NO_TRANSCRIPT" },
-              { status: 400 }
-            );
-          }
-          throw error;
-        }
+        const project = await createYoutubeProject(payload.url, user.id);
+        saveStoredProject(project);
+        await consumeCredits(user);
+        return NextResponse.json({
+          projectId: project.id,
+          title: project.title,
+          duration: project.duration ?? 0,
+          wordCount: project.wordCount ?? 0,
+          project,
+        });
       }
       const project =
         source === "youtube" ? getStoredProject("demo-ai-youtube")! : getStoredProject("demo-marketing-blog")!;
@@ -85,51 +76,41 @@ export async function POST(request: Request) {
     await assertCanCreateProject(user, sourceToSourceType(source));
 
     if (source === "youtube") {
+      const project = restrictProjectToPlan(await createYoutubeProject(payload.url, user.id), user.plan);
+      await assertCanGenerateContent(
+        user,
+        project.contents?.map((content) => content.platform) ?? [],
+        project.contents?.length ?? 0,
+      );
+      saveStoredProject(project);
+      let savedProject = project;
       try {
-        const project = restrictProjectToPlan(await createYoutubeProject(payload.url, user.id), user.plan);
-        await assertCanGenerateContent(
-          user,
-          project.contents?.map((content) => content.platform) ?? [],
-          project.contents?.length ?? 0,
-        );
-        saveStoredProject(project);
-        let savedProject = project;
-        try {
-          await persistProject(user, project);
-          const dbProject = await prisma.project.findUnique({
-            where: { id: project.id },
-            include: {
-              contents: { orderBy: { order: "asc" } },
-              hooks: { orderBy: { reachScore: "desc" } },
-            },
-          });
-          if (dbProject) {
-            savedProject = mergePersistedProject(project, dbProject);
-            saveStoredProject(savedProject);
-          }
-        } catch (error) {
-          console.error(
-            "[ingest/url] YouTube persistProject failed:",
-            error instanceof Error ? error.message : error,
-          );
-        }
-        await consumeCredits(user);
-        return NextResponse.json({
-          projectId: savedProject.id,
-          title: savedProject.title,
-          duration: savedProject.duration ?? 0,
-          wordCount: savedProject.wordCount ?? 0,
-          project: savedProject,
+        await persistProject(user, project);
+        const dbProject = await prisma.project.findUnique({
+          where: { id: project.id },
+          include: {
+            contents: { orderBy: { order: "asc" } },
+            hooks: { orderBy: { reachScore: "desc" } },
+          },
         });
-      } catch (error) {
-        if (error instanceof Error && (error as any).code === "NO_TRANSCRIPT") {
-          return NextResponse.json(
-            { error: error.message, code: "NO_TRANSCRIPT" },
-            { status: 400 }
-          );
+        if (dbProject) {
+          savedProject = mergePersistedProject(project, dbProject);
+          saveStoredProject(savedProject);
         }
-        throw error;
+      } catch (error) {
+        console.error(
+          "[ingest/url] YouTube persistProject failed:",
+          error instanceof Error ? error.message : error,
+        );
       }
+      await consumeCredits(user);
+      return NextResponse.json({
+        projectId: savedProject.id,
+        title: savedProject.title,
+        duration: savedProject.duration ?? 0,
+        wordCount: savedProject.wordCount ?? 0,
+        project: savedProject,
+      });
     }
 
     const parsed = await ingestBlog(payload.url);
@@ -196,31 +177,47 @@ function restrictProjectToPlan(project: Project, plan: Plan): Project {
 async function createYoutubeProject(url: string, userId: string): Promise<Project> {
   const metadata = await fetchYoutubeMetadata(url);
   const id = `youtube-${hash(url).slice(0, 10)}-${userId}`;
-  const context = metadata.description
-    ? `
-Video description:
-${metadata.description}`
-    : "";
 
-  const transcript = metadata.transcript?.trim();
-  const wordCount = transcript?.split(/\s+/).filter(Boolean).length ?? 0;
+  // Use transcript when available, otherwise use title + description as source
+  const rawTranscript = metadata.transcript?.trim() || "";
+  const transcriptWordCount = rawTranscript.split(/\s+/).filter(Boolean).length;
+  const hasRealTranscript = transcriptWordCount >= 50;
 
-  if (!transcript || wordCount < 50) {
-    const error = new Error(
-      "⚠️ No transcript available. Recastr needs real video content to generate posts.\n\n" +
-        "This video has no usable captions. You can:\n" +
-        "1) Enable captions in YouTube Studio for this video\n" +
-        "2) Use youtube-transcript for transcribed videos\n" +
-        "3) Paste the transcript manually (coming next)\n\n" +
-        "Without real content, posts would just repeat the title."
-    );
-    (error as any).code = "NO_TRANSCRIPT";
-    throw error;
+  // Build the source text that will be stored and used for generation
+  const sourceText = hasRealTranscript
+    ? rawTranscript
+    : [
+        `Video Title: ${metadata.title}`,
+        metadata.description ? `\nVideo Description:\n${metadata.description}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+  console.log(`[createYoutubeProject] Transcript available: ${hasRealTranscript} (${transcriptWordCount} words)`);
+  console.log(`[createYoutubeProject] Source text length: ${sourceText.length} chars`);
+
+  // Try Gemini-powered generation first, fall back to local templates
+  const contentPack = await generateContentPack(id, {
+    title: metadata.title,
+    description: metadata.description,
+    transcript: hasRealTranscript ? rawTranscript : undefined,
+  });
+
+  let summary: SourceSummary;
+  let hooks: ViralHook[];
+  let contents: ContentPiece[];
+
+  if (contentPack) {
+    console.log(`[createYoutubeProject] ✅ Gemini content pack generated successfully`);
+    summary = contentPack.summary;
+    hooks = contentPack.hooks;
+    contents = contentPack.contents;
+  } else {
+    console.log(`[createYoutubeProject] ⚠️ Gemini unavailable, using local templates`);
+    summary = createSummary(metadata);
+    hooks = createHooks(id, metadata);
+    contents = createContents(id, hooks, metadata);
   }
-
-  const summary = createSummary(metadata);
-  const hooks = createHooks(id, metadata);
-  const contents = createContents(id, hooks, metadata);
 
   return {
     id,
@@ -229,9 +226,9 @@ ${metadata.description}`
     sourceType: "YOUTUBE",
     sourceUrl: url,
     thumbnailUrl: metadata.thumbnailUrl,
-    transcript,
+    transcript: sourceText,
     duration: 0,
-    wordCount: transcript.split(/\s+/).filter(Boolean).length,
+    wordCount: sourceText.split(/\s+/).filter(Boolean).length,
     summary,
     hooks,
     contents,
