@@ -34,7 +34,7 @@ export function FAQSection() {
             </AccordionTrigger>
 
             <AccordionContent>
-              Recastr generates content for LinkedIn (long-form posts), X/Twitter (threads up to 10 tweets), Instagram (captions + hashtags), and Instagram Reels (spoken scripts with timestamps).
+              Recastr generates content tailored for LinkedIn, X (Twitter), Instagram, Threads, Facebook, Medium, Reddit, Blogs, Newsletters, and YouTube Community.
             </AccordionContent>
           </AccordionItem>
 

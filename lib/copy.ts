@@ -40,8 +40,8 @@ export const CREATOR_TYPES = ["podcaster", "youtuber", "blogger", "coach", "bran
 export const copy = {
   product: {
     name: "Recastr",
-    tagline: "AI-powered content repurposing for founders, creators, and agencies.",
-    hero: "One video. 30 content assets.",
+    tagline: "Content repurposing workspace for creators, founders and teams.",
+    hero: "Turn Long-Form Content Into Ready-to-Use Posts",
     primaryCta: "Start for free",
     secondaryCta: "Watch demo",
   },
@@ -55,8 +55,8 @@ export const copy = {
     settings: "Settings",
   },
   landing: {
-    proof: "Used by 2,000+ creators",
-    hookCallout: "Our AI finds the 3 hooks that will blow up your content.",
+    proof: "Built for creators, founders and teams",
+    hookCallout: "Extract key hooks, topics and social posts from your content automatically.",
     faq: [
       ["Does Recastr work without API keys?", "Yes. Local sample data can be used when external services are not configured."],
       ["Can I use Razorpay now?", "Yes. Add Razorpay keys and checkout will create real orders."],

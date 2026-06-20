@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Recastr — Sign in",
-  description: "Turn one source into 30 days of content.",
+  description: "Turn long-form content into ready-to-use posts.",
 };
 
 export default function LoginPage() {

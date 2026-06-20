@@ -67,15 +67,88 @@ export function HeroSection() {
 
           <MagneticWrapper>
             <Button variant="secondary" size="lg" asChild>
-              <Link href="#workflow" onClick={handleDemoClick}>View Demo</Link>
+              <Link href="#workflow" onClick={handleDemoClick}>Watch Demo</Link>
             </Button>
           </MagneticWrapper>
         </motion.div>
 
-        <motion.div variants={itemVariants} className="mt-24 w-full max-w-4xl text-center">
-          <p className="text-lg leading-8 text-[#8A8A8A] font-medium">
-            Built for creators, founders and teams who want to repurpose content efficiently.
-          </p>
+        <motion.div variants={itemVariants} className="mt-24 w-full max-w-6xl rounded-[32px] border border-[#232323] bg-[#111111]/30 p-8">
+          <div className="grid gap-6 md:grid-cols-3">
+            {/* Card 1 */}
+            <div className="rounded-3xl border border-[#232323] bg-[#151515]/30 p-6 text-left transition-all duration-300 hover:border-white/10 hover:bg-[#1A1A1A]/30">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8A8A8A]">
+                Supported Inputs
+              </h3>
+              <ul className="mt-5 space-y-3">
+                {[
+                  "YouTube Videos",
+                  "Podcasts",
+                  "Blogs",
+                  "Documents",
+                  "Long-form Content"
+                ].map((input) => (
+                  <li key={input} className="flex items-start gap-2.5 text-sm text-[#8A8A8A]">
+                    <svg className="h-3.5 w-3.5 text-zinc-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m9 18 6-6-6-6"/>
+                    </svg>
+                    <span>{input}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Card 2 */}
+            <div className="rounded-3xl border border-[#232323] bg-[#151515]/30 p-6 text-left transition-all duration-300 hover:border-white/10 hover:bg-[#1A1A1A]/30">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8A8A8A]">
+                Generated Formats
+              </h3>
+              <ul className="mt-5 space-y-3">
+                {[
+                  "LinkedIn Posts",
+                  "X Threads",
+                  "Captions",
+                  "Summaries",
+                  "Scripts",
+                  "Notes"
+                ].map((format) => (
+                  <li key={format} className="flex items-start gap-2.5 text-sm text-[#8A8A8A]">
+                    <svg className="h-3.5 w-3.5 text-zinc-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m9 18 6-6-6-6"/>
+                    </svg>
+                    <span>{format}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Card 3 */}
+            <div className="rounded-3xl border border-[#232323] bg-[#151515]/30 p-6 text-left transition-all duration-300 hover:border-white/10 hover:bg-[#1A1A1A]/30">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8A8A8A]">
+                Supported Platforms
+              </h3>
+              <ul className="mt-5 space-y-3">
+                {[
+                  "LinkedIn",
+                  "X",
+                  "Instagram",
+                  "Threads",
+                  "Facebook",
+                  "Medium",
+                  "Reddit",
+                  "Blogs",
+                  "Newsletters",
+                  "YouTube Descriptions"
+                ].map((platform) => (
+                  <li key={platform} className="flex items-start gap-2.5 text-sm text-[#8A8A8A]">
+                    <svg className="h-3.5 w-3.5 text-zinc-600 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m9 18 6-6-6-6"/>
+                    </svg>
+                    <span>{platform}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </motion.div>
       </motion.div>
     </section>

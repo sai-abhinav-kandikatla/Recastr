@@ -19,11 +19,26 @@ export function Navbar() {
   const pathname = usePathname();
 
   useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY < 100) {
+        setActiveSection("");
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
     const sections = navItems.map((item) => item.id);
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) setActiveSection(entry.target.id);
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          } else {
+            setActiveSection((prev) => (prev === entry.target.id ? "" : prev));
+          }
         });
       },
       { rootMargin: "-50% 0px -50% 0px" },
