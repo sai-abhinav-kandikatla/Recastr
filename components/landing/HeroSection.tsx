@@ -80,7 +80,7 @@ export function HeroSection() {
                 Source
               </p>
               <h3 className="mt-3 text-lg font-semibold text-white">
-                Founder Podcast Episode
+                YouTube URL / Video
               </h3>
             </div>
 
