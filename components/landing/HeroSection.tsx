@@ -14,6 +14,14 @@ export function HeroSection() {
     }
   };
 
+  const handleGetStartedClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    const pricingSection = document.getElementById("pricing");
+    if (pricingSection) {
+      pricingSection.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -54,7 +62,7 @@ export function HeroSection() {
         <motion.div variants={itemVariants} className="mt-10 flex flex-wrap items-center justify-center gap-4">
           <MagneticWrapper>
             <Button size="lg" asChild>
-              <Link href="/signup">Get Started</Link>
+              <Link href="#pricing" onClick={handleGetStartedClick}>Get Started</Link>
             </Button>
           </MagneticWrapper>
 
@@ -90,7 +98,7 @@ export function HeroSection() {
                 Platforms
               </p>
               <h3 className="mt-3 text-lg font-semibold text-white">
-                LinkedIn · X · Instagram
+                LinkedIn · X · Instagram · Facebook · Threads · YouTube
               </h3>
             </div>
           </div>
