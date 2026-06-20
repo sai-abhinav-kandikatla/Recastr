@@ -14,7 +14,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <PostHogPageView />
         </Suspense>
         {children}
-        <Toaster richColors position="top-right" />
+        <Toaster position="top-right" />
       </QueryProvider>
     </ThemeProvider>
   );
