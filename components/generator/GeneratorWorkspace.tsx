@@ -9,13 +9,19 @@ import { ToneSelector } from "./ToneSelector";
 import { GenerationTimeline } from "./GenerationTimeline";
 import { GeneratorProvider } from "./GeneratorProvider";
 
-export function GeneratorWorkspace({ project }: { project: Project | null }) {
+export function GeneratorWorkspace({ 
+  project,
+  initialHistory = []
+}: { 
+  project: Project | null;
+  initialHistory?: Project[];
+}) {
   return (
     <GeneratorProvider project={project}>
       <div className="flex h-[calc(100vh-8rem)] flex-col lg:flex-row gap-6">
         {/* Left Column: Input & Configuration */}
         <div className="flex w-full lg:w-[400px] flex-col gap-6 overflow-y-auto pr-2 scrollbar-thin">
-          <SourceCard />
+          <SourceCard initialHistory={initialHistory} />
           <ToneSelector />
           <PlatformTabs />
           <GenerationTimeline />

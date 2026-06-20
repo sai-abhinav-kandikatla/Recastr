@@ -8,19 +8,30 @@ import { readApiJson } from "@/lib/client-api";
 import { useGenerator } from "./GeneratorProvider";
 import type { Project } from "@/lib/types";
 
-export function SourceCard() {
+export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[] }) {
   const { project, setProject, isAnalyzing: isIngesting, setIsAnalyzing: setIsIngesting } = useGenerator();
   const router = useRouter();
   const [mode, setMode] = useState<"url" | "text">("url");
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
-  const [history, setHistory] = useState<Project[]>([]);
+  const [history, setHistory] = useState<Project[]>(initialHistory);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [hasLoadedInitially, setHasLoadedInitially] = useState(initialHistory.length > 0);
+
+  useEffect(() => {
+    if (initialHistory.length > 0) {
+      setHistory(initialHistory);
+    }
+  }, [initialHistory]);
 
   useEffect(() => {
     if (!project) {
-      loadHistory();
+      if (!hasLoadedInitially) {
+        loadHistory();
+      } else {
+        setHasLoadedInitially(false);
+      }
     }
   }, [project]);
 
