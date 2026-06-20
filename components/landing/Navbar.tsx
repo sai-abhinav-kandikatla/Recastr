@@ -65,7 +65,7 @@ export function Navbar() {
         </div>
 
         <div className="navbar-actions hidden items-center gap-3 md:flex">
-          <Button variant="ghost" asChild className="text-[#8A8A8A] hover:text-white">
+          <Button variant="ghost" asChild className="text-[#8A8A8A] hover:bg-white hover:text-black transition-all duration-300">
             <Link href="/login">Sign in</Link>
           </Button>
           <Button asChild>
