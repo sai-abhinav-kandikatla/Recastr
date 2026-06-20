@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
+import { usePathname } from "next/navigation";
 
 const navItems = [
   { name: "Workflow", id: "workflow" },
@@ -15,6 +16,7 @@ const navItems = [
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("");
+  const pathname = usePathname();
 
   useEffect(() => {
     const sections = navItems.map((item) => item.id);
@@ -36,9 +38,12 @@ export function Navbar() {
   }, []);
 
   const scrollTo = (id: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-    setMobileOpen(false);
+    const el = document.getElementById(id);
+    if (el) {
+      e.preventDefault();
+      el.scrollIntoView({ behavior: "smooth" });
+      setMobileOpen(false);
+    }
   };
 
   return (
@@ -50,7 +55,7 @@ export function Navbar() {
           {navItems.map((item) => (
             <a
               key={item.id}
-              href={`#${item.id}`}
+              href={pathname === "/" ? `#${item.id}` : `/#${item.id}`}
               onClick={scrollTo(item.id)}
               className={`nav-link relative pb-1 text-sm transition-colors ${
                 activeSection === item.id ? "text-white" : "text-[#8A8A8A] hover:text-white"
@@ -88,7 +93,7 @@ export function Navbar() {
           {navItems.map((item) => (
             <a
               key={item.id}
-              href={`#${item.id}`}
+              href={pathname === "/" ? `#${item.id}` : `/#${item.id}`}
               onClick={scrollTo(item.id)}
               className="block py-3 text-[15px] text-[#8A8A8A] hover:text-white"
             >
