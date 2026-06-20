@@ -76,7 +76,7 @@ export function ProjectStudioTopBar({
 
 function filterPillClass(filter: PlatformFilter, active: boolean) {
   const base =
-    "relative h-10 rounded-full px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+    "relative h-10 rounded-full px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-background btn-edge-light";
   if (active) return cn(base, "bg-[var(--violet)] text-black");
   return cn(
     base,

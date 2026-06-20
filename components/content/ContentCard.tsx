@@ -235,7 +235,7 @@ export const ContentCard = memo(function ContentCard({
                 type="button"
                 onClick={() => setMode(item)}
                 className={cn(
-                  "h-6 rounded-full px-2 text-[11px] font-medium capitalize text-muted-foreground transition",
+                  "h-6 rounded-full px-2 text-[11px] font-medium capitalize text-muted-foreground transition btn-edge-light",
                   mode === item && "bg-[var(--violet)] text-black",
                 )}
               >
@@ -347,7 +347,7 @@ export const ContentCard = memo(function ContentCard({
               onClick={() => openScheduleWithMethod("email_reminder")}
               disabled={overLimit}
               title="Schedule an email reminder when it is time to publish manually."
-              className="h-8 rounded-lg bg-[var(--violet)] px-3 text-xs font-semibold text-black transition hover:bg-[var(--violet-hover)] active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-red-500/15 disabled:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
+              className="h-8 rounded-lg bg-[var(--violet)] px-3 text-xs font-semibold text-black transition disabled:cursor-not-allowed disabled:bg-red-500/15 disabled:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2 btn-edge-light"
             >
               <Mail className="mr-1 inline h-3.5 w-3.5" />
               {overLimit ? "Over limit" : "Remind me"}
@@ -357,7 +357,7 @@ export const ContentCard = memo(function ContentCard({
           <button
             type="button"
             onClick={handleCopy}
-            className="h-8 rounded-lg px-3 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2"
+            className="h-8 rounded-lg px-3 text-xs font-semibold text-muted-foreground transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--violet)] focus-visible:ring-offset-2 btn-edge-light"
           >
             {copied ? "Copied" : "Copy"}
           </button>
