@@ -13,6 +13,7 @@ import { FacebookPreview as OldFacebookPreview } from "../preview/platforms/Face
 import { ThreadsPreview as OldThreadsPreview } from "../preview/platforms/ThreadsPreview";
 import { YouTubeCommunityPreview } from "../preview/platforms/YouTubeCommunityPreview";
 import { parsePreviewContent } from "@/lib/preview-content";
+import { ContentEmptyState } from "../dashboard/ContentEmptyState";
 import { useState } from "react";
 import type { PreviewDevice, PreviewPlatform } from "@/lib/preview-content";
 
@@ -37,13 +38,7 @@ export function PreviewCard() {
   if (progress === "idle") {
     return (
       <div className="flex h-full items-center justify-center rounded-2xl border-2 border-dashed border-[#232323] bg-[#090909]">
-        <div className="max-w-sm text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#151515] border border-[#232323]">
-            <Sparkles className="h-5 w-5 text-[#8A8A8A]" />
-          </div>
-          <h2 className="text-base font-semibold text-white mb-2">Ready to Generate</h2>
-          <p className="text-sm text-[#8A8A8A]">Select your desired platforms and click Generate Content to begin.</p>
-        </div>
+        <ContentEmptyState />
       </div>
     );
   }

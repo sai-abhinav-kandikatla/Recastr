@@ -244,9 +244,9 @@ export function ActionBar() {
           <Button
             variant="outline"
             className="gap-2 border-[#232323] bg-[#151515] text-white hover:bg-[#232323] hover:text-white"
-            onClick={() => router.push(`/projects/${project.id}`)}
+            onClick={() => router.push(`/workspace/${project.id}?platform=${activePreviewTab.toLowerCase()}`)}
           >
-            <ExternalLink className="h-4 w-4 text-[#8A8A8A]" /> Open Full Project
+            <ExternalLink className="h-4 w-4 text-[#8A8A8A]" /> Open in Workspace
           </Button>
         )}
         <Button
