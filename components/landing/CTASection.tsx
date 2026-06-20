@@ -4,7 +4,7 @@ import { MagneticWrapper } from "./MagneticWrapper";
 
 export function CTASection() {
   return (
-    <section id="cta" className="border-t border-[#232323] py-36">
+    <section id="cta" className="border-t border-[#232323] py-36 scroll-mt-20">
 
       <div className="mx-auto max-w-5xl px-6 text-center">
 

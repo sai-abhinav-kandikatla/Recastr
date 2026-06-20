@@ -41,7 +41,7 @@ export function PricingSection() {
   return (
     <section
       id="pricing"
-      className="border-t border-[#232323] py-36"
+      className="border-t border-[#232323] py-36 scroll-mt-20"
     >
       <div className="mx-auto max-w-7xl px-6">
 

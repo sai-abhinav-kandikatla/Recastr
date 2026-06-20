@@ -9,7 +9,7 @@ import {
 
 export function FAQSection() {
   return (
-    <section id="faq" className="border-t border-[#232323] py-36">
+    <section id="faq" className="border-t border-[#232323] py-36 scroll-mt-20">
       <div className="mx-auto max-w-4xl px-6">
 
         <h2 className="mb-16 text-center text-5xl font-bold">

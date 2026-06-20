@@ -27,7 +27,7 @@ export function WorkflowSection() {
   ];
 
   return (
-    <section id="workflow" className="border-t border-[#232323] py-36">
+    <section id="workflow" className="border-t border-[#232323] py-36 scroll-mt-20">
       <div className="mx-auto max-w-7xl px-6">
 
         <div className="mb-20 text-center">
