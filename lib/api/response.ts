@@ -31,7 +31,7 @@ export function apiError(error: unknown, fallback = "request_failed", status = 5
   }
   return Response.json(
     {
-      error: status >= 500 ? "Request failed. Try again later." : "Invalid request",
+      error: status >= 500 ? "Request failed. Try again later." : (error instanceof Error ? error.message : "Invalid request"),
       code: fallback,
       status,
     } satisfies ApiErrorShape,

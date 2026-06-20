@@ -196,28 +196,15 @@ async function createYoutubeProject(url: string, userId: string): Promise<Projec
   console.log(`[createYoutubeProject] Transcript available: ${hasRealTranscript} (${transcriptWordCount} words)`);
   console.log(`[createYoutubeProject] Source text length: ${sourceText.length} chars`);
 
-  // Try Gemini-powered generation first, fall back to local templates
+  // Try Gemini-powered generation
   const contentPack = await generateContentPack(id, {
     title: metadata.title,
     description: metadata.description,
     transcript: hasRealTranscript ? rawTranscript : undefined,
   });
 
-  let summary: SourceSummary;
-  let hooks: ViralHook[];
-  let contents: ContentPiece[];
-
-  if (contentPack) {
-    console.log(`[createYoutubeProject] ✅ Gemini content pack generated successfully`);
-    summary = contentPack.summary;
-    hooks = contentPack.hooks;
-    contents = contentPack.contents;
-  } else {
-    console.log(`[createYoutubeProject] ⚠️ Gemini unavailable, using local templates`);
-    summary = createSummary(metadata);
-    hooks = createHooks(id, metadata);
-    contents = createContents(id, hooks, metadata);
-  }
+  console.log(`[createYoutubeProject] ✅ Gemini content pack generated successfully`);
+  const { summary, hooks, contents } = contentPack;
 
   return {
     id,

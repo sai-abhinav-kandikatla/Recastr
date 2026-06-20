@@ -19,9 +19,24 @@ export async function generateContentPack(
   summary: SourceSummary;
   hooks: ViralHook[];
   contents: ContentPiece[];
-} | null> {
+}> {
+  if (!env.geminiKey) {
+    throw new Error("GEMINI_API_KEY environment variable is not configured. Please add a valid Gemini API key from Google AI Studio.");
+  }
+
+  const apiKey = env.geminiKey.trim();
+  if (!apiKey.startsWith("AIzaSy")) {
+    throw new Error(
+      `Invalid GEMINI_API_KEY format (starts with "${apiKey.slice(0, 8)}..."). ` +
+      `Google AI Studio Gemini API keys must start with "AIzaSy". ` +
+      `Please check your Vercel/environment configuration.`
+    );
+  }
+
   const gemini = getGeminiClient();
-  if (!gemini || !env.geminiKey) return null;
+  if (!gemini) {
+    throw new Error("Failed to initialize Google Gen AI client with the configured key.");
+  }
 
   // Build source material — prefer transcript, fall back to title + description
   const sourceText = metadata.transcript?.trim()
@@ -51,8 +66,9 @@ export async function generateContentPack(
 
     return transformResponse(projectId, parsed, metadata.title);
   } catch (error) {
-    console.error("[content-pack] Gemini content pack generation failed:", error instanceof Error ? error.message : error);
-    return null;
+    console.error("[content-pack] Gemini content pack generation failed:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    throw new Error(`Gemini API call failed: ${msg}`);
   }
 }
 
