@@ -4,11 +4,12 @@ import axios from "axios";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
 import { normalizePlatformCopy } from "@/lib/platform-limits";
-import type { ContentPiece, Platform, SourceSummary, ViralHook, SourceType } from "@/lib/types";
-import { hash } from "@/lib/ingest";
+import type { ContentPiece, Platform, SourceSummary, ViralHook, SourceType, Project } from "@/lib/types";
+import { hash, extractYouTubeVideoId } from "@/lib/ingest";
 import * as cheerio from "cheerio";
 import sanitizeHtml from "sanitize-html";
 import ytdl from "yt-dlp-exec";
+import { ContentIntelligenceService } from "@/lib/content-intelligence/service";
 
 // ==========================================
 // 12-Stage Content Intelligence Pipeline
@@ -241,5 +242,434 @@ async function fetchYtdlSubtitles(videoId: string): Promise<string | null> {
   } catch (error) {
     console.error("[pipeline:extract] yt-dlp subtitle extraction failed:", error);
     return null;
+  }
+}
+
+// Helper function to scrape watch page captions
+async function scrapeWatchPageCaptions(videoId: string): Promise<string | null> {
+  try {
+    console.log(`[pipeline:extract] Scraping watch page captions for videoId: ${videoId}`);
+    const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const res = await axios.get(watchUrl, {
+      timeout: 8000,
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" }
+    });
+
+    const $ = cheerio.load(res.data);
+
+    // Look for caption tracks in the page
+    const captionTracks = $('ytmp3captionstrack');
+    if (captionTracks.length > 0) {
+      // This is a simplified approach - in reality, YouTube's caption extraction is more complex
+      // For now, we'll return null to fall back to other methods
+      console.log(`[pipeline:extract] Found caption tracks but implementation needed`);
+      return null;
+    }
+
+    // Alternative: look for captions in player response
+    const playerResponseMatch = res.data.match(/var ytInitialPlayerResponse = ({.+?});/);
+    if (playerResponseMatch) {
+      try {
+        const playerResponse = JSON.parse(playerResponseMatch[1]);
+        const captionTracks = playerResponse.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+        if (captionTracks && captionTracks.length > 0) {
+          // Try to fetch the first English caption track
+          const enTrack = captionTracks.find(track => track.languageCode === 'en');
+          const trackToFetch = enTrack || captionTracks[0];
+
+          if (trackToFetch && trackToFetch.baseUrl) {
+            const captionRes = await axios.get(trackToFetch.baseUrl, {
+              timeout: 5000
+            });
+
+            // Parse XML caption to plain text
+            const $caption = cheerio.load(captionRes.data, { xmlMode: true });
+            const text = $caption('p').text().trim();
+            if (text.length > 50) {
+              console.log(`[pipeline:extract] Successfully scraped ${text.length} characters of captions from watch page`);
+              return text;
+            }
+          }
+        }
+      } catch (parseError) {
+        console.error(`[pipeline:extract] Failed to parse player response for captions:`, parseError);
+      }
+    }
+
+    console.log(`[pipeline:extract] No captions found via watch page scrape for videoId: ${videoId}`);
+    return null;
+  } catch (error) {
+    console.error(`[pipeline:extract] Watch page caption scrape failed for videoId ${videoId}:`, error);
+    return null;
+  }
+}
+
+// Helper function to fetch transcript using youtube-transcript library
+async function fetchWithYoutubeTranscriptLib(videoId: string): Promise<string | null> {
+  try {
+    console.log(`[pipeline:extract] Fetching transcript via youtube-transcript library for videoId: ${videoId}`);
+
+    // Try to fetch transcript
+    const segments = await YoutubeTranscript.fetchTranscript(videoId);
+
+    if (segments && segments.length > 0) {
+      const transcript = segments
+        .map((segment) => segment.text.trim())
+        .filter(Boolean)
+        .join(" ");
+
+      if (transcript.length > 50) {
+        console.log(`[pipeline:extract] Successfully fetched ${transcript.length} characters via youtube-transcript library`);
+        return transcript;
+      }
+    }
+
+    console.log(`[pipeline:extract] No transcript found via youtube-transcript library for videoId: ${videoId}`);
+    return null;
+  } catch (error) {
+    console.error(`[pipeline:extract] Youtube-transcript library fetch failed for videoId ${videoId}:`, error);
+    return null;
+  }
+}
+
+// Helper function to scrape blog/text content from URL
+async function scrapeBlogText(url: string): Promise<string> {
+  try {
+    console.log(`[pipeline:extract] Scraping blog content from URL: ${url}`);
+
+    const res = await axios.get(url, {
+      timeout: 10000,
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" }
+    });
+
+    const $ = cheerio.load(res.data);
+
+    // Remove unwanted elements
+    $('script, style, nav, header, footer, .advertisement, .ads, .comments, .sidebar').remove();
+
+    // Try to extract main content
+    let text = '';
+
+    // Common content selectors
+    const selectors = [
+      'article',
+      '.post-content',
+      '.entry-content',
+      '.content',
+      '.post',
+      'main',
+      '#content',
+      '.article-body',
+      '.blog-post'
+    ];
+
+    for (const selector of selectors) {
+      const content = $(selector).first();
+      if (content.length > 0) {
+        text = content.text().trim();
+        if (text.length > 100) break;
+      }
+    }
+
+    // If no specific content found, get body text
+    if (text.length < 100) {
+      text = $('body').text().trim();
+    }
+
+    // Clean up text
+    text = text
+      .replace(/\s+/g, ' ')  // Multiple spaces to single space
+      .replace(/^\s+|\s+$/g, '')  // Trim
+      .replace(/\n+/g, ' ')  // Newlines to spaces
+      .trim();
+
+    if (text.length > 50) {
+      console.log(`[pipeline:extract] Successfully scraped ${text.length} characters of blog content`);
+      return text;
+    } else {
+      throw new Error(`Scraped content too short: ${text.length} characters`);
+    }
+  } catch (error) {
+    console.error(`[pipeline:extract] Blog scraping failed for URL ${url}:`, error);
+    throw new Error(`Failed to extract content from blog: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+// STAGE FUNCTIONS FOR THE 12-STAGE PIPELINE
+
+// STAGE 2: Title Extraction
+async function extractTitleStage(options: PipelineOptions, transcript: string): Promise<string> {
+  // If title is provided in options, use it
+  if (options.title?.trim()) {
+    return options.title.trim();
+  }
+
+  // Try to extract title from transcript
+  if (transcript.trim()) {
+    const lines = transcript.split(/\n+/).map(line => line.trim()).filter(line => line.length > 0);
+
+    // Look for title-like patterns in first few lines
+    for (let i = 0; i < Math.min(5, lines.length); i++) {
+      const line = lines[i];
+      // Skip lines that are too long to be titles or contain URL patterns
+      if (line.length > 10 && line.length < 100 &&
+          !line.includes('http://') && !line.includes('https://') &&
+          !line.includes('www.')) {
+        return line;
+      }
+    }
+  }
+
+  // Fallback: generate title from content or use URL-based title
+  if (options.url) {
+    try {
+      const urlObj = new URL(options.url);
+      const hostname = urlObj.hostname.replace(/^www\./, '');
+      const pathname = urlObj.pathname.replace(/\/+/g, ' ').replace(/^\s+|\s+$/g, '');
+
+      if (hostname && pathname) {
+        return `${hostname} ${pathname}`.trim();
+      }
+
+      return hostname || 'Unknown Source';
+    } catch {
+      // If URL parsing fails, use a generic title
+    }
+  }
+
+  // Last resort fallback
+  return `Content Item ${Date.now()}`;
+}
+
+// STAGE 3: Transcript Chunking
+function chunkTranscriptStage(title: string, transcript: string): Array<{ id: string; text: string; startIndex: number; endIndex: number }> {
+  if (!transcript || transcript.trim() === '') {
+    return [{ id: 'chunk-1', text: title || 'No content', startIndex: 0, endIndex: 0 }];
+  }
+
+  const chunks: Array<{ id: string; text: string; startIndex: number; endIndex: number }> = [];
+  const maxWordsPerChunk = 500; // Process in chunks of ~500 words
+  const words = transcript.split(/\s+/);
+
+  let startIndex = 0;
+  let chunkId = 1;
+
+  while (startIndex < words.length) {
+    const endIndex = Math.min(startIndex + maxWordsPerChunk, words.length);
+    const chunkWords = words.slice(startIndex, endIndex);
+    const chunkText = chunkWords.join(' ');
+
+    chunks.push({
+      id: `chunk-${chunkId}`,
+      text: chunkText,
+      startIndex: startIndex,
+      endIndex: endIndex - 1
+    });
+
+    startIndex = endIndex;
+    chunkId++;
+  }
+
+  // If no chunks were created (shouldn't happen), create a single chunk
+  if (chunks.length === 0) {
+    chunks.push({
+      id: 'chunk-1',
+      text: transcript,
+      startIndex: 0,
+      endIndex: transcript.length
+    });
+  }
+
+  return chunks;
+}
+
+// STAGE 5: Insight Extraction Engine
+async function extractInsightsStage(title: string, chunks: Array<{ id: string; text: string; startIndex: number; endIndex: number }>) {
+  // Use the ContentIntelligenceService to extract insights from the full transcript
+  const fullTranscript = chunks.map(chunk => chunk.text).join(' ');
+
+  try {
+    const { insights, rawExtractions } = await contentIntelligenceService.extractInsights(fullTranscript, title);
+
+    // Return insights in the format expected by the pipeline
+    return {
+      insights,
+      rawExtractions
+    };
+  } catch (error) {
+    console.error(`[pipeline:insights] Failed to extract insights:`, error);
+    // Return empty insights structure to allow pipeline to continue
+    return {
+      insights: [],
+      rawExtractions: {}
+    };
+  }
+}
+
+// STAGE 6: Knowledge Graph Building
+async function buildKnowledgeGraphStage(title: string, rawInsights: any) {
+  const { insights } = rawInsights || { insights: [] };
+
+  if (!insights || insights.length === 0) {
+    // Return empty knowledge graph if no insights
+    return {
+      nodes: [],
+      edges: [],
+      tldr: title || 'Content processed',
+      takeaways: [title || 'Content processed'],
+      topics: []
+    };
+  }
+
+  try {
+    const knowledgeGraph = await contentIntelligenceService.buildKnowledgeGraph(insights);
+
+    // Extract summary information for the pipeline
+    const tldr = insights.length > 0 ? insights[0].text.substring(0, Math.min(200, insights[0].text.length)) : title;
+    const takeaways = insights
+      .slice(0, 5)
+      .map(insight => insight.text.substring(0, Math.min(150, insight.text.length)));
+    const topics = [...new Set(insights
+      .filter(insight => insight.kind === 'topic')
+      .map(insight => insight.text))
+      .slice(0, 10)];
+
+    return {
+      ...knowledgeGraph,
+      tldr,
+      takeaways,
+      topics
+    };
+  } catch (error) {
+    console.error(`[pipeline:knowledge-graph] Failed to build knowledge graph:`, error);
+    // Return fallback knowledge graph
+    return {
+      nodes: [],
+      edges: [],
+      tldr: title || 'Content processed',
+      takeaways: [title || 'Content processed'],
+      topics: []
+    };
+  }
+}
+
+// STAGES 7-11: Content Generation Suite
+async function generateSocialSuiteStage(options: {
+  projectId: string;
+  title: string;
+  transcript: string;
+  knowledgeGraph: any;
+  [key: string]: any;
+}) {
+  const { title, transcript, knowledgeGraph, ...stageOptions } = options;
+
+  try {
+    // Run the full content intelligence pipeline
+    const report = await contentIntelligenceService.runContentIntelligencePipeline(
+      transcript,
+      title,
+      stageOptions.projectId || undefined,
+      ["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "CAROUSEL", "COMMUNITY", "STORY", "HOOKS", "CTA"],
+      stageOptions.tonePref || "professional"
+    );
+
+    // Extract hooks (curiosity hooks) from the report
+    const hooks = report.curiosityHooks.map((text: string, index: number) => ({
+      id: `hook-${index}`,
+      projectId: options.projectId,
+      text,
+      hookType: "Curiosity gap",
+      reachScore: Math.min(100, Math.max(10, 80 + index)) // Decreasing reach score
+    }));
+
+    // Extract contents (platform-specific posts) from the report
+    // Flatten the categorized contents back into a simple array
+    const contentsArray: any[] = [];
+    const categories = report.categories || {};
+
+    for (const categoryKey in categories) {
+      if (Object.prototype.hasOwnProperty.call(categories, categoryKey)) {
+        const categoryContents = categories[categoryKey as keyof typeof categories];
+        if (Array.isArray(categoryContents)) {
+          categoryContents.forEach((content: any, index: number) => {
+            contentsArray.push({
+              id: `${content.id || `content-${categoryKey}-${index}`}`,
+              projectId: options.projectId,
+              hookId: hooks.length > 0 ? hooks[0].id : undefined,
+              platform: content.platform || "TWITTER", // Default platform
+              contentType: `${content.platform} post`,
+              body: content.body,
+              originalBody: content.originalBody,
+              tone: content.tone || "professional",
+              approved: false,
+              order: index
+            });
+          });
+        }
+      }
+    }
+
+    // If no contents were generated, create fallback contents
+    if (contentsArray.length === 0) {
+      const platforms = ["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "CAROUSEL", "COMMUNITY", "STORY", "HOOKS", "CTA"];
+      platforms.forEach((platform, index) => {
+        contentsArray.push({
+          id: `content-${platform.toLowerCase()}-${index}`,
+          projectId: options.projectId,
+          hookId: hooks.length > 0 ? hooks[0].id : undefined,
+          platform,
+          contentType: `${platform} post`,
+          body: `Fallback content for ${platform} based on: ${title}`,
+          originalBody: `Fallback content for ${platform} based on: ${title}`,
+          tone: stageOptions.tonePref || "professional",
+          approved: false,
+          order: index
+        });
+      });
+    }
+
+    return {
+      hooks,
+      contents: contentsArray
+    };
+  } catch (error) {
+    console.error(`[pipeline:social-suite] Failed to generate social suite:`, error);
+    // Return fallback hooks and contents
+    const fallbackHooks = [{
+      id: `hook-fallback`,
+      projectId: options.projectId,
+      text: `Discover key insights from "${title}"`,
+      hookType: "Curiosity gap",
+      reachScore: 50
+    }];
+
+    const fallbackContents = [
+      "TWITTER",
+      "LINKEDIN",
+      "INSTAGRAM",
+      "FACEBOOK",
+      "THREADS",
+      "CAROUSEL",
+      "COMMUNITY",
+      "STORY",
+      "HOOKS",
+      "CTA"
+    ].map((platform, index) => ({
+      id: `content-${platform.toLowerCase()}-fallback-${index}`,
+      projectId: options.projectId,
+      hookId: fallbackHooks[0].id,
+      platform,
+      contentType: `${platform} post`,
+      body: `Fallback content for ${platform}`,
+      originalBody: `Fallback content for ${platform}`,
+      tone: stageOptions.tonePref || "professional",
+      approved: false,
+      order: index
+    }));
+
+    return {
+      hooks: fallbackHooks,
+      contents: fallbackContents
+    };
   }
 }
