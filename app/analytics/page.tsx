@@ -164,22 +164,27 @@ export default async function AnalyticsPage() {
           </div>
 
           {/* Dynamic / simulated bars */}
-          <div className="flex h-48 items-end gap-2">
+          <div className="flex h-48 items-end gap-3 px-2 border-b border-[#232323] pb-2">
             {chartBars.map((bar, i) => (
               <div
                 key={i}
-                className="flex flex-1 flex-col items-center gap-1"
+                className="flex h-full flex-1 flex-col justify-end"
               >
-                <div
-                  className="w-full rounded-t bg-white transition-all duration-500"
-                  style={{ height: `${bar.h1}%` }}
-                  title={`${bar.created} posts generated`}
-                />
-                <div
-                  className="w-full rounded-t bg-[#8A8A8A] transition-all duration-500"
-                  style={{ height: `${bar.h2}%` }}
-                  title={`${bar.scheduled} posts scheduled`}
-                />
+                <div className="flex flex-1 items-end gap-1">
+                  <div
+                    className="w-full rounded-t bg-white transition-all duration-500 hover:bg-white/90"
+                    style={{ height: `${bar.h1}%` }}
+                    title={`${bar.created} posts generated`}
+                  />
+                  <div
+                    className="w-full rounded-t bg-[#8A8A8A] transition-all duration-500 hover:bg-[#8A8A8A]/90"
+                    style={{ height: `${bar.h2}%` }}
+                    title={`${bar.scheduled} posts scheduled`}
+                  />
+                </div>
+                <div className="mt-2 text-center text-[10px] text-[#555] font-mono select-none h-4">
+                  {i % 2 === 0 ? last14Days[i].toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""}
+                </div>
               </div>
             ))}
           </div>

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { CurrentUser } from "@/lib/current-user";
 import type { Project } from "@/lib/types";
+import { PlatformIcon } from "@/components/PlatformIcon";
 
 export type DashboardMetrics = {
   projects: number;
@@ -198,13 +199,14 @@ export function ProjectDashboard({
                   <div className="mt-6 flex items-center justify-between border-t border-border/50 pt-4">
                     <div className="flex -space-x-2">
                       {["twitter", "linkedin", "instagram"].map((platform, i) => (
-                        <div
+                        <PlatformIcon
                           key={platform}
-                          className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-[var(--app-surface)] text-white"
-                          style={{ background: platformColor(platform), zIndex: 3 - i }}
-                        >
-                          <span className="text-[8px] font-bold">{platform.charAt(0).toUpperCase()}</span>
-                        </div>
+                          platform={platform}
+                          size="sm"
+                          variant="circle"
+                          className="border-2 border-[var(--app-surface)]"
+                          style={{ zIndex: 3 - i }}
+                        />
                       ))}
                     </div>
                     <span className="inline-flex items-center text-sm font-semibold text-primary transition-transform group-hover:translate-x-1">
@@ -252,12 +254,6 @@ function formatHours(hours: number) {
   if (hours <= 0) return "0 hrs";
   if (hours < 1) return `${Math.round(hours * 60)} min`;
   return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} hrs`;
-}
-
-function platformColor(platform: string) {
-  if (platform === "twitter") return "var(--platform-twitter)";
-  if (platform === "linkedin") return "var(--platform-linkedin)";
-  return "var(--platform-instagram)";
 }
 
 function formatGeneratedCount(project: Project) {

@@ -25,6 +25,7 @@ import {
 } from "@/lib/browser-schedule-store";
 import { cn } from "@/lib/utils";
 import type { ContentPiece, Platform, Project, ScheduledPost } from "@/lib/types";
+import { PlatformIcon } from "@/components/PlatformIcon";
 
 type TaskTab = "scheduled" | "history";
 type ScheduledFilter = "upcoming" | "today" | "week" | "all";
@@ -343,9 +344,7 @@ function ScheduledTab({
                       <CountdownTimer date={post.publishAt} />
                     </div>
                     <span className="flex items-center gap-2 text-sm font-bold">
-                      <div className={cn("flex h-6 w-6 items-center justify-center rounded-[6px] text-white", platformClass(post.platform))}>
-                        <span className="text-[10px] font-bold">{platformLabel(post.platform).charAt(0)}</span>
-                      </div>
+                      <PlatformIcon platform={post.platform} />
                       {platformLabel(post.platform)}
                     </span>
                     <p className="truncate text-sm text-muted-foreground font-medium">
@@ -414,9 +413,7 @@ function HistoryTab({
                 {format(new Date(post.publishAt), "MMM d, h:mma")}
               </span>
               <span className="flex items-center gap-2 font-bold text-xs">
-                <div className={cn("flex h-6 w-6 items-center justify-center rounded-[6px] text-white", platformClass(post.platform))}>
-                  <span className="text-[10px] font-bold">{platformLabel(post.platform).charAt(0)}</span>
-                </div>
+                <PlatformIcon platform={post.platform} />
                 {platformLabel(post.platform)}
               </span>
               <span className="truncate text-muted-foreground font-medium">{truncate(body, 88)}</span>
