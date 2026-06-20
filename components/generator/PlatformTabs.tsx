@@ -10,7 +10,7 @@ const platforms: { id: Platform; name: string }[] = [
   { id: "INSTAGRAM", name: "Instagram" },
   { id: "FACEBOOK", name: "Facebook" },
   { id: "THREADS", name: "Threads" },
-  { id: "COMMUNITY", name: "YT Community" },
+  { id: "COMMUNITY", name: "YouTube Community" },
 ];
 
 export function PlatformTabs() {

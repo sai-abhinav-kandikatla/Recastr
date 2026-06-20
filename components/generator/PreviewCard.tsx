@@ -1,7 +1,7 @@
 "use client";
 
 import { useGenerator } from "./GeneratorProvider";
-import { Copy, RefreshCw, Sparkles } from "lucide-react";
+import { Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { Platform } from "@/lib/types";
@@ -15,7 +15,7 @@ import { YouTubeCommunityPreview } from "../preview/platforms/YouTubeCommunityPr
 import { parsePreviewContent } from "@/lib/preview-content";
 import { ContentEmptyState } from "../dashboard/ContentEmptyState";
 import { useState } from "react";
-import type { PreviewDevice, PreviewPlatform } from "@/lib/preview-content";
+import type { PreviewDevice } from "@/lib/preview-content";
 
 const platformNames: Record<Platform, string> = {
   TWITTER: "Twitter/X",
@@ -24,7 +24,7 @@ const platformNames: Record<Platform, string> = {
   FACEBOOK: "Facebook",
   THREADS: "Threads",
   CAROUSEL: "Carousel",
-  COMMUNITY: "Community",
+  COMMUNITY: "YouTube Community",
   STORY: "Story",
   HOOKS: "10 Hooks",
   CTA: "CTAs"

@@ -46,7 +46,7 @@ const studioTabs: StudioTab[] = [
   },
   {
     platform: "COMMUNITY",
-    label: "YT Community",
+    label: "YouTube Community",
     accent: "from-teal-500 to-cyan-400",
   },
 ];

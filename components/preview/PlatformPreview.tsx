@@ -18,7 +18,7 @@ const platformLabels: Record<PreviewPlatform, string> = {
   INSTAGRAM: "Instagram",
   FACEBOOK: "Facebook",
   THREADS: "Threads",
-  COMMUNITY: "YouTube",
+  COMMUNITY: "YouTube Community",
 };
 
 const previewPlatforms: PreviewPlatform[] = [
