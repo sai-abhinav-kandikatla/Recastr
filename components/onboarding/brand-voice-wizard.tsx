@@ -168,14 +168,14 @@ export function BrandVoiceWizard() {
                       >
                         <div className={cn(
                           "h-10 w-10 rounded-[12px] flex items-center justify-center mb-4 transition-colors",
-                          active ? "bg-primary text-white" : "bg-muted/50 text-muted-foreground group-hover:text-foreground"
+                          active ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground group-hover:text-foreground"
                         )}>
                           <Icon className="h-5 w-5" />
                         </div>
                         <p className="font-bold text-lg relative z-10">{item.id}</p>
                         <p className="mt-2 text-xs text-muted-foreground font-medium relative z-10">{item.desc}</p>
                         {active && (
-                          <div className="absolute top-4 right-4 h-6 w-6 rounded-full bg-primary flex items-center justify-center text-white">
+                          <div className="absolute top-4 right-4 h-6 w-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground">
                             <Check className="h-3 w-3" />
                           </div>
                         )}
@@ -198,7 +198,7 @@ export function BrandVoiceWizard() {
                             className={cn(
                               "flex items-center gap-2 rounded-full border px-5 py-3 text-sm font-bold transition-all",
                               active
-                                ? "border-primary bg-primary text-white scale-105"
+                                ? "border-primary bg-primary text-primary-foreground scale-105"
                                 : "border-[var(--app-line)] bg-[var(--app-bg)]/55 text-muted-foreground hover:bg-[var(--app-panel)] hover:text-foreground"
                             )}
                             onClick={() =>

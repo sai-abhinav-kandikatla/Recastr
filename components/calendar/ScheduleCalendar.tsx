@@ -363,7 +363,7 @@ function CalendarDay({
           <span
             className={cn(
               "mt-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
-              today ? "bg-primary text-white" : "text-foreground",
+              today ? "bg-primary text-primary-foreground" : "text-foreground",
             )}
           >
             {format(day, "d")}
