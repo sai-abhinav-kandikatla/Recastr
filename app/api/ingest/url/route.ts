@@ -618,7 +618,7 @@ function preferredYoutubeTitle(oembedTitle?: string, pageTitle?: string) {
 }
 
 function isGenericYoutubeTitle(title: string) {
-  const normalized = title.toLowerCase();
+  const normalized = (title ?? "").toLowerCase();
   return (
     normalized === "youtube" ||
     normalized === "youtube video" ||
@@ -629,7 +629,7 @@ function isGenericYoutubeTitle(title: string) {
 function cleanYoutubeDescription(description?: string) {
   const cleaned = normalizeText(description);
   if (!cleaned) return undefined;
-  const normalized = cleaned.toLowerCase();
+  const normalized = (cleaned ?? "").toLowerCase();
   if (normalized.includes("enjoy the videos and music you love, upload original content")) return undefined;
   return cleaned;
 }
