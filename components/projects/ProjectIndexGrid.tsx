@@ -40,7 +40,7 @@ export function ProjectIndexGrid({
               <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] text-[var(--violet)]">
                 <Sparkles className="h-5 w-5" />
               </div>
-              <Badge variant="muted" className="border-[var(--app-line)] bg-[var(--app-panel)] text-xs capitalize text-muted-foreground">{project.sourceType.toLowerCase()}</Badge>
+              <Badge variant="muted" className="border-[var(--app-line)] bg-[var(--app-panel)] text-xs capitalize text-muted-foreground">{((project?.sourceType || '').toLowerCase())}</Badge>
             </div>
 
             <h2 className="line-clamp-2 text-xl font-bold font-display transition-colors group-hover:text-primary">{project.title}</h2>

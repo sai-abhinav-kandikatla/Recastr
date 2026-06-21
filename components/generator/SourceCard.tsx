@@ -137,7 +137,7 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
               <div className="flex items-center gap-3 mt-2 text-xs text-[#8A8A8A]">
                 {project.duration && <span>{Math.round(project.duration / 60)} min</span>}
                 {project.wordCount && <span>{project.wordCount.toLocaleString()} words</span>}
-                <span className="capitalize text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">{project.sourceType.toLowerCase()}</span>
+                <span className="capitalize text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">{((project?.sourceType || '').toLowerCase())}</span>
               </div>
             </div>
           </div>
@@ -239,7 +239,7 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
                       {item.title}
                     </span>
                     <div className="flex items-center gap-2 mt-1 text-[10px] text-[#8A8A8A]">
-                      <span className="capitalize">{item.sourceType.toLowerCase()}</span>
+                      <span className="capitalize">{((item?.sourceType || '').toLowerCase())}</span>
                       <span>•</span>
                       <span>{new Date(item.createdAt).toLocaleDateString()}</span>
                     </div>

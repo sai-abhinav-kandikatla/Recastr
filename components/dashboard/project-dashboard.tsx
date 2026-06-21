@@ -188,7 +188,7 @@ export function ProjectDashboard({
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--app-line)] bg-[var(--app-panel)] text-[var(--violet)]">
                       <Sparkles className="h-5 w-5" />
                     </div>
-                    <Badge variant="muted" className="bg-muted capitalize text-xs">{project.sourceType.toLowerCase()}</Badge>
+                    <Badge variant="muted" className="bg-muted capitalize text-xs">{((project?.sourceType || '').toLowerCase())}</Badge>
                   </div>
 
                   <h3 className="line-clamp-2 text-lg font-bold font-display group-hover:text-primary transition-colors">{project.title}</h3>
