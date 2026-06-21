@@ -1,6 +1,5 @@
 import { getRequestUser } from "@/lib/auth";
 import { generatePostSchema } from "@/lib/ai/schemas";
-import { apiError } from "@/lib/api/response";
 import { assertGenerationRateLimit } from "@/lib/rate-limit";
 import { trackServerEvent } from "@/lib/analytics";
 import { consumeCredits, creditErrorResponse, requireCredits } from "@/lib/credits";
@@ -16,15 +15,14 @@ import { recordUsageEvent } from "@/lib/usage";
 import type { Platform, Tone } from "@/lib/types";
 import { getTranscript } from "@/lib/services/transcript";
 import { extractInsights } from "@/lib/services/extractInsights";
+import { generatePlatformOutputs } from "@/lib/ai/service";
 import {
   generateTwitterPost,
-  generateTwitterThread,
   generateLinkedInPost,
   generateInstagramCaption,
   generateInstagramCarousel,
   generateFacebookPost,
   generateYouTubeCommunityPost,
-  generateReelScript,
 } from "@/lib/services/generatePosts";
 import {
   generateWithQualityGate,
@@ -146,7 +144,7 @@ export async function POST(request: Request) {
     await assertCanGenerateContent(user, payload.platforms);
 
     // STEP 0 — Get project by ID
-    const { projectId, tone, selectedPlatforms } = payload;
+    const { projectId, tone, platforms: selectedPlatforms } = payload;
     const project = await prisma.project.findFirst({
       where: {
         id: projectId,
@@ -186,7 +184,7 @@ export async function POST(request: Request) {
       // Fallback to fetching transcript from YouTube URL
       const transcriptResult = await getTranscript(videoUrl);
       if (transcriptResult.success) {
-        transcript = transcriptResult.transcript;
+        transcript = transcriptResult.transcript ?? null;
       }
     }
 
@@ -209,29 +207,23 @@ export async function POST(request: Request) {
     const insights = await extractInsights(transcript!, videoTitle);
 
     // STEP 3 — Generate each selected platform's post, in parallel
-    const generationMap: Record<Platform, () => Promise<any>> = {
+    const generationMap: Record<Platform, () => Promise<unknown>> = {
       TWITTER: () => generateWithQualityGate(generateTwitterPost, insights, tone),
-      TWITTER_THREAD: () => generateWithQualityGate(generateTwitterThread, insights, tone),
       LINKEDIN: () => generateWithQualityGate(generateLinkedInPost, insights, tone),
       INSTAGRAM: () => generateWithQualityGate(generateInstagramCaption, insights, tone),
-      INSTAGRAM_CAROUSEL: () => generateWithQualityGate(generateInstagramCarousel, insights, tone),
       FACEBOOK: () => generateWithQualityGate(generateFacebookPost, insights, tone),
-      YOUTUBE_COMMUNITY: () => generateWithQualityGate(generateYouTubeCommunityPost, insights, tone),
-      REEL_SCRIPT: () => generateWithQualityGate(generateReelScript, insights, tone),
-      // Note: We don't have functions for THREADS, COMMUNITY, STORY, HOOKS, CTA in the user's example.
-      // But we have them in our previous pipeline. We'll skip for now or add later.
-      // For the sake of this task, we'll only implement the ones in the user's example.
-      THREADS: () => generateWithQualityGate(generateTwitterPost, insights, tone), // Fallback to twitter post
-      COMMUNITY: () => generateWithQualityGate(generateYouTubeCommunityPost, insights, tone), // Fallback to youtube community
-      STORY: () => generateWithQualityGate(generateLinkedInPost, insights, tone), // Fallback to linkedin post
-      HOOKS: () => generateWithQualityGate(generateTwitterPost, insights, tone), // Fallback to twitter post
-      CTA: () => generateWithQualityGate(generateTwitterPost, insights, tone), // Fallback to twitter post
+      THREADS: () => generateWithQualityGate(generateTwitterPost, insights, tone),
+      CAROUSEL: () => generateWithQualityGate(generateInstagramCarousel, insights, tone),
+      COMMUNITY: () => generateWithQualityGate(generateYouTubeCommunityPost, insights, tone),
+      STORY: () => generateWithQualityGate(generateLinkedInPost, insights, tone),
+      HOOKS: () => generateWithQualityGate(generateTwitterPost, insights, tone),
+      CTA: () => generateWithQualityGate(generateTwitterPost, insights, tone),
     };
 
     const jobs = selectedPlatforms.map((platform: Platform) => generationMap[platform]());
     const results = await Promise.all(jobs);
 
-    const posts: Record<string, any> = {};
+    const posts: Record<string, unknown> = {};
     selectedPlatforms.forEach((platform: string, index: number) => {
       posts[platform] = results[index];
     });
@@ -249,8 +241,8 @@ export async function POST(request: Request) {
     });
     await trackServerEvent("content_generated", {
       userId: user.id,
-      videoUrl,
-      metadata: { platforms: selectedPlatforms.join(","), tone },
+      projectId,
+      metadata: { platforms: selectedPlatforms.join(","), tone, videoUrl },
     });
     await consumeCredits(user);
     await notifyContentReady(user.id, projectId);
@@ -312,7 +304,7 @@ async function notifyContentReady(userId: string, projectId: string) {
     await sendContentReadyEmail(
       user.email,
       project.title ?? "your Recastr project",
-      [...new Set(platforms)] // Deduplicate platforms
+      Array.from(new Set(platforms)) // Deduplicate platforms
     );
   } catch (error) {
     console.error("notifyContentReady error:", error);

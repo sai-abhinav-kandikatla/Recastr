@@ -10,8 +10,6 @@ export async function extractInsights(transcript: string, videoTitle: string) {
     throw new Error('Gemini API key not configured');
   }
 
-  const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" });
-
   const prompt = `
 You are analyzing a video transcript to extract real, specific content
 for social media posts. The video title is provided as light context
@@ -21,7 +19,7 @@ VIDEO TITLE (context only): ${videoTitle}
 
 FULL TRANSCRIPT:
 """
-\${transcript}
+${transcript}
 """
 
 Extract the following from what was ACTUALLY SAID in the transcript:
@@ -57,12 +55,14 @@ Return ONLY this JSON structure, no explanation, no markdown fences:
 VALIDATION: every array item must trace back to something actually said
 in the transcript. If you cannot find real content for a category,
 return an empty array for it — do not invent generic filler.
-`.replace('${transcript}', transcript);
+`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const response = await gemini.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    const text = response.text || "";
 
     // Parse JSON response
     const cleaned = text.replace(/```json|```/g, '').trim();

@@ -1,35 +1,47 @@
 import { getGeminiClient } from "@/lib/ai/client";
+import { type GenerationInsights } from "./generatePosts";
+
+export interface QualityScore {
+  originality: number;
+  clarity: number;
+  usefulness: number;
+  human_likeness: number;
+  overall: number;
+}
 
 /**
  * Scores the generated content based on the original insights.
  * Returns a promise that resolves to the scores object.
  */
-export async function scoreContent(generatedText: string, sourceInsights: any) {
+export async function scoreContent(generatedText: string, sourceInsights: GenerationInsights): Promise<QualityScore> {
   const gemini = getGeminiClient();
   if (!gemini) {
     // Fallback scoring when Gemini is not available
     const baseScore = Math.random() * 3 + 4; // 4-7 range
+    const originality = Math.min(10, baseScore + (Math.random() * 2));
+    const clarity = Math.min(10, baseScore + (Math.random() * 2));
+    const usefulness = Math.min(10, baseScore + (Math.random() * 2));
+    const human_likeness = Math.min(10, baseScore + (Math.random() * 2));
+    const overall = (originality + clarity + usefulness + human_likeness) / 4;
     return {
-      originality: Math.min(10, baseScore + (Math.random() * 2)),
-      clarity: Math.min(10, baseScore + (Math.random() * 2)),
-      usefulness: Math.min(10, baseScore + (Math.random() * 2)),
-      human_likeness: Math.min(10, baseScore + (Math.random() * 2)),
-      overall: 0, // Will be calculated below
+      originality,
+      clarity,
+      usefulness,
+      human_likeness,
+      overall: Math.round(overall * 10) / 10,
     };
   }
-
-  const model = gemini.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `
 Rate this generated social media post on a scale of 1-10 for each category.
 
 GENERATED POST:
 """
-\${generatedText}
+${generatedText}
 """
 
 ORIGINAL INSIGHTS IT SHOULD BE BASED ON:
-\${JSON.stringify(sourceInsights)}
+${JSON.stringify(sourceInsights)}
 
 Rate:
 - originality (1-10): is this specific, or could it apply to any similar video?
@@ -45,13 +57,14 @@ Return ONLY this JSON:
   "human_likeness": 0,
   "overall": 0
 }
-`.replace('${generatedText}', generatedText)
- .replace('${JSON.stringify(sourceInsights)}', JSON.stringify(sourceInsights));
+`;
 
   try {
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
+    const response = await gemini.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+    const text = response.text || "";
 
     // Parse JSON response
     const cleaned = text.replace(/```json|```/g, '').trim();
@@ -73,12 +86,17 @@ Return ONLY this JSON:
     console.error('[qualityCheck] Failed to score content:', error);
     // Fallback scoring
     const baseScore = Math.random() * 3 + 4; // 4-7 range
+    const originality = Math.min(10, baseScore + (Math.random() * 2));
+    const clarity = Math.min(10, baseScore + (Math.random() * 2));
+    const usefulness = Math.min(10, baseScore + (Math.random() * 2));
+    const human_likeness = Math.min(10, baseScore + (Math.random() * 2));
+    const overall = (originality + clarity + usefulness + human_likeness) / 4;
     return {
-      originality: Math.min(10, baseScore + (Math.random() * 2)),
-      clarity: Math.min(10, baseScore + (Math.random() * 2)),
-      usefulness: Math.min(10, baseScore + (Math.random() * 2)),
-      human_likeness: Math.min(10, baseScore + (Math.random() * 2)),
-      overall: Math.round((baseScore + Math.random() * 2) * 10) / 10,
+      originality,
+      clarity,
+      usefulness,
+      human_likeness,
+      overall: Math.round(overall * 10) / 10,
     };
   }
 }
@@ -88,15 +106,21 @@ Return ONLY this JSON:
  * If the score is below minScore, it will retry up to a maximum number of attempts.
  */
 export async function generateWithQualityGate(
-  generateFn: (insights: any, tone: string) => Promise<string>,
-  insights: any,
+  generateFn: (insights: GenerationInsights, tone: string) => Promise<string>,
+  insights: GenerationInsights,
   tone: string,
   minScore = 7,
   maxAttempts = 2
 ) {
   let attempt = 0;
-  let result: string;
-  let score: any;
+  let result = "";
+  let score: QualityScore = {
+    originality: 0,
+    clarity: 0,
+    usefulness: 0,
+    human_likeness: 0,
+    overall: 0,
+  };
 
   while (attempt < maxAttempts) {
     result = await generateFn(insights, tone);
