@@ -104,7 +104,7 @@ export async function ensureUserRecord(user: Pick<AuthenticatedUser, "email" | "
     if (existing) {
       const data = {
         email: user.email,
-        plan: user.plan.toLowerCase(),
+        plan: (user.plan ?? "free").toLowerCase(),
         ...(existing.id !== user.id ? { supabaseId: user.id } : {}),
       };
 
@@ -120,7 +120,7 @@ export async function ensureUserRecord(user: Pick<AuthenticatedUser, "email" | "
         id: user.id,
         supabaseId: user.id,
         email: user.email,
-        plan: user.plan.toLowerCase(),
+        plan: (user.plan ?? "free").toLowerCase(),
         platforms: [],
         role: "member",
       },

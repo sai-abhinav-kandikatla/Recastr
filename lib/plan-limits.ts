@@ -217,8 +217,8 @@ function formatLimit(value: LimitValue) {
 }
 
 function formatPlatform(value: Platform) {
-  return value
-    .toLowerCase()
+  const safeValue = (value ?? "").toLowerCase();
+  return safeValue
     .split("_")
     .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
     .join(" ");
