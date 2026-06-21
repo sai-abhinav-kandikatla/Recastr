@@ -145,27 +145,56 @@ export async function POST(request: Request) {
     const payload = generatePostSchema.parse(await request.json());
     await assertCanGenerateContent(user, payload.platforms);
 
-    // STEP 1 — Get real transcript
-    const { videoUrl, tone, selectedPlatforms } = payload as any;
-    // We'll validate that videoUrl is a string.
-    // We'll validate that videoUrl is a string.
+    // STEP 0 — Get project by ID
+    const { projectId, tone, selectedPlatforms } = payload;
+    const project = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        userId: user.id,
+      },
+    });
 
-    if (!videoUrl || typeof videoUrl !== 'string') {
+    if (!project) {
       return Response.json(
         {
-          error: "Invalid video URL",
-          code: "invalid_video_url",
+          error: "Project not found",
+          code: "project_not_found",
         },
-        { status: 400 },
+        { status: 404 }
       );
     }
 
-    // STEP 1 — Get real transcript
-    const transcriptResult = await getTranscript(videoUrl);
-    if (!transcriptResult.success) {
+    // Validate that this is a YouTube project
+    if (project.sourceType !== "youtube" || !project.sourceUrl) {
       return Response.json(
         {
-          error: transcriptResult.error,
+          error: "Invalid project type or missing source URL",
+          code: "invalid_project",
+        },
+        { status: 400 }
+      );
+    }
+
+    // STEP 1 — Get transcript (from project if available, otherwise fetch from YouTube)
+    const videoUrl = project.sourceUrl;
+    let transcript: string | null = null;
+
+    // First, try to use transcript already stored in project (from manual paste or earlier ingest)
+    if (project.transcript && project.transcript.trim().length > 50) {
+      transcript = project.transcript.trim();
+    } else {
+      // Fallback to fetching transcript from YouTube URL
+      const transcriptResult = await getTranscript(videoUrl);
+      if (transcriptResult.success) {
+        transcript = transcriptResult.transcript;
+      }
+    }
+
+    // If we still don't have a transcript, return error asking user to paste manually
+    if (!transcript) {
+      return Response.json(
+        {
+          error: 'NO_TRANSCRIPT',
           message: 'Could not retrieve this video\'s transcript. ' +
                     'Paste it manually to continue.',
         },
@@ -173,40 +202,33 @@ export async function POST(request: Request) {
       );
     }
 
-    // We need the video title for the extractInsights function.
-    // We don't have it from the transcript extraction.
-    // We can try to fetch the title from the video metadata, but for simplicity,
-    // we'll use the video ID or a placeholder.
-    // In the user's example, they pass videoTitle to extractInsights.
-    // We'll get the video title by fetching the video metadata or using a fallback.
-    // Let's try to get the title from the video metadata using ytdlp or axios.
-    // For simplicity, we'll use the video ID as the title or a placeholder.
-    // We'll extract the video ID again and use it as the title, or we can try to get the actual title.
-
-    // We'll create a function to get the video title from the video ID.
-    // But to keep it simple, we'll use the video ID as the title for now.
-    const videoId = extractYouTubeVideoId(videoUrl);
-    const videoTitle = videoId ?? 'Unknown Video';
+    // Use project title for insights extraction
+    const videoTitle = project.title;
 
     // STEP 2 — Extract insights (internal data, never shown raw to user)
-    const insights = await extractInsights(transcriptResult.transcript!, videoTitle);
+    const insights = await extractInsights(transcript!, videoTitle);
 
     // STEP 3 — Generate each selected platform's post, in parallel
-    const generationMap = {
-      twitter: () => generateWithQualityGate(generateTwitterPost, insights, tone),
-      twitter_thread: () => generateWithQualityGate(generateTwitterThread, insights, tone),
-      linkedin: () => generateWithQualityGate(generateLinkedInPost, insights, tone),
-      instagram_caption: () => generateWithQualityGate(generateInstagramCaption, insights, tone),
-      instagram_carousel: () => generateWithQualityGate(generateInstagramCarousel, insights, tone),
-      facebook: () => generateWithQualityGate(generateFacebookPost, insights, tone),
-      youtube_community: () => generateWithQualityGate(generateYouTubeCommunityPost, insights, tone),
-      reel_script: () => generateWithQualityGate(generateReelScript, insights, tone),
+    const generationMap: Record<Platform, () => Promise<any>> = {
+      TWITTER: () => generateWithQualityGate(generateTwitterPost, insights, tone),
+      TWITTER_THREAD: () => generateWithQualityGate(generateTwitterThread, insights, tone),
+      LINKEDIN: () => generateWithQualityGate(generateLinkedInPost, insights, tone),
+      INSTAGRAM: () => generateWithQualityGate(generateInstagramCaption, insights, tone),
+      INSTAGRAM_CAROUSEL: () => generateWithQualityGate(generateInstagramCarousel, insights, tone),
+      FACEBOOK: () => generateWithQualityGate(generateFacebookPost, insights, tone),
+      YOUTUBE_COMMUNITY: () => generateWithQualityGate(generateYouTubeCommunityPost, insights, tone),
+      REEL_SCRIPT: () => generateWithQualityGate(generateReelScript, insights, tone),
       // Note: We don't have functions for THREADS, COMMUNITY, STORY, HOOKS, CTA in the user's example.
       // But we have them in our previous pipeline. We'll skip for now or add later.
       // For the sake of this task, we'll only implement the ones in the user's example.
+      THREADS: () => generateWithQualityGate(generateTwitterPost, insights, tone), // Fallback to twitter post
+      COMMUNITY: () => generateWithQualityGate(generateYouTubeCommunityPost, insights, tone), // Fallback to youtube community
+      STORY: () => generateWithQualityGate(generateLinkedInPost, insights, tone), // Fallback to linkedin post
+      HOOKS: () => generateWithQualityGate(generateTwitterPost, insights, tone), // Fallback to twitter post
+      CTA: () => generateWithQualityGate(generateTwitterPost, insights, tone), // Fallback to twitter post
     };
 
-    const jobs = selectedPlatforms.map((platform: string) => generationMap[platform]());
+    const jobs = selectedPlatforms.map((platform: Platform) => generationMap[platform]());
     const results = await Promise.all(jobs);
 
     const posts: Record<string, any> = {};
@@ -231,7 +253,7 @@ export async function POST(request: Request) {
       metadata: { platforms: selectedPlatforms.join(","), tone },
     });
     await consumeCredits(user);
-    await notifyContentReady(user.id, videoUrl); // Using videoUrl as projectId for notification
+    await notifyContentReady(user.id, projectId);
 
     return Response.json({ success: true, posts, insights_used: true });
   } catch (error) {
@@ -263,31 +285,34 @@ function parsePlatforms(value: string | null): Platform[] {
 // Helper function to notify content ready (from the original code)
 async function notifyContentReady(userId: string, projectId: string) {
   try {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId, userId },
+      select: {
+        title: true,
+        contents: {
+          select: { platform: true },
+        },
+      },
+    });
+
+    if (!project) return;
+
+    // Fetch user to check notification preference
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         email: true,
         notifyContentReady: true,
-        projects: {
-          where: { id: projectId },
-          select: {
-            title: true,
-            contents: {
-              select: { platform: true },
-            },
-          },
-          take: 1,
-        },
       },
     });
 
     if (!user?.notifyContentReady) return;
-    const project = user.projects[0];
-    const platforms = project ? Array.from(new Set(project.contents.map((c) => c.platform))) : [];
+
+    const platforms = project.contents.map((c) => c.platform);
     await sendContentReadyEmail(
       user.email,
-      project?.title ?? "your Recastr project",
-      platforms
+      project.title ?? "your Recastr project",
+      [...new Set(platforms)] // Deduplicate platforms
     );
   } catch (error) {
     console.error("notifyContentReady error:", error);

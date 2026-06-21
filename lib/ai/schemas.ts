@@ -65,6 +65,7 @@ export const generateSchema = z.object({
 
 export const ingestUrlSchema = z.object({
   url: z.string().url(),
+  transcript: z.string().optional(),
 });
 
 export const ingestTextSchema = z.object({
