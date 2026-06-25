@@ -141,13 +141,11 @@ export function GeneratorProvider({
               } else if (parsed.error) {
                 toast.error(parsed.error);
               } else if (parsed.output) {
-                setOutputs((prev) => {
-                  const newPrev = [...prev, parsed.output];
-                  if (prev.length === 0) {
-                    setActivePreviewTab(parsed.output.platform);
-                  }
-                  return newPrev;
-                });
+                setOutputs(prev => [...prev, parsed.output]);
+                // If this is the first output, set it as the active preview tab
+                if (outputs.length === 0) {
+                  setActivePreviewTab(parsed.output.platform);
+                }
               }
             } catch {
               // ignore parse errors
