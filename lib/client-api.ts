@@ -90,6 +90,10 @@ function friendlyApiMessage(response: Response, payload: CreditPayload) {
     return raw ?? "No transcript available for this video. Enable captions in YouTube Studio or try a different video.";
   }
 
+  if (code === "AI_CONFIG_INVALID") {
+    return "AI provider authentication failed. Replace GEMINI_API_KEY with a valid Google AI Studio API key.";
+  }
+
   if (path.startsWith("/api/ingest")) {
     // Pass through the raw message if available (e.g. specific ingest errors)
     return raw && !looksLikeProviderError(raw)

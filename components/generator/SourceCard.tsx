@@ -63,7 +63,7 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
           body: JSON.stringify({ url: url.trim() }),
         });
         
-        const data = await readApiJson<{ project?: Project; error?: string }>(response).catch((err: unknown) => ({ error: err instanceof Error ? err.message : "Network error" }));
+        const data = await readApiJson<{ project?: Project; error?: string }>(response);
         if ("project" in data && data.project) {
           toast.success("Source ingested successfully!");
           setProject(data.project);
@@ -73,7 +73,7 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
           toast.error("Failed to ingest source");
         }
       } catch (error) {
-        toast.error("Failed to analyze source");
+        toast.error(error instanceof Error ? error.message : "Failed to analyze source");
       } finally {
         setIsIngesting(false);
       }
@@ -90,7 +90,7 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
           }),
         });
         
-        const data = await readApiJson<{ project?: Project; error?: string }>(response).catch((err: unknown) => ({ error: err instanceof Error ? err.message : "Network error" }));
+        const data = await readApiJson<{ project?: Project; error?: string }>(response);
         if ("project" in data && data.project) {
           toast.success("Text ingested successfully!");
           setProject(data.project);
@@ -100,7 +100,7 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
           toast.error("Failed to ingest text");
         }
       } catch (error) {
-        toast.error("Failed to analyze text");
+        toast.error(error instanceof Error ? error.message : "Failed to analyze text");
       } finally {
         setIsIngesting(false);
       }

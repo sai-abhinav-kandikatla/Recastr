@@ -158,7 +158,7 @@ env.supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 env.demoMode = env.RECASTR_DEMO_MODE === "true";
 env.requireAuth = env.REQUIRE_AUTH === "true";
 env.appUrl = env.NEXT_PUBLIC_APP_URL;
-env.geminiKey = env.GEMINI_API_KEY;
+env.geminiKey = stripEnvValue(env.GEMINI_API_KEY);
 env.redisUrl = env.REDIS_URL;
 env.twitterClientId = env.TWITTER_CLIENT_ID;
 env.twitterClientSecret = env.TWITTER_CLIENT_SECRET;

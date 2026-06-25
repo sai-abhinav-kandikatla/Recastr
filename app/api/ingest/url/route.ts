@@ -80,10 +80,24 @@ export async function POST(request: Request) {
       } catch (error) {
         console.error("[ingest/url] YouTube pipeline failed:", error);
         const message = error instanceof Error ? error.message : "YouTube ingestion failed.";
+        const isAiConfigFailure =
+          message.includes("AI_CONFIG_INVALID") ||
+          message.includes("invalid authentication credentials") ||
+          message.includes("ACCESS_TOKEN_TYPE_UNSUPPORTED") ||
+          message.includes("UNAUTHENTICATED");
         const isTranscriptFailure =
           message.includes("Transcript") ||
           message.includes("Video ID Extraction") ||
           message.includes("URL Validation");
+        if (isAiConfigFailure) {
+          return NextResponse.json(
+            {
+              error: "AI provider authentication failed. Replace GEMINI_API_KEY with a valid Google AI Studio API key.",
+              code: "AI_CONFIG_INVALID",
+            },
+            { status: 500 },
+          );
+        }
         return NextResponse.json(
           {
             error: message,
