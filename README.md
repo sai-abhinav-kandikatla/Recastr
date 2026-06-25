@@ -1,5 +1,7 @@
 # Recastr
 
+[![Deploy](https://img.shields.io/github/deployments/sai-abhinav-kandikatla/Recastr/production?label=vercel&logo=vercel)](https://recastr.vercel.app)
+
 Recastr is an AI creator workflow that turns one video, podcast, or blog into
 30 platform-ready social content assets. The product now focuses on the core
 loop: ingest a source, extract viral hooks, generate tweets, LinkedIn posts,
