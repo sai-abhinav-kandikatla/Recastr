@@ -46,12 +46,12 @@ class GeneratorErrorBoundary extends Component<{ children: ReactNode }, { hasErr
   }
 }
 
-export function GeneratorProvider({ 
-  children, 
-  project 
-}: { 
-  children: React.ReactNode; 
-  project: Project | null 
+export function GeneratorProvider({
+  children,
+  project
+}: {
+  children: React.ReactNode;
+  project: Project | null
 }) {
   const [currentProject, setCurrentProject] = useState<Project | null>(project);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(["TWITTER", "LINKEDIN", "INSTAGRAM"]);
@@ -82,7 +82,7 @@ export function GeneratorProvider({
   }, [project]);
 
   const togglePlatform = (p: Platform) => {
-    setSelectedPlatforms((prev) => 
+    setSelectedPlatforms((prev) =>
       prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
     );
   };
@@ -96,11 +96,11 @@ export function GeneratorProvider({
       toast.error("Select at least one platform");
       return;
     }
-    
+
     setIsGenerating(true);
     setProgress("extracting");
     setOutputs([]);
-    
+
     const params = new URLSearchParams();
     params.set("projectId", currentProject.id);
     params.set("platforms", selectedPlatforms.join(","));
@@ -141,11 +141,12 @@ export function GeneratorProvider({
               } else if (parsed.error) {
                 toast.error(parsed.error);
               } else if (parsed.output) {
-                setOutputs((prev) => [...prev, parsed.output]);
-                // Auto switch tab to first output if it's the first one
                 setOutputs((prev) => {
-                  if (prev.length === 1) setActivePreviewTab(parsed.output.platform);
-                  return prev;
+                  const newPrev = [...prev, parsed.output];
+                  if (prev.length === 0) {
+                    setActivePreviewTab(parsed.output.platform);
+                  }
+                  return newPrev;
                 });
               }
             } catch {
