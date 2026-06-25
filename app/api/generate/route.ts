@@ -29,6 +29,7 @@ import {
 } from "@/lib/services/qualityCheck";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 

@@ -4,6 +4,7 @@ import { consumeCredits, creditErrorResponse, requireCredits } from "@/lib/credi
 import { rewriteContent } from "@/lib/ai/rewrite";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   try {

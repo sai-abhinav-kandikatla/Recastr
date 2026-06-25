@@ -15,6 +15,7 @@ import { assertIngestRateLimit } from "@/lib/rate-limit";
 import type { SourceSummary } from "@/lib/types";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const defaultSummary: SourceSummary = {
   tldr: "A pasted source is ready for hook extraction and platform-native content.",

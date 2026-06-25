@@ -15,6 +15,7 @@ import { assertIngestRateLimit } from "@/lib/rate-limit";
 import type { Platform, Plan, Project, SourceType } from "@/lib/types";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 type YoutubeMetadata = {
   title: string;
