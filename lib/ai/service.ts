@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { getGeminiClient } from "@/lib/ai/client";
+import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
 import {
   briefFromSummary,
   briefFromTranscript,
@@ -141,16 +141,14 @@ export async function extractBrief(transcript: string, title: string): Promise<G
   console.log(`Model: gemini-2.5-flash`);
   console.log("============================================================================================");
 
-  const response = await gemini.models.generateContent({
+  const text = await generateGeminiText({
     model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: {
-      temperature: 0.25,
-      responseMimeType: "application/json",
-    },
+    prompt,
+    temperature: 0.25,
+    responseMimeType: "application/json",
   });
 
-  return generationBriefSchema.parse(parseJson(response.text ?? "{}"));
+  return generationBriefSchema.parse(parseJson(text || "{}"));
 }
 
 /** Step 2 — generate all platform posts in parallel. */
@@ -240,16 +238,14 @@ async function writePlatformPost({
     throw new Error("Prompt validation failed: No real transcript facts/insights supplied. Stopping generation.");
   }
 
-  const response = await gemini.models.generateContent({
+  const text = await generateGeminiText({
     model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: {
-      systemInstruction: CONTENT_WRITER_SYSTEM_PROMPT,
-      temperature: 0.85,
-    },
+    prompt,
+    systemInstruction: CONTENT_WRITER_SYSTEM_PROMPT,
+    temperature: 0.85,
   });
 
-  return cleanupPost(response.text ?? "");
+  return cleanupPost(text);
 }
 
 async function generateWithRetry(platform: Platform, title: string, generateFn: () => Promise<string>) {

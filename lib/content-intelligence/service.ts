@@ -1,4 +1,4 @@
-import { getGeminiClient } from "@/lib/ai/client";
+import { generateGeminiText, getGeminiClient } from "@/lib/ai/client";
 import {
   ExtractedInsight,
   InsightKind,
@@ -109,11 +109,11 @@ Return JSON in this exact format:
           "Provider: Gemini",
         ].join("\n"),
       );
-      const result = await gemini.models.generateContent({
+      const text = await generateGeminiText({
         model: "gemini-2.5-flash",
-        contents: prompt,
+        prompt,
+        responseMimeType: "application/json",
       });
-      const text = result.text ?? "";
 
       // Parse JSON response
       const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
@@ -274,11 +274,11 @@ Return JSON in this exact format:
     `;
 
     try {
-      const result = await gemini.models.generateContent({
+      const text = await generateGeminiText({
         model: "gemini-2.5-flash",
-        contents: prompt,
+        prompt,
+        responseMimeType: "application/json",
       });
-      const text = result.text ?? "";
 
       // Parse JSON response
       const relationships = JSON.parse(text.replace(/```json|```/g, "").trim());
@@ -511,15 +511,12 @@ Return JSON in this exact format:
       ].join("\n"),
     );
 
-    const result = await gemini.models.generateContent({
+    return generateGeminiText({
       model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        temperature: 0.7,
-        maxOutputTokens: 1000,
-      }
+      prompt,
+      temperature: 0.7,
+      maxOutputTokens: 1000,
     });
-    return (result.text ?? "").trim();
   }
 
   // Platform-specific prompt creators
@@ -922,11 +919,11 @@ Return ONLY a JSON object in this exact format:
 }
     `;
 
-    const result = await gemini.models.generateContent({
+    const text = await generateGeminiText({
       model: "gemini-2.5-flash",
-      contents: prompt,
+      prompt,
+      responseMimeType: "application/json",
     });
-    const text = result.text ?? "";
 
     // Parse JSON response
     const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
