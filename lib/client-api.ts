@@ -90,8 +90,36 @@ function friendlyApiMessage(response: Response, payload: CreditPayload) {
     return raw ?? "No transcript available for this video. Enable captions in YouTube Studio or try a different video.";
   }
 
+  if (code === "NO_CAPTIONS") {
+    return "Video has no captions";
+  }
+
+  if (code === "TRANSCRIPT_QUOTA_EXCEEDED") {
+    return "Transcript provider quota exceeded";
+  }
+
+  if (code === "INVALID_API_KEY") {
+    return "Invalid API key";
+  }
+
+  if (code === "PROVIDER_TIMEOUT") {
+    return "Provider timeout";
+  }
+
+  if (code === "UNSUPPORTED_VIDEO") {
+    return "Unsupported video";
+  }
+
+  if (code === "REGION_BLOCKED") {
+    return "Region blocked";
+  }
+
+  if (code === "TRANSCRIPT_UNAVAILABLE") {
+    return "Transcript unavailable for this video";
+  }
+
   if (code === "AI_CONFIG_INVALID") {
-    return "AI provider authentication failed. Replace GEMINI_API_KEY with a valid Google AI Studio API key.";
+    return "AI provider authentication failed. Replace OPENAI_API_KEY with a valid OpenAI Platform API key.";
   }
 
   if (path.startsWith("/api/ingest")) {

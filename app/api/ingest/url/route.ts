@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       try {
         project = await createYoutubeProject(payload.url, user.id, payload.transcript);
         project = restrictProjectToPlan(project, user.plan);
-      } catch (error) {
+      } catch (error: any) {
         console.error("[ingest/url] YouTube pipeline failed:", error);
         const message = error instanceof Error ? error.message : "YouTube ingestion failed.";
         const isAiConfigFailure =
@@ -86,23 +86,43 @@ export async function POST(request: Request) {
           message.includes("invalid authentication credentials") ||
           message.includes("ACCESS_TOKEN_TYPE_UNSUPPORTED") ||
           message.includes("UNAUTHENTICATED");
-        const isTranscriptFailure =
+        
+        let code = "PIPELINE_FAILED";
+        if (error && typeof error === "object" && "code" in error) {
+          code = error.code;
+        } else if (
           message.includes("Transcript") ||
           message.includes("Video ID Extraction") ||
-          message.includes("URL Validation");
-        if (isAiConfigFailure) {
+          message.includes("URL Validation")
+        ) {
+          code = "NO_TRANSCRIPT";
+        }
+
+        if (isAiConfigFailure || code === "AI_CONFIG_INVALID") {
           return NextResponse.json(
             {
-              error: "AI provider authentication failed. Replace GEMINI_API_KEY with a valid Google AI Studio API key.",
+              error: "AI provider authentication failed. Replace OPENAI_API_KEY with a valid OpenAI Platform API key.",
               code: "AI_CONFIG_INVALID",
             },
             { status: 500 },
           );
         }
+
+        const isTranscriptFailure = [
+          "NO_TRANSCRIPT",
+          "NO_CAPTIONS",
+          "REGION_BLOCKED",
+          "TRANSCRIPT_QUOTA_EXCEEDED",
+          "PROVIDER_TIMEOUT",
+          "UNSUPPORTED_VIDEO",
+          "INVALID_API_KEY",
+          "TRANSCRIPT_UNAVAILABLE"
+        ].includes(code);
+
         return NextResponse.json(
           {
             error: message,
-            code: isTranscriptFailure ? "NO_TRANSCRIPT" : "PIPELINE_FAILED",
+            code,
           },
           { status: isTranscriptFailure ? 422 : 500 }
         );

@@ -1,12 +1,12 @@
-import { getGeminiClient } from "@/lib/ai/client";
+import { getAIClient } from "@/lib/ai/client";
 import { YoutubeTranscript } from "youtube-transcript";
 import axios from "axios";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma/client";
 import { normalizePlatformCopy } from "@/lib/platform-limits";
 import type { ContentPiece, Platform, SourceSummary, ViralHook, SourceType, Project } from "@/lib/types";
-import { hash, extractYouTubeVideoId } from "@/lib/ingest";
-import { fetchTranscript } from "@/lib/transcript";
+import { hash } from "@/lib/ingest";
+import { fetchTranscript, extractVideoId } from "@/lib/transcript";
 import * as cheerio from "cheerio";
 import sanitizeHtml from "sanitize-html";
 import ytdl from "yt-dlp-exec";
@@ -74,68 +74,99 @@ export async function runContentPipeline(options: PipelineOptions): Promise<{
   console.log(`[pipeline] Starting content intelligence pipeline for: ${options.url}`);
 
   // STAGE 1: Transcript Extraction
-  const transcript = await extractTranscriptStage(options);
+  const stage1Start = Date.now();
+  console.log(`[STAGE 1: Transcript Extraction] START\n- Input URL: ${options.url}`);
+  let transcript = "";
+  try {
+    transcript = await extractTranscriptStage(options);
+    const duration = Date.now() - stage1Start;
+    console.log(`[STAGE 1: Transcript Extraction] SUCCESS\n- Duration: ${duration}ms\n- Output length: ${transcript.length} chars`);
+  } catch (error: any) {
+    const duration = Date.now() - stage1Start;
+    console.error(`[STAGE 1: Transcript Extraction] FAILED\n- Duration: ${duration}ms\n- Reason: ${error.message || error}`);
+    throw error;
+  }
+
   const title = options.title || await extractTitleStage(options, transcript);
   const wordCount = transcript ? transcript.split(/\s+/).filter(Boolean).length : 0;
-  logPipelineStage("Transcript Storage", {
-    status: "SUCCESS",
-    input: `title=${title}`,
-    output: transcript.slice(0, 500),
-    length: transcript.length,
-    words: wordCount,
-    startedAt: Date.now(),
-  });
   if (!transcript || wordCount < MIN_TRANSCRIPT_WORDS) {
     throw new Error(`[INGESTION] stage failed: Transcript has ${wordCount} words; minimum is ${MIN_TRANSCRIPT_WORDS}.`);
   }
 
   // STAGE 2: Chunking
-  const chunks = chunkTranscriptStage(title, transcript);
-  logPipelineStage("Chunk Creation", {
-    status: "SUCCESS",
-    input: `Transcript words=${wordCount}`,
-    output: `Chunks created=${chunks.length}; chunk sizes=${JSON.stringify(chunks.map(c => c.text.length))}`,
-    length: chunks.map((chunk) => chunk.text.length).reduce((sum, size) => sum + size, 0),
-    startedAt: Date.now(),
-  });
+  const stage2Start = Date.now();
+  console.log(`[STAGE 2: Chunking] START\n- Input: wordCount=${wordCount}`);
+  let chunks;
+  try {
+    chunks = chunkTranscriptStage(title, transcript);
+    const duration = Date.now() - stage2Start;
+    console.log(`[STAGE 2: Chunking] SUCCESS\n- Duration: ${duration}ms\n- Output chunks: ${chunks.length}`);
+  } catch (error: any) {
+    const duration = Date.now() - stage2Start;
+    console.error(`[STAGE 2: Chunking] FAILED\n- Duration: ${duration}ms\n- Reason: ${error.message || error}`);
+    throw error;
+  }
   if (!chunks || chunks.length === 0) {
     throw new Error("[CHUNKING] stage failed: Created zero chunks.");
   }
 
   // STAGE 3: Insight Extraction Engine (Fact Extraction)
-  const extractedInsights = await extractInsightsStage(title, chunks);
-  const rawInsights = validateEvidenceStage(title, transcript, extractedInsights);
-  const lessonsCount = rawInsights?.insights ? rawInsights.insights.filter((i: any) => i.kind === 'lesson' || i.kind === 'actionable_advice' || i.kind === 'surprising_fact').length : 0;
-  const quotesCount = rawInsights?.insights ? rawInsights.insights.filter((i: any) => i.kind === 'quote').length : 0;
-  const topicsCount = rawInsights?.insights ? rawInsights.insights.filter((i: any) => i.kind === 'topic').length : 0;
-  logPipelineStage("Fact Extraction", {
-    status: "SUCCESS",
-    input: `Chunks=${chunks.length}`,
-    output: `Facts=${lessonsCount}; Quotes=${quotesCount}; Entities=${topicsCount}`,
-    length: rawInsights?.insights?.length ?? 0,
-    startedAt: Date.now(),
-  });
+  const stage3Start = Date.now();
+  console.log(`[STAGE 3: Fact & Insight Extraction] START\n- Input chunks: ${chunks.length}`);
+  let rawInsights;
+  try {
+    const extractedInsights = await extractInsightsStage(title, chunks);
+    rawInsights = validateEvidenceStage(title, transcript, extractedInsights);
+    const duration = Date.now() - stage3Start;
+    console.log(`[STAGE 3: Fact & Insight Extraction] SUCCESS\n- Duration: ${duration}ms\n- Output insights: ${rawInsights?.insights?.length ?? 0}`);
+  } catch (error: any) {
+    const duration = Date.now() - stage3Start;
+    console.error(`[STAGE 3: Fact & Insight Extraction] FAILED\n- Duration: ${duration}ms\n- Reason: ${error.message || error}`);
+    throw error;
+  }
   if (!rawInsights || !rawInsights.insights || rawInsights.insights.length === 0) {
     throw new Error("[FACT EXTRACTION] stage failed: Extracted zero insights/facts.");
   }
 
   // STAGE 4: Knowledge Graph (Deduplication & Connections)
-  const knowledgeGraph = await buildKnowledgeGraphStage(title, rawInsights);
-  console.log(`[pipeline] Stage 4 Complete: Knowledge graph established`);
+  const stage4Start = Date.now();
+  console.log(`[STAGE 4: Knowledge Graph] START\n- Input insights: ${rawInsights.insights.length}`);
+  let knowledgeGraph;
+  try {
+    knowledgeGraph = await buildKnowledgeGraphStage(title, rawInsights);
+    const duration = Date.now() - stage4Start;
+    console.log(`[STAGE 4: Knowledge Graph] SUCCESS\n- Duration: ${duration}ms\n- Output topics: ${knowledgeGraph.topics.length}`);
+  } catch (error: any) {
+    const duration = Date.now() - stage4Start;
+    console.error(`[STAGE 4: Knowledge Graph] FAILED\n- Duration: ${duration}ms\n- Reason: ${error.message || error}`);
+    throw error;
+  }
 
   // STAGE 5 onwards: Generation
-  const { hooks, contents } = await generateSocialSuiteStage({
-    projectId: `youtube-${hash(options.url).slice(0, 10)}-${options.userId}`,
-    title,
-    transcript,
-    knowledgeGraph,
-    options,
-  });
+  const stage5Start = Date.now();
+  console.log(`[STAGE 5: Content Generation] START\n- Input: topics=${knowledgeGraph.topics.length}`);
+  let suite;
+  try {
+    suite = await generateSocialSuiteStage({
+      projectId: `youtube-${hash(options.url).slice(0, 10)}-${options.userId}`,
+      title,
+      transcript,
+      knowledgeGraph,
+      options,
+    });
+    const duration = Date.now() - stage5Start;
+    console.log(`[STAGE 5: Content Generation] SUCCESS\n- Duration: ${duration}ms\n- Output hooks: ${suite.hooks.length}, contents: ${suite.contents.length}`);
+  } catch (error: any) {
+    const duration = Date.now() - stage5Start;
+    console.error(`[STAGE 5: Content Generation] FAILED\n- Duration: ${duration}ms\n- Reason: ${error.message || error}`);
+    throw error;
+  }
+
+  const { hooks, contents } = suite;
 
   // Log generation stage details
   const factsSupplied = rawInsights?.insights ? rawInsights.insights.length : 0;
   const contextSize = chunks.map(c => c.text.length).reduce((a, b) => a + b, 0);
-  const promptSize = contextSize + 500; // Estimated prompt templates length
   const generatedTokens = contents.map(c => c.body.length).reduce((a, b) => a + b, 0);
   console.log(`[GENERATION]\nFacts supplied to LLM: ${factsSupplied}\nContext size: ${contextSize}\nProvider used: Gemini\nPrompt version: v1\nGenerated tokens: ${generatedTokens}`);
 
@@ -255,7 +286,7 @@ async function extractTranscriptStage(options: PipelineOptions): Promise<string>
   // Fallback chain for YouTube
   if (options.sourceType === "YOUTUBE") {
     const videoIdStartedAt = Date.now();
-    const parsedVideoId = extractYouTubeVideoId(options.url);
+    const parsedVideoId = extractVideoId(options.url);
     if (!parsedVideoId) {
       logPipelineStage("Video ID Extraction", {
         status: "FAILED",
@@ -277,8 +308,10 @@ async function extractTranscriptStage(options: PipelineOptions): Promise<string>
     });
 
     const providerStartedAt = Date.now();
-    const providerTranscript = await fetchTranscript(options.url);
-    if (!providerTranscript) {
+    let providerTranscript: string;
+    try {
+      providerTranscript = await fetchTranscript(options.url);
+    } catch (error: any) {
       logPipelineStage("Transcript Provider", {
         status: "FAILED",
         provider: "configured transcript provider",
@@ -286,10 +319,10 @@ async function extractTranscriptStage(options: PipelineOptions): Promise<string>
         videoId: parsedVideoId,
         length: 0,
         words: 0,
-        error: "Provider returned no transcript.",
+        error: error.message || String(error),
         startedAt: providerStartedAt,
       });
-      throw new Error("[Transcript Provider] stage failed: Provider returned no transcript.");
+      throw error;
     }
 
     const normalized = normalizeTranscript(providerTranscript);
