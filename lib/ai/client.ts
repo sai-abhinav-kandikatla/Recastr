@@ -1,15 +1,22 @@
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
+import type { ResponseInput } from "openai/resources/responses/responses";
 import { env } from "@/lib/env";
 
-let gemini: GoogleGenAI | undefined;
+const DEFAULT_OPENAI_MODEL = "gpt-5.4-mini";
 
-export function getGeminiClient() {
-  if (!env.geminiKey) return undefined;
-  gemini ??= new GoogleGenAI({ apiKey: env.geminiKey });
-  return gemini;
+let openai: OpenAI | undefined;
+
+export function getOpenAITextClient() {
+  if (!env.openaiKey) return undefined;
+  openai ??= new OpenAI({ apiKey: env.openaiKey });
+  return openai;
 }
 
-type GenerateGeminiTextOptions = {
+export function getAIClient() {
+  return getOpenAITextClient();
+}
+
+type GenerateAITextOptions = {
   prompt: string;
   model?: string;
   temperature?: number;
@@ -18,29 +25,35 @@ type GenerateGeminiTextOptions = {
   systemInstruction?: string;
 };
 
-export async function generateGeminiText({
+export async function generateAIText({
   prompt,
-  model = "gemini-2.5-flash",
+  model = DEFAULT_OPENAI_MODEL,
   temperature,
   maxOutputTokens,
   responseMimeType,
   systemInstruction,
-}: GenerateGeminiTextOptions): Promise<string> {
-  const geminiClient = getGeminiClient();
-  if (!geminiClient) {
-    throw new Error("Gemini API client not configured.");
+}: GenerateAITextOptions): Promise<string> {
+  const client = getOpenAITextClient();
+  if (!client) {
+    throw new Error("OpenAI API client not configured.");
   }
 
-  const response = await geminiClient.models.generateContent({
-    model,
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: {
-      ...(typeof temperature === "number" ? { temperature } : {}),
-      ...(typeof maxOutputTokens === "number" ? { maxOutputTokens } : {}),
-      ...(responseMimeType ? { responseMimeType } : {}),
-      ...(systemInstruction ? { systemInstruction } : {}),
-    },
+  const input: ResponseInput = [{ role: "user", content: prompt }];
+  const resolvedModel = env.openaiModel ?? (model.startsWith("gpt-") ? model : DEFAULT_OPENAI_MODEL);
+  const response = await client.responses.create({
+    model: resolvedModel,
+    input,
+    instructions: systemInstruction,
+    ...(typeof temperature === "number" ? { temperature } : {}),
+    ...(typeof maxOutputTokens === "number" ? { max_output_tokens: maxOutputTokens } : {}),
+    ...(responseMimeType === "application/json"
+      ? { text: { format: { type: "json_object" } } }
+      : { text: { verbosity: "medium" } }),
   });
 
-  return (response.text ?? "").trim();
+  return (response.output_text ?? "").trim();
+}
+
+export function getConfiguredAIModel() {
+  return env.openaiModel ?? DEFAULT_OPENAI_MODEL;
 }
