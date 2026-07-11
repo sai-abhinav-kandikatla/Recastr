@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VerifyEmailBanner } from "@/components/auth/VerifyEmailBanner";
+import { AuthShowcase } from "@/components/auth/AuthShowcase";
 import {
   createSupabaseBrowserClient,
   hasSupabaseBrowserConfig,
@@ -248,41 +249,22 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           className="relative z-10 text-foreground [&_rect]:fill-foreground [&_circle]:fill-[var(--app-bg)] [&_path]:stroke-[var(--app-bg)]"
         />
 
-        <div className="relative z-10 max-w-lg">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#8A8A8A] mb-5">
-            Content repurposing workspace
-          </p>
-          <h1
-            className="text-4xl font-display font-semibold leading-tight tracking-tight mb-5"
-            aria-label="Turn long-form content into ready-to-use posts."
-          >
-            Turn long-form content
-            <br />
-            into ready-to-use posts.
-          </h1>
-          <p className="mb-10 text-base leading-relaxed text-muted-foreground">
-            Upload one source, analyze the strongest ideas, and review platform-ready drafts before publishing.
-          </p>
-
-          <div className="space-y-4">
-            {[
-              "Upload — videos, podcasts, blogs and documents",
-              "Analyze — automatically identify key ideas and topics",
-              "Review — organize posts and receive email reminders",
-            ].map((feature, index) => (
-              <div
-                key={index}
-                className="flex items-center gap-3"
-              >
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 shrink-0">
-                  <svg className="h-3 w-3 text-white/80" viewBox="0 0 12 12" fill="none">
-                    <path d="M2.5 6L5 8.5L9.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-                <p className="text-sm text-foreground/85">{feature}</p>
-              </div>
-            ))}
+        <div className="relative z-10 max-w-lg w-full flex-1 flex flex-col justify-center gap-6 mt-8">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[#8A8A8A] mb-2.5">
+              Content repurposing workspace
+            </p>
+            <h1
+              className="text-3xl font-display font-semibold leading-tight tracking-tight mb-2.5"
+              aria-label="Turn long-form content into ready-to-use posts."
+            >
+              Turn long-form content into ready-to-use posts.
+            </h1>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Upload one source, analyze the strongest ideas, and review platform-ready drafts before publishing.
+            </p>
           </div>
+          <AuthShowcase />
         </div>
 
       </div>
