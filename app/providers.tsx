@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { Suspense } from "react";
 import { Toaster } from "sonner";
 import { PostHogPageView } from "@/components/analytics/PostHogPageView";
+import { CreditUpgradeModal } from "@/components/billing/CreditUpgradeModal";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -15,6 +16,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         </Suspense>
         {children}
         <Toaster position="top-right" />
+        <CreditUpgradeModal />
       </QueryProvider>
     </ThemeProvider>
   );

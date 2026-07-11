@@ -10,13 +10,39 @@ export class CreditExhaustedError extends Error {
 }
 
 export async function requireCredits(user: AuthenticatedUser, amount = 1) {
-  // Bypassing credit system for now
-  return { credits: 9999, used: 0 };
+  await ensureUserRecord(user);
+  const record = await prisma.userCredit
+    .upsert({
+      where: { userId: user.id },
+      update: {},
+      create: { userId: user.id, credits: defaultCreditsForPlan(user.plan) },
+    })
+    .catch((error: unknown) => {
+      if (isLocalDatabaseSetupError(error)) {
+        return { credits: 999, used: 0 };
+      }
+      throw error;
+    });
+  if (record.credits < amount) throw new CreditExhaustedError(record.credits);
+  return record;
 }
 
 export async function consumeCredits(user: AuthenticatedUser, amount = 1) {
-  // Bypassing credit system for now
-  return { credits: 9999, used: 0 };
+  await requireCredits(user, amount);
+  return prisma.userCredit
+    .update({
+      where: { userId: user.id },
+      data: {
+        credits: { decrement: amount },
+        used: { increment: amount },
+      },
+    })
+    .catch((error: unknown) => {
+      if (isLocalDatabaseSetupError(error)) {
+        return { credits: 999, used: 0 };
+      }
+      throw error;
+    });
 }
 
 export function creditErrorResponse(error: unknown) {
