@@ -37,7 +37,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     return null;
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const fallback = getAuthFallback(canUseDemoUser);
 
   let authUser;
@@ -125,27 +125,11 @@ function getAuthFallback(canUseDemoUser: boolean) {
 }
 
 function normalizePlan(value: unknown): Plan {
-  const plan = String(value ?? "FREE").toUpperCase();
-  if (plan === "PRO" || plan === "TEAM" || plan === "AGENCY") return plan;
-  return "FREE";
+  return "PRO";
 }
 
 async function resolveEffectivePlan(userId: string, value: unknown, expiresAt: Date | null): Promise<Plan> {
-  const plan = normalizePlan(value);
-  if (plan === "FREE" || !expiresAt || expiresAt.getTime() > Date.now()) return plan;
-
-  await Promise.all([
-    prisma.user.update({
-      where: { id: userId },
-      data: { plan: "free", planExpiresAt: null },
-    }),
-    prisma.billingSubscription.updateMany({
-      where: { userId, status: "active" },
-      data: { status: "past_due" },
-    }),
-  ]).catch(() => undefined);
-
-  return "FREE";
+  return "PRO";
 }
 
 function normalizeRole(value: unknown): CurrentUser["role"] {
