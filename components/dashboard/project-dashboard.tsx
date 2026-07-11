@@ -63,7 +63,7 @@ export function ProjectDashboard({
   ).length;
 
   const isWelcome = searchParams.get("welcome") === "1";
-  const firstName = user?.name?.split(" ")[0] ?? user?.email.split("@")[0] ?? "there";
+  const firstName = user?.name?.split(" ")[0] ?? user?.email?.split("@")[0] ?? "there";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
   const projectLabel = `${projectCount} ${projectCount === 1 ? "project" : "projects"}`;
