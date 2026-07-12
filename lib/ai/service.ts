@@ -45,6 +45,7 @@ const MIN_GENERATION_TRANSCRIPT_WORDS = 50;
 const toneInstructions: Record<Tone, string> = {
   Professional: "Polished, confident, formal. No slang.",
   Casual: "Relaxed, conversational, like texting a friend.",
+  Entertainment: "Lively, curiosity-driven, playful where appropriate, but still factually grounded.",
   Storytelling: "Narrative arc. Setup, tension, payoff.",
   Viral: "Bold claims. Built to stop a scroll. Pattern interrupts.",
   Educational: "Clear structure. Teach one concept at a time.",
