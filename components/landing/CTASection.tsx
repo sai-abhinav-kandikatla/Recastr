@@ -34,7 +34,7 @@ export function CTASection() {
             type="email"
             placeholder="Enter your email address"
             required
-            className="flex-1 bg-transparent py-2.5 text-sm text-white placeholder:text-zinc-600 outline-none border-none pr-4 font-sans"
+            className="flex-1 bg-transparent py-2.5 text-sm text-white placeholder:text-zinc-600 outline-none border-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 pr-4 font-sans"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
