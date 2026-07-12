@@ -198,6 +198,10 @@ export async function POST(request: Request) {
         title: savedProject.title,
         duration: savedProject.duration ?? 0,
         wordCount: savedProject.wordCount ?? 0,
+        warning: isMetadataOnlyProject(savedProject)
+          ? "Transcript unavailable. Generation will use the video metadata and description."
+          : undefined,
+        transcriptStatus: isMetadataOnlyProject(savedProject) ? "missing" : "available",
         project: savedProject,
       });
     }
@@ -337,6 +341,11 @@ async function createYoutubeProject(url: string, userId: string, transcript?: st
       console.error("[ingest/url] Pipeline error message:", error.message);
       console.error("[ingest/url] Pipeline error stack:", error.stack);
     }
+    const parsedError = parsePipelineError(error);
+    if (isTranscriptFallbackError(parsedError.code, parsedError.reason)) {
+      console.warn("[ingest/url] Transcript unavailable; continuing with YouTube metadata.");
+      return createMetadataOnlyYoutubeProject({ id, userId, url, metadata });
+    }
     throw error;
   }
 
@@ -370,6 +379,91 @@ async function createYoutubeProject(url: string, userId: string, transcript?: st
     updatedAt: new Date().toISOString(),
     status: "DRAFT",
   };
+}
+
+function createMetadataOnlyYoutubeProject({
+  id,
+  userId,
+  url,
+  metadata,
+}: {
+  id: string;
+  userId: string;
+  url: string;
+  metadata: YoutubeMetadata;
+}): Project {
+  const description = normalizeText(metadata.description);
+  const sourceText = [
+    "VIDEO INFORMATION",
+    "",
+    "Title:",
+    metadata.title,
+    "",
+    "Description:",
+    description || "No description available.",
+    "",
+    "Transcript:",
+    "Transcript unavailable. Use only the metadata and description above. Do not invent details.",
+    "",
+    "END OF SOURCE",
+  ].join("\n");
+  const now = new Date().toISOString();
+
+  return {
+    id,
+    userId,
+    title: metadata.title,
+    sourceType: "YOUTUBE",
+    sourceUrl: url,
+    thumbnailUrl: metadata.thumbnailUrl,
+    sourceText,
+    transcript: sourceText,
+    duration: 0,
+    wordCount: sourceText.split(/\s+/).filter(Boolean).length,
+    summary: {
+      tldr: "Transcript unavailable. Generation will use the video metadata and description only.",
+      takeaways: [
+        `Video title: ${metadata.title}`,
+        ...(description ? [description.slice(0, 240)] : []),
+      ],
+      hooks: [],
+      detectedTone: "educational",
+      topics: ["youtube", "source repurposing"],
+      targetAudience: "Viewers interested in this video",
+    },
+    hooks: [],
+    contents: [],
+    outputs: [],
+    createdAt: now,
+    updatedAt: now,
+    status: "DRAFT",
+  };
+}
+
+function isTranscriptFallbackError(code: string | undefined, reason: string) {
+  const transcriptCodes = new Set([
+    "NO_TRANSCRIPT",
+    "NO_CAPTIONS",
+    "REGION_BLOCKED",
+    "TRANSCRIPT_QUOTA_EXCEEDED",
+    "PROVIDER_TIMEOUT",
+    "PRIVATE_VIDEO",
+    "AGE_RESTRICTED",
+    "VIDEO_UNAVAILABLE",
+    "LIVE_STREAM_UNSUPPORTED",
+    "TRANSCRIPT_DISABLED",
+    "NETWORK_FAILURE",
+    "TRANSCRIPT_UNAVAILABLE",
+    "INVALID_API_KEY",
+  ]);
+  return Boolean(
+    (code && transcriptCodes.has(code)) ||
+      /not a bot|unusual traffic|transcript|captions?|subtitles?/i.test(reason),
+  );
+}
+
+function isMetadataOnlyProject(project: Project) {
+  return /Transcript:\s*Transcript unavailable/i.test(project.sourceText ?? project.transcript);
 }
 
 async function fetchYoutubeMetadata(url: string): Promise<YoutubeMetadata> {

@@ -65,9 +65,19 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
           body: JSON.stringify({ url: url.trim() }),
         });
         
-        const data = await readApiJson<{ project?: Project; error?: string }>(response);
+        const data = await readApiJson<{
+          project?: Project;
+          error?: string;
+          warning?: string;
+          transcriptStatus?: "available" | "missing";
+        }>(response);
         if ("project" in data && data.project) {
-          toast.success("Source ingested successfully!");
+          toast.success("Source analyzed successfully!");
+          if (data.warning || data.transcriptStatus === "missing") {
+            toast.warning("Transcript unavailable", {
+              description: "Generation will use the video metadata and description.",
+            });
+          }
           setProject(data.project);
         } else if ("error" in data && data.error) {
           toast.error(data.error);
