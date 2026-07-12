@@ -49,7 +49,7 @@ export function ProjectWorkspace({
     queryKey: ["scheduled"],
     queryFn: async () => {
       const res = await fetch("/api/scheduled");
-      return res.json();
+      return readArrayPayload<ScheduledPost>(await res.json().catch(() => []));
     },
   });
   const scheduledDatesMap = useMemo(() => {
@@ -586,4 +586,12 @@ function streamReplaceContent(
     );
     if (index >= tokens.length) window.clearInterval(timer);
   }, 22);
+}
+
+function readArrayPayload<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (payload && typeof payload === "object" && Array.isArray((payload as { data?: unknown }).data)) {
+    return (payload as { data: T[] }).data;
+  }
+  return [];
 }

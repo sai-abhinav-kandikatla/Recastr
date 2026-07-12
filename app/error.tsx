@@ -9,6 +9,13 @@ export default function ErrorPage({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  console.error("GLOBAL CRASH - Full error:", {
+    message: error?.message,
+    stack: error?.stack,
+    name: error?.name,
+    digest: error?.digest,
+  });
+
   return (
     <main className="grid min-h-screen place-items-center bg-background p-6 text-foreground">
       <div className="max-w-md rounded-[28px] border bg-card p-8 text-center shadow-soft">

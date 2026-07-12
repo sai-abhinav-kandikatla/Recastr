@@ -40,7 +40,7 @@ export function ProjectDashboard({
     queryKey: ["projects"],
     queryFn: async () => {
       const res = await fetch("/api/projects");
-      return res.json();
+      return readArrayPayload<Project>(await res.json().catch(() => []));
     },
     initialData: initialProjects,
   });
@@ -49,7 +49,7 @@ export function ProjectDashboard({
     queryKey: ["scheduled"],
     queryFn: async () => {
       const res = await fetch("/api/scheduled");
-      return res.json();
+      return readArrayPayload<ScheduledPost>(await res.json().catch(() => []));
     },
   });
 
@@ -256,3 +256,10 @@ function formatGeneratedCount(project: Project) {
   return count > 0 ? `Generated ${count} pieces` : "Open content pack";
 }
 
+function readArrayPayload<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (payload && typeof payload === "object" && Array.isArray((payload as { data?: unknown }).data)) {
+    return (payload as { data: T[] }).data;
+  }
+  return [];
+}

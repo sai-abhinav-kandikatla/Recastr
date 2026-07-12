@@ -4,6 +4,7 @@ import { useEffect } from "react";
 
 const HEARTBEAT_STORAGE_KEY = "recastr:last-scheduled-notification-heartbeat";
 const HEARTBEAT_INTERVAL_MS = 60_000;
+const INITIAL_HEARTBEAT_DELAY_MS = 12_000;
 
 export function ScheduledNotificationHeartbeat({ enabled }: { enabled: boolean }) {
   useEffect(() => {
@@ -12,15 +13,25 @@ export function ScheduledNotificationHeartbeat({ enabled }: { enabled: boolean }
     let cancelled = false;
 
     async function processDueNotifications() {
-      if (cancelled || document.visibilityState === "hidden") return;
-      if (!claimHeartbeatSlot()) return;
+      try {
+        if (cancelled || document.visibilityState === "hidden") return;
+        if (!claimHeartbeatSlot()) return;
 
-      await fetch("/api/cron/scheduled-notifications", {
-        cache: "no-store",
-      }).catch(() => undefined);
+        const response = await fetch("/api/cron/scheduled-notifications", {
+          cache: "no-store",
+        });
+
+        if (!response.ok && process.env.NODE_ENV !== "production") {
+          console.error("Scheduled notification heartbeat failed:", response.status);
+        }
+      } catch (error) {
+        console.error("Scheduled notification heartbeat error:", error);
+      }
     }
 
-    void processDueNotifications();
+    const initialTimer = window.setTimeout(() => {
+      void processDueNotifications();
+    }, INITIAL_HEARTBEAT_DELAY_MS);
     const interval = window.setInterval(() => {
       void processDueNotifications();
     }, HEARTBEAT_INTERVAL_MS);
@@ -35,6 +46,7 @@ export function ScheduledNotificationHeartbeat({ enabled }: { enabled: boolean }
 
     return () => {
       cancelled = true;
+      window.clearTimeout(initialTimer);
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };

@@ -62,7 +62,7 @@ export function TasksWorkspace({
     queryKey: ["scheduled"],
     queryFn: async () => {
       const res = await fetch("/api/scheduled?filter=all");
-      return res.json();
+      return readArrayPayload<ScheduledPost>(await res.json().catch(() => []));
     },
     initialData: scheduledPosts,
   });
@@ -71,7 +71,7 @@ export function TasksWorkspace({
     queryKey: ["history"],
     queryFn: async () => {
       const res = await fetch("/api/history?page=1");
-      return res.json();
+      return readItemsPayload<ScheduledPost>(await res.json().catch(() => ({ items: [] })));
     },
   });
 
@@ -722,6 +722,27 @@ function mergeScheduledPosts(current: ScheduledPost[], incoming: ScheduledPost[]
     ...normalizedIncoming,
     ...optimistic.filter((post) => !incomingIds.has(post.id)),
   ].sort((a, b) => new Date(a.publishAt).getTime() - new Date(b.publishAt).getTime());
+}
+
+function readArrayPayload<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (payload && typeof payload === "object" && Array.isArray((payload as { data?: unknown }).data)) {
+    return (payload as { data: T[] }).data;
+  }
+  return [];
+}
+
+function readItemsPayload<T>(payload: unknown): { items: T[] } {
+  if (payload && typeof payload === "object") {
+    const items = (payload as { items?: unknown }).items;
+    if (Array.isArray(items)) return { items: items as T[] };
+
+    const data = (payload as { data?: unknown }).data;
+    if (data && typeof data === "object" && Array.isArray((data as { items?: unknown }).items)) {
+      return { items: (data as { items: T[] }).items };
+    }
+  }
+  return { items: [] };
 }
 
 function replaceScheduledGroup(
