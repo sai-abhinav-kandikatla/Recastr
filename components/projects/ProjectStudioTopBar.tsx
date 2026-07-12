@@ -15,6 +15,7 @@ export function ProjectStudioTopBar({
   exportOpen,
   onExportToggle,
   onGenerateToggle,
+  availableFilters,
 }: {
   project: Project;
   platformFilter: PlatformFilter;
@@ -22,7 +23,12 @@ export function ProjectStudioTopBar({
   exportOpen: boolean;
   onExportToggle: () => void;
   onGenerateToggle: () => void;
+  availableFilters: PlatformFilter[];
 }) {
+  const visibleFilters = platformFilters.filter(
+    (filter) => filter.value === "all" || availableFilters.includes(filter.value),
+  );
+
   return (
     <div className="sticky top-0 z-30 -mx-2 -mt-6 border-b border-[var(--app-line)] bg-[var(--app-bg)]/95 px-2 py-4 backdrop-blur-md">
       <div className="flex flex-col gap-5 min-[900px]:flex-row min-[900px]:items-center">
@@ -37,7 +43,7 @@ export function ProjectStudioTopBar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {platformFilters.map((item) => {
+          {visibleFilters.map((item) => {
             const active = platformFilter === item.value;
             return (
               <button
