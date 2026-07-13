@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { CircleAlert, FileText, Video, PlayCircle, Loader2, History } from "lucide-react";
+import { FileText, Video, PlayCircle, Loader2, History } from "lucide-react";
 import { toast } from "sonner";
 import { readApiJson } from "@/lib/client-api";
 import { useGenerator } from "./GeneratorProvider";
@@ -16,7 +16,6 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
   const [title, setTitle] = useState("");
   const [history, setHistory] = useState<Project[]>(initialHistory);
   const [lastError, setLastError] = useState("");
-  const [sourceNotice, setSourceNotice] = useState("");
 
   useEffect(() => {
     if (initialHistory.length > 0) {
@@ -41,11 +40,6 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
         const data = await readApiJson<{ project?: Project; error?: string; warning?: string; transcriptStatus?: "available" | "missing" }>(response);
         if ("project" in data && data.project) {
           toast.success("Source analyzed successfully!");
-          if (data.warning || data.transcriptStatus === "missing") {
-            setSourceNotice("Transcript unavailable. Generation will use the video metadata and description.");
-          } else {
-            setSourceNotice("");
-          }
           setProject(data.project);
         } else if ("error" in data && data.error) {
           toast.error(data.error);
@@ -76,7 +70,6 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
         const data = await readApiJson<{ project?: Project; error?: string }>(response);
         if ("project" in data && data.project) {
           toast.success("Text ingested successfully!");
-          setSourceNotice("");
           setProject(data.project);
         } else if ("error" in data && data.error) {
           toast.error(data.error);
@@ -99,10 +92,7 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
         <h3 className="text-base font-semibold text-white">Source Content</h3>
         {project && (
           <button
-            onClick={() => {
-              setProject(null);
-              setSourceNotice("");
-            }}
+            onClick={() => setProject(null)}
             className="text-xs text-[#8A8A8A] hover:text-white transition-colors"
           >
             Reset
@@ -145,13 +135,6 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
             {project.summary?.tldr || "Source transcript loaded and ready for extraction."}
           </div>
 
-          {sourceNotice ? (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-400/20 bg-amber-400/10 p-3 text-xs leading-relaxed text-amber-100">
-              <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />
-              <span>{sourceNotice}</span>
-            </div>
-          ) : null}
-          
           {project.summary?.topics && project.summary.topics.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-1">
               {project.summary.topics.map(topic => (
@@ -255,7 +238,6 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
                     key={item.id}
                     onClick={() => {
                       setProject(item);
-                      setSourceNotice("");
                       toast.success(`Loaded "${item.title}"`);
                     }}
                     className="flex flex-col text-left py-3 px-6 rounded-full border border-[#232323] bg-[#090909] hover:border-white/30 hover:bg-[#151515] transition-all group"

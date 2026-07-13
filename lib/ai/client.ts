@@ -15,6 +15,8 @@ export function getNIMClient(): OpenAI | undefined {
   nimClient ??= new OpenAI({
     apiKey: env.nvidiaKey,
     baseURL: DEFAULT_NIM_BASE_URL,
+    maxRetries: 0,
+    timeout: 35_000,
   });
   return nimClient;
 }

@@ -388,27 +388,22 @@ async function persistGeneratedOutputs({
     if (getStoredProject(projectId)) return;
     throw new Error("Project disappeared before generated posts could be saved.");
   }
-    const outputPlatforms = Array.from(new Set(outputs.map((output) => output.platform)));
+  const outputPlatforms = Array.from(new Set(outputs.map((output) => output.platform)));
+  const contentRows = outputs.map((output, index) => ({
+    id: output.id,
+    projectId,
+    platform: output.platform,
+    contentType: output.outputType,
+    body: stringifyGeneratedContent(output.content),
+    originalBody: stringifyGeneratedContent(output.originalContent ?? output.content),
+    tone: String(output.tone ?? tone),
+    approved: output.approved,
+    order: index,
+  }));
 
   await prisma.$transaction([
     prisma.content.deleteMany({ where: { projectId, platform: { in: outputPlatforms } } }),
-    ...outputs.map((output, index) => {
-      const body = stringifyGeneratedContent(output.content);
-      const originalBody = stringifyGeneratedContent(output.originalContent ?? output.content);
-      return prisma.content.create({
-        data: {
-          id: output.id,
-          projectId,
-          platform: output.platform,
-          contentType: output.outputType,
-          body,
-          originalBody,
-          tone: String(output.tone ?? tone),
-          approved: output.approved,
-          order: index,
-        },
-      });
-    }),
+    prisma.content.createMany({ data: contentRows }),
   ]);
 }
 

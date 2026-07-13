@@ -122,86 +122,59 @@ export async function generateV1SocialOutputs({
 
   const outputs: SocialOutput[] = [];
   const now = new Date().toISOString();
+  let raw = "";
+  let payload: GeneratedPostsPayload = { posts: {} };
 
-  for (let index = 0; index < selectedPlatforms.length; index++) {
-    const platform = selectedPlatforms[index];
-    try {
-      const raw = await generateAIText({
-        prompt: buildMasterPrompt({
-          sourceDocument,
-          platforms: [platform],
-          tone,
-          transcriptAvailable,
-          isRegeneration,
-          previousDrafts,
-        }),
-        responseMimeType: "application/json",
-        temperature: isRegeneration ? 0.92 : 0.74,
-        maxOutputTokens: 1500,
-      });
-
-      const payload = parseGeneratedPosts(raw);
-      const drafts = payload.posts?.[platform];
-      const draftList = Array.isArray(drafts) ? drafts : (drafts ? [drafts] : []);
-
-      const targetCount = draftCountForPlatform(platform);
-
-      for (let i = 0; i < targetCount; i++) {
-        const generated = draftList[i]?.trim();
-        const content = cleanGeneratedPost(
-          generated || fallbackPost(platform, transcriptAvailable, i + 1),
-          previousDrafts
-        );
-
-        const label = PLATFORM_LABELS[platform] ?? platform;
-        const countLabel = targetCount > 1 ? `${label} - Draft ${i + 1}` : label;
-
-        const output: SocialOutput = {
-          id: `${projectId}-v1-${platform.toLowerCase()}-${i + 1}-${Date.now()}-${index}`,
-          projectId,
-          platform,
-          outputType: countLabel,
-          content,
-          originalContent: content,
-          tone,
-          approved: false,
-          createdAt: now,
-        };
-
-        outputs.push(output);
-        onOutput?.(output);
-      }
-    } catch (err) {
-      console.error(`Sequential V1 generation failed for platform ${platform}:`, err);
-      const targetCount = draftCountForPlatform(platform);
-
-      for (let i = 0; i < targetCount; i++) {
-        const content = cleanGeneratedPost(
-          fallbackPost(platform, transcriptAvailable, i + 1),
-          previousDrafts
-        );
-        const label = PLATFORM_LABELS[platform] ?? platform;
-        const countLabel = targetCount > 1 ? `${label} - Draft ${i + 1}` : label;
-
-        const output: SocialOutput = {
-          id: `${projectId}-v1-${platform.toLowerCase()}-${i + 1}-${Date.now()}-${index}`,
-          projectId,
-          platform,
-          outputType: countLabel,
-          content,
-          originalContent: content,
-          tone,
-          approved: false,
-          createdAt: now,
-        };
-
-        outputs.push(output);
-        onOutput?.(output);
-      }
-    }
+  try {
+    raw = await generateAIText({
+      prompt: buildMasterPrompt({
+        sourceDocument,
+        platforms: selectedPlatforms,
+        tone,
+        transcriptAvailable,
+        isRegeneration,
+        previousDrafts,
+      }),
+      responseMimeType: "application/json",
+      temperature: isRegeneration ? 0.92 : 0.74,
+      maxOutputTokens: 4_000,
+    });
+    payload = parseGeneratedPosts(raw);
+  } catch (error) {
+    console.error("One-pass V1 generation failed; using safe fallback drafts:", error);
   }
 
-  onStage?.("llm_returned", { responseCharacters: 0 });
+  onStage?.("llm_returned", { responseCharacters: raw.length });
+
+  selectedPlatforms.forEach((platform, platformIndex) => {
+    const drafts = payload.posts?.[platform];
+    const draftList = Array.isArray(drafts) ? drafts : drafts ? [drafts] : [];
+    const targetCount = draftCountForPlatform(platform);
+
+    for (let draftIndex = 0; draftIndex < targetCount; draftIndex += 1) {
+      const content = cleanGeneratedPost(
+        draftList[draftIndex]?.trim() || fallbackPost(platform, transcriptAvailable, draftIndex + 1),
+        previousDrafts,
+      );
+      const label = PLATFORM_LABELS[platform] ?? platform;
+      const countLabel = targetCount > 1 ? `${label} - Draft ${draftIndex + 1}` : label;
+      const output: SocialOutput = {
+        id: `${projectId}-v1-${platform.toLowerCase()}-${draftIndex + 1}-${Date.now()}-${platformIndex}`,
+        projectId,
+        platform,
+        outputType: countLabel,
+        content,
+        originalContent: content,
+        tone,
+        approved: false,
+        createdAt: now,
+      };
+
+      outputs.push(output);
+      onOutput?.(output);
+    }
+  });
+
   onStage?.("posts_parsed", { outputCount: outputs.length });
 
   return outputs;
