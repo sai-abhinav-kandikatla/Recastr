@@ -21,6 +21,7 @@ type GeneratorState = {
   setIsAnalyzing: (b: boolean) => void;
   progress: string;
   setProgress: (p: string) => void;
+  generationError: string;
   generate: () => Promise<void>;
   outputs: SocialOutput[];
   setOutputs: (o: SocialOutput[]) => void;
@@ -76,6 +77,7 @@ export function GeneratorProvider({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState<string>("idle");
+  const [generationError, setGenerationError] = useState("");
   const [outputs, setOutputs] = useState<SocialOutput[]>([]);
   const [activePreviewTab, setActivePreviewTab] = useState<Platform>("TWITTER");
   const [theme, setTheme] = useState<"light" | "dark">("dark");
@@ -90,13 +92,16 @@ export function GeneratorProvider({
         setActivePreviewTab(project.outputs[0].platform);
         setHasUserSelectedPreview(false);
         setProgress("completed");
+        setGenerationError("");
       } else {
         setOutputs([]);
         setProgress("idle");
+        setGenerationError("");
       }
     } else {
       setOutputs([]);
       setProgress("idle");
+      setGenerationError("");
     }
   }, [project]);
 
@@ -138,6 +143,7 @@ export function GeneratorProvider({
     });
     setIsGenerating(true);
     setProgress("extracting");
+    setGenerationError("");
     setOutputs([]);
     setHasUserSelectedPreview(false);
 
@@ -156,10 +162,12 @@ export function GeneratorProvider({
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
+        const message = payload.error ?? "Generation failed";
+        setGenerationError(message);
         if (response.status === 403 && payload.code === "credit_exhausted") {
           emitCreditExhausted(payload);
         } else {
-          toast.error(payload.error ?? "Generation failed");
+          toast.error(message);
         }
         setProgress("error");
         return;
@@ -186,6 +194,7 @@ export function GeneratorProvider({
           if (parsed.error) {
             hadStreamError = true;
             setProgress("error");
+            setGenerationError(parsed.error);
             toast.error(parsed.error);
           } else if (parsed.output) {
             receivedOutputCount += 1;
@@ -221,8 +230,10 @@ export function GeneratorProvider({
       streamBuffer += decoder.decode();
       if (streamBuffer.trim()) processEvent(streamBuffer);
       if (receivedOutputCount === 0 && !hadStreamError) {
+        const message = "Generation finished without returning any posts. Please try again.";
         setProgress("error");
-        toast.error("Generation finished without returning any posts. Please try again.");
+        setGenerationError(message);
+        toast.error(message);
       } else if (receivedOutputCount > 0 && !hadStreamError) {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["projects"] }),
@@ -236,11 +247,11 @@ export function GeneratorProvider({
     } catch (error) {
       console.error("[generation-ui] request_failed", error);
       setProgress("error");
-      toast.error(
-        typeof navigator !== "undefined" && !navigator.onLine
-          ? "Network disconnected. Reconnect and retry generation."
-          : "The generation request was interrupted. Retry in a moment.",
-      );
+      const message = typeof navigator !== "undefined" && !navigator.onLine
+        ? "Network disconnected. Reconnect and retry generation."
+        : "The generation request was interrupted. Retry in a moment.";
+      setGenerationError(message);
+      toast.error(message);
     } finally {
       setIsGenerating(false);
     }
@@ -279,6 +290,7 @@ export function GeneratorProvider({
       setIsAnalyzing,
       progress,
       setProgress,
+      generationError,
       generate,
       outputs,
       setOutputs,

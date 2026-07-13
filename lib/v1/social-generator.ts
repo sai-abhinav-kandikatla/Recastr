@@ -14,7 +14,10 @@ type GenerateV1Options = {
   transcriptAvailable: boolean;
   isRegeneration?: boolean;
   previousDrafts?: string[];
-  onStage?: (stage: "llm_called" | "llm_returned" | "posts_parsed", metadata?: Record<string, unknown>) => void;
+  onStage?: (
+    stage: "llm_called" | "llm_returned" | "quality_retry" | "posts_parsed",
+    metadata?: Record<string, unknown>,
+  ) => void;
   onOutput?: (output: SocialOutput) => void;
 };
 
@@ -41,6 +44,8 @@ const SUPPORTED_PLATFORMS: Platform[] = [
   "COMMUNITY",
   "CAROUSEL",
 ];
+
+const SOCIAL_GENERATION_MODEL = "meta/llama-3.1-8b-instruct";
 
 const MODE_STRATEGIES: Record<string, string> = {
   professional: `Professional strategy:
@@ -112,34 +117,79 @@ export async function generateV1SocialOutputs({
 
   onStage?.("llm_called", { platformCount: selectedPlatforms.length, transcriptAvailable });
 
-  const outputs: SocialOutput[] = [];
-  const now = new Date().toISOString();
-  const raw = await generateAIText({
-    prompt: buildMasterPrompt({
-      sourceDocument: preparedSource,
+  const requestDrafts = async (draftsToAvoid: string[], regeneration: boolean, attempt: number) => {
+    const raw = await generateAIText({
+      model: SOCIAL_GENERATION_MODEL,
+      prompt: buildMasterPrompt({
+        sourceDocument: preparedSource,
+        platforms: selectedPlatforms,
+        tone,
+        transcriptAvailable,
+        isRegeneration: regeneration,
+        previousDrafts: draftsToAvoid,
+      }),
+      responseMimeType: "application/json",
+      temperature: regeneration ? 0.92 : 0.74,
+      maxOutputTokens: 4_000,
+    });
+    onStage?.("llm_returned", { responseCharacters: raw.length, attempt });
+    return buildSocialOutputs({
+      projectId,
+      payload: parseGeneratedPosts(raw) ?? { posts: {} },
       platforms: selectedPlatforms,
       tone,
-      transcriptAvailable,
-      isRegeneration,
+    });
+  };
+
+  let outputs = await requestDrafts(previousDrafts, isRegeneration, 1);
+
+  try {
+    assertGeneratedOutputs({
+      outputs,
+      sourceDocument: preparedSource,
+      platforms: selectedPlatforms,
       previousDrafts,
-    }),
-    responseMimeType: "application/json",
-    temperature: isRegeneration ? 0.92 : 0.74,
-    maxOutputTokens: 4_000,
-  });
-  const payload = parseGeneratedPosts(raw);
-  if (!payload) {
-    throw new GenerationPipelineError(
-      "INVALID_GENERATED_CONTENT",
-      "The AI response did not meet our quality checks. No drafts were saved. Please retry generation.",
-      502,
-      ["The provider response was not valid generated-post JSON."],
-    );
+    });
+  } catch (error) {
+    if (!(error instanceof GenerationPipelineError) || error.code !== "INVALID_GENERATED_CONTENT") {
+      throw error;
+    }
+
+    const rejectedDrafts = outputs
+      .map((output) => typeof output.content === "string" ? output.content : "")
+      .filter(Boolean);
+    const retryPreviousDrafts = [...previousDrafts, ...rejectedDrafts];
+    onStage?.("quality_retry", { reasons: error.reasons, attempt: 2 });
+    outputs = await requestDrafts(retryPreviousDrafts, true, 2);
+    assertGeneratedOutputs({
+      outputs,
+      sourceDocument: preparedSource,
+      platforms: selectedPlatforms,
+      previousDrafts: retryPreviousDrafts,
+    });
   }
 
-  onStage?.("llm_returned", { responseCharacters: raw.length });
+  onStage?.("posts_parsed", { outputCount: outputs.length });
+  outputs.forEach((output) => onOutput?.(output));
 
-  selectedPlatforms.forEach((platform, platformIndex) => {
+  return outputs;
+}
+
+function buildSocialOutputs({
+  projectId,
+  payload,
+  platforms,
+  tone,
+}: {
+  projectId: string;
+  payload: GeneratedPostsPayload;
+  platforms: Platform[];
+  tone: Tone | string;
+}) {
+  const outputs: SocialOutput[] = [];
+  const now = new Date().toISOString();
+
+  platforms.forEach((platform, platformIndex) => {
     const drafts = payload.posts?.[platform];
     const draftList = Array.isArray(drafts) ? drafts : drafts ? [drafts] : [];
     const targetCount = draftCountForPlatform(platform);
@@ -148,7 +198,7 @@ export async function generateV1SocialOutputs({
       const content = cleanGeneratedPost(draftList[draftIndex] ?? "");
       const label = PLATFORM_LABELS[platform] ?? platform;
       const countLabel = targetCount > 1 ? `${label} - Draft ${draftIndex + 1}` : label;
-      const output: SocialOutput = {
+      outputs.push({
         id: `${projectId}-v1-${platform.toLowerCase()}-${draftIndex + 1}-${Date.now()}-${platformIndex}`,
         projectId,
         platform,
@@ -158,21 +208,9 @@ export async function generateV1SocialOutputs({
         tone,
         approved: false,
         createdAt: now,
-      };
-
-      outputs.push(output);
+      });
     }
   });
-
-  assertGeneratedOutputs({
-    outputs,
-    sourceDocument: preparedSource,
-    platforms: selectedPlatforms,
-    previousDrafts,
-  });
-
-  onStage?.("posts_parsed", { outputCount: outputs.length });
-  outputs.forEach((output) => onOutput?.(output));
 
   return outputs;
 }

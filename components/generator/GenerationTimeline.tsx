@@ -4,7 +4,7 @@ import { Check, Loader2, Sparkles } from "lucide-react";
 import { useGenerator } from "./GeneratorProvider";
 
 export function GenerationTimeline() {
-  const { progress, generate, isGenerating, project, selectedPlatforms } = useGenerator();
+  const { progress, generationError, generate, isGenerating, project, selectedPlatforms } = useGenerator();
 
   return (
     <div className="rounded-[32px] border border-[#232323] bg-[#151515] p-5">
@@ -58,7 +58,9 @@ export function GenerationTimeline() {
               <span className="text-xs text-purple-500 mt-1">Writing one platform-native set...</span>
             )}
             {progress === "error" && (
-              <span className="mt-1 text-xs text-red-400">Generation failed. Review the message and try again.</span>
+              <span className="mt-1 text-xs leading-relaxed text-red-400">
+                {generationError || "Generation failed. Please try again."}
+              </span>
             )}
           </div>
         </div>

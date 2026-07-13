@@ -26,6 +26,11 @@ const validPosts = {
   ],
 };
 
+const repairedLinkedInPosts = [
+  "Nikhil turns unusual Guinness record attempts into a lesson about attention: audiences remember a concrete challenge when its stakes are immediately clear.",
+  "A surprising Guinness record works like a strong business story. The attempt creates tension, the result creates proof, and Nikhil's survey gives viewers a reason to retell it.",
+];
+
 describe("generateV1SocialOutputs", () => {
   beforeEach(() => {
     mocks.generateAIText.mockReset();
@@ -43,6 +48,7 @@ describe("generateV1SocialOutputs", () => {
     });
 
     expect(mocks.generateAIText).toHaveBeenCalledTimes(1);
+    expect(mocks.generateAIText.mock.calls[0][0].model).toBe("meta/llama-3.1-8b-instruct");
     expect(mocks.generateAIText.mock.calls[0][0].prompt).toContain("- LINKEDIN: LinkedIn");
     expect(mocks.generateAIText.mock.calls[0][0].prompt).toContain("- TWITTER: Twitter/X");
     expect(outputs).toHaveLength(5);
@@ -82,6 +88,25 @@ describe("generateV1SocialOutputs", () => {
     expect(onOutput).not.toHaveBeenCalled();
   });
 
+  it("uses one LLM repair pass when the first batch fails quality checks", async () => {
+    mocks.generateAIText
+      .mockResolvedValueOnce(JSON.stringify({
+        posts: { LINKEDIN: [validPosts.LINKEDIN[0], validPosts.LINKEDIN[0]] },
+      }))
+      .mockResolvedValueOnce(JSON.stringify({ posts: { LINKEDIN: repairedLinkedInPosts } }));
+
+    const outputs = await generateV1SocialOutputs({
+      projectId: "repair-project",
+      sourceDocument,
+      platforms: ["LINKEDIN"],
+      tone: "Professional",
+      transcriptAvailable: false,
+    });
+
+    expect(mocks.generateAIText).toHaveBeenCalledTimes(2);
+    expect(outputs.map((output) => output.content)).toEqual(repairedLinkedInPosts);
+  });
+
   it("rejects leaked internal instructions before any output is emitted", async () => {
     mocks.generateAIText.mockResolvedValue(JSON.stringify({
       posts: {
@@ -101,6 +126,7 @@ describe("generateV1SocialOutputs", () => {
       transcriptAvailable: false,
       onOutput,
     })).rejects.toMatchObject({ code: "INVALID_GENERATED_CONTENT" });
+    expect(mocks.generateAIText).toHaveBeenCalledTimes(2);
     expect(onOutput).not.toHaveBeenCalled();
   });
 
@@ -118,6 +144,7 @@ describe("generateV1SocialOutputs", () => {
       transcriptAvailable: true,
       onOutput,
     })).rejects.toMatchObject({ code: "INVALID_GENERATED_CONTENT" });
+    expect(mocks.generateAIText).toHaveBeenCalledTimes(2);
     expect(onOutput).not.toHaveBeenCalled();
   });
 });

@@ -54,7 +54,7 @@ export async function generateAIText({
     throw new Error("AI API client not configured. Set NVIDIA_API_KEY.");
   }
 
-  const resolvedModel = env.nvidiaModel ?? model ?? DEFAULT_NIM_MODEL;
+  const resolvedModel = model ?? env.nvidiaModel ?? DEFAULT_NIM_MODEL;
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
 
