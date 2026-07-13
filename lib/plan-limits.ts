@@ -7,8 +7,10 @@ import type { Platform, SourceType } from "@/lib/types";
 type LimitValue = number | "unlimited";
 
 const ACTIVE_SCHEDULE_STATUSES = ["pending", "scheduled", "processing", "PENDING", "SCHEDULED", "PROCESSING"];
+const TEMP_UNLIMITED_ACCESS_ENABLED = process.env.RECASTR_UNLIMITED_ACCESS !== "false";
 
 export async function assertCanCreateProject(user: AuthenticatedUser, sourceType: SourceType) {
+  if (TEMP_UNLIMITED_ACCESS_ENABLED) return;
   const rule = PLAN_RULES[user.plan];
 
   if (!canUseSource(user.plan, sourceType)) {
@@ -34,6 +36,7 @@ export async function assertCanGenerateContent(
   platforms: Platform[],
   requestedOutputs = platforms.length,
 ) {
+  if (TEMP_UNLIMITED_ACCESS_ENABLED) return;
   const rule = PLAN_RULES[user.plan];
   const unsupported = platforms.filter((platform) => !rule.outputPlatforms.includes(platform));
 
@@ -56,6 +59,7 @@ export async function assertCanGenerateContent(
 }
 
 export async function assertCanScheduleReminder(user: AuthenticatedUser, platform: Platform) {
+  if (TEMP_UNLIMITED_ACCESS_ENABLED) return;
   const rule = PLAN_RULES[user.plan];
 
   if (!canSchedule(user.plan, platform)) {
@@ -77,6 +81,7 @@ export async function assertCanScheduleReminder(user: AuthenticatedUser, platfor
 }
 
 export function assertCanExport(user: AuthenticatedUser, format: string) {
+  if (TEMP_UNLIMITED_ACCESS_ENABLED) return;
   const normalizedFormat = format.toUpperCase();
   const rule = PLAN_RULES[user.plan];
 
