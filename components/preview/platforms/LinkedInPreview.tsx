@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   BadgeCheck,
   BriefcaseBusiness,
@@ -29,11 +29,6 @@ export function LinkedInPreview({
   const companyMode = /company|team|agency|brand/i.test(content.primaryText);
   const postText = expanded ? content.primaryText : clamp(content.primaryText, desktop ? 620 : 360);
   const showSeeMore = !expanded && content.primaryText.length > postText.length;
-  const carouselSlides = useMemo(
-    () => (content.carouselSlides.length ? content.carouselSlides : buildLinkedInSlides(content)),
-    [content],
-  );
-
   return (
     <div
       className={cn(
@@ -92,9 +87,9 @@ export function LinkedInPreview({
 
           {content.mediaType === "poll" && content.pollOptions.length ? (
             <LinkedInPoll question={content.pollQuestion} options={content.pollOptions} />
-          ) : (
-            <LinkedInCarousel slides={carouselSlides} dark={dark} />
-          )}
+          ) : content.carouselSlides.length > 1 ? (
+            <LinkedInCarousel slides={content.carouselSlides} dark={dark} />
+          ) : null}
 
           <div className="px-3">
             <div className="flex items-center justify-between gap-3 border-b border-[#e8e8e8] py-2 text-[12px] text-[#666666] dark:border-[#38434f] dark:text-[#b0b6bd]">
@@ -136,7 +131,7 @@ function LinkedInAvatar({ company }: { company: boolean }) {
 
 function LinkedInCarousel({ slides, dark }: { slides: string[]; dark: boolean }) {
   const visibleSlides = slides.slice(0, 3);
-  const primarySlide = slides[0] ?? "Turn one source into native posts";
+  const primarySlide = slides[0] ?? "";
   return (
     <div className="border-y border-[#e8e8e8] dark:border-[#38434f]">
       <div className="bg-black/5 p-1 dark:bg-white/5">
@@ -204,14 +199,6 @@ function LinkedInAction({ icon, label }: { icon: ReactNode; label: string }) {
       {label}
     </button>
   );
-}
-
-function buildLinkedInSlides(content: PreviewContent) {
-  return [
-    content.hook || "Creator workflow insight",
-    "Extract the strongest tension from the source.",
-    "Rewrite it in the native rhythm of each platform.",
-  ];
 }
 
 function clamp(value: string, max: number) {

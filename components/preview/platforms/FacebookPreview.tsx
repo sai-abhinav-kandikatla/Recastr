@@ -95,7 +95,7 @@ function FacebookMedia({ content, dark }: { content: PreviewContent; dark: boole
   return (
     <div className={cn("grid aspect-[16/10] place-items-center border-y p-6 text-center", dark ? "border-[#3e4042] bg-[#111827]" : "border-[#ced0d4] bg-[#e7f3ff]")}>
       <div className={cn("rounded-2xl border p-5", dark ? "border-[#3e4042] bg-[#242526]" : "border-[#dadde1] bg-white")}>
-        <p className="text-[24px] font-bold leading-tight">{content.hook || "Repurpose one source into every channel"}</p>
+        <p className="text-[24px] font-bold leading-tight">{content.hook || content.primaryText}</p>
         <p className="mt-3 text-[13px] text-[#65676b] dark:text-[#b0b3b8]">Image post preview</p>
       </div>
     </div>
@@ -112,7 +112,7 @@ function FacebookLinkCard({ content, dark }: { content: PreviewContent; dark: bo
       </div>
       <div className={cn("p-3", dark ? "bg-[#3a3b3c]" : "bg-[#f0f2f5]")}>
         <p className="text-[12px] uppercase text-[#65676b] dark:text-[#b0b3b8]">recastr.app</p>
-        <p className="mt-1 text-[16px] font-semibold leading-5">{content.hook || "Repurpose Content Without Starting From Scratch"}</p>
+        <p className="mt-1 text-[16px] font-semibold leading-5">{content.hook || content.primaryText}</p>
         <p className="mt-1 line-clamp-2 text-[13px] text-[#65676b] dark:text-[#b0b3b8]">{content.primaryText}</p>
       </div>
     </div>

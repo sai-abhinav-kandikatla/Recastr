@@ -161,7 +161,7 @@ function XQuote({ text, dark }: { text: string; dark: boolean }) {
 }
 
 function XMediaGrid({ slides, dark }: { slides: string[]; dark: boolean }) {
-  const visible = slides.length ? slides.slice(0, 4) : ["Hook", "Value", "Proof", "CTA"];
+  const visible = slides.slice(0, 4);
   return (
     <div className="mt-3 grid aspect-[1.8] grid-cols-2 overflow-hidden rounded-2xl border border-[#536471]">
       {visible.map((slide, index) => (

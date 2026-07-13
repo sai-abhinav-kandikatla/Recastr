@@ -25,7 +25,9 @@ export function InstagramPreview({
 }) {
   const desktop = device === "desktop";
   const reel = content.mediaType === "video" || /hook:|scene|cta:/i.test(content.primaryText);
-  const carouselSlides = content.carouselSlides.length ? content.carouselSlides : [content.hook, "Value", "CTA"];
+  const carouselSlides = content.carouselSlides.length
+    ? content.carouselSlides
+    : [content.hook || content.primaryText].filter(Boolean);
 
   return (
     <div className={cn("h-full overflow-y-auto font-sans", dark ? "bg-black text-white" : "bg-white text-[#262626]")}>
@@ -92,7 +94,7 @@ function StoryRing() {
 }
 
 function InstagramCarousel({ slides, dark }: { slides: string[]; dark: boolean }) {
-  const first = slides[0] || "Turn one podcast into 30 posts";
+  const first = slides[0] || "";
   const slideCount = Math.max(1, slides.length);
   return (
     <div className={cn("relative grid aspect-square place-items-center overflow-hidden p-6 text-center", dark ? "bg-[#101010]" : "bg-[#f7f7f7]")}>
