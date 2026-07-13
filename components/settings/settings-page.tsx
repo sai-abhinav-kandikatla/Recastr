@@ -185,33 +185,44 @@ export function SettingsPage({ currentUser }: { currentUser?: CurrentUser | null
     notifyScheduleReminder: true,
     notifyMarketing: false,
   });
+  const isProfileTab = activeTab === "profile";
+  const isPostingTab = activeTab === "posting";
+  const isBillingTab = activeTab === "billing";
+  const isNotificationsTab = activeTab === "notifications";
   const usageQuery = useQuery({
     queryKey: ["usage"],
     queryFn: () => fetchApiData<UsageSummary>("/api/usage"),
+    enabled: isBillingTab,
   });
   const billingQuery = useQuery({
     queryKey: ["billing"],
     queryFn: () => fetchApiData<BillingSummary>("/api/billing"),
+    enabled: isBillingTab,
   });
   const profileQuery = useQuery({
     queryKey: ["profile"],
     queryFn: () => fetchApiData<ProfileSettings>("/api/user/profile"),
+    enabled: isProfileTab,
   });
   const postingPreferenceQuery = useQuery({
     queryKey: ["posting-preferences"],
     queryFn: () => fetchApiData<PostingPreference>("/api/posting/preferences"),
+    enabled: isPostingTab,
   });
   const postingAccountsQuery = useQuery({
     queryKey: ["posting-accounts"],
     queryFn: () => fetchApiData<PostingAccountSummary[]>("/api/posting/accounts"),
+    enabled: isPostingTab,
   });
   const notificationsQuery = useQuery({
     queryKey: ["notification-preferences"],
     queryFn: () => fetchApiData<NotificationPreferences>("/api/notifications/preferences"),
+    enabled: isNotificationsTab,
   });
   const mfaQuery = useQuery({
     queryKey: ["mfa-status"],
     queryFn: () => fetchApiData<MfaStatus>("/api/auth/mfa"),
+    enabled: isProfileTab,
   });
   const usage = useMemo<Record<"projects" | "content" | "scheduled", UsageMetric>>(() => {
     const limit = PLAN_RULES[plan].projectLimit;

@@ -175,7 +175,7 @@ export function ScheduleCalendar({ scheduledPosts }: { scheduledPosts: Scheduled
             </div>
 
             <Button asChild className="h-9 rounded-full bg-[var(--violet)] px-4 text-xs text-black hover:bg-[var(--violet-hover)]">
-              <Link href="/dashboard#source-ingest">
+              <Link href="/generate">
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
                 Create post
               </Link>

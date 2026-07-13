@@ -13,8 +13,9 @@ const rescheduleSchema = z.object({
   scheduledAt: z.string().datetime(),
 });
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const user = await getRequestUser(request);
     const parsed = rescheduleSchema.safeParse(await request.json());
     if (!parsed.success) return err("Invalid schedule time", "validation_error", 400);
@@ -24,8 +25,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       return err("scheduledAt must be in the future", "invalid_schedule_time", 400);
     }
 
-    if (isLocalScheduleId(params.id)) {
-      const post = updateStoredScheduledPost(params.id, {
+    if (isLocalScheduleId(id)) {
+      const post = updateStoredScheduledPost(id, {
         publishAt: scheduledAt.toISOString(),
         scheduledAt: scheduledAt.toISOString(),
         status: "PENDING",
@@ -33,7 +34,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       if (!post) return err("Scheduled post not found", "scheduled_post_not_found", 404);
 
       return ok({
-        id: params.id,
+        id,
         scheduledAt: post.scheduledAt,
         publishAt: post.publishAt,
         status: post.status,
@@ -41,7 +42,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     }
 
     const post = await prisma.scheduledPost.findFirst({
-      where: { id: params.id, userId: user.id },
+      where: { id, userId: user.id },
       select: { id: true },
     });
 
@@ -49,18 +50,18 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     await assertEmailTransportReady();
 
     await prisma.scheduledPost.update({
-      where: { id: params.id },
+      where: { id },
       data: { scheduledAt, status: "pending", publishedAt: null, failReason: null },
     });
     await addRecastrJob(
       jobNames.publishPost,
-      { scheduledPostId: params.id },
+      { scheduledPostId: id },
       Math.max(0, scheduledAt.getTime() - Date.now()),
       { required: false },
     );
 
     return ok({
-      id: params.id,
+      id,
       scheduledAt: scheduledAt.toISOString(),
       publishAt: scheduledAt.toISOString(),
       status: "PENDING",
@@ -70,32 +71,33 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const user = await getRequestUser(request);
-    if (isLocalScheduleId(params.id)) {
-      const post = cancelStoredScheduledPost(params.id);
+    if (isLocalScheduleId(id)) {
+      const post = cancelStoredScheduledPost(id);
       if (!post) return err("Scheduled post not found", "scheduled_post_not_found", 404);
       return ok({
-        id: params.id,
+        id,
         status: "CANCELLED",
       });
     }
 
     const post = await prisma.scheduledPost.findFirst({
-      where: { id: params.id, userId: user.id },
+      where: { id, userId: user.id },
       select: { id: true },
     });
 
     if (!post) return err("Scheduled post not found", "scheduled_post_not_found", 404);
 
     await prisma.scheduledPost.update({
-      where: { id: params.id },
+      where: { id },
       data: { status: "cancelled" },
     });
 
     return ok({
-      id: params.id,
+      id,
       status: "CANCELLED",
     });
   } catch (error) {

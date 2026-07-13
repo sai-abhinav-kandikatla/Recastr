@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { CheckCircle2, Clock, PlayCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { formatDistanceToNow } from "date-fns";
+import { differenceInCalendarDays, formatDistanceToNowStrict } from "date-fns";
 import type { Project, ScheduledPost } from "@/lib/types";
 
 export function ActivityFeed({
@@ -36,7 +36,7 @@ export function ActivityFeed({
         id: `project-${p.id}`,
         content: "Generated content pack for",
         target: p.title,
-        time: mounted ? formatDistanceToNow(new Date(p.createdAt)) + " ago" : "recently",
+        time: mounted ? formatActivityTime(new Date(p.createdAt)) : "recently",
         icon: CheckCircle2,
         iconColor: "text-emerald-500",
         timestamp: new Date(p.createdAt).getTime(),
@@ -53,7 +53,7 @@ export function ActivityFeed({
         id: `scheduled-${s.id}`,
         content: `Scheduled ${s.platform} reminder`,
         target: p?.title ?? "project post",
-        time: mounted ? formatDistanceToNow(postTime) + " ago" : "recently",
+        time: mounted ? formatActivityTime(postTime) : "recently",
         icon: Clock,
         iconColor: "text-[var(--violet)]",
         timestamp: postTime.getTime(),
@@ -100,4 +100,11 @@ export function ActivityFeed({
       </div>
     </Card>
   );
+}
+
+function formatActivityTime(date: Date) {
+  const dayDifference = differenceInCalendarDays(date, new Date());
+  if (dayDifference === -1) return "Yesterday";
+  if (dayDifference === 1) return "Tomorrow";
+  return formatDistanceToNowStrict(date, { addSuffix: true });
 }

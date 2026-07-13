@@ -1,128 +1,27 @@
-﻿import crypto from "node:crypto";
+import crypto from "node:crypto";
+import { Prisma } from "@prisma/client";
 import axios from "axios";
 import * as cheerio from "cheerio";
 import sanitizeHtml from "sanitize-html";
-import { YoutubeTranscript } from "youtube-transcript";
-import { runContentPipeline } from "@/lib/ai/pipeline";
 import { prisma } from "@/lib/prisma/client";
 import { getStoredProject, saveStoredProject } from "@/lib/projects/store";
-import type { Project } from "@/lib/types";
+import { extractYouTubeSource, extractYouTubeVideoId } from "@/lib/v1/youtube-source";
+import type { Project, SourceSummary } from "@/lib/types";
 
-/**
- * Extracts the YouTube video ID from any supported URL format:
- *   - youtube.com/watch?v=VIDEO_ID
- *   - youtube.com/shorts/VIDEO_ID
- *   - youtu.be/VIDEO_ID
- *
- * Returns null if no valid video ID is found.
- */
-export function extractYouTubeVideoId(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname.replace(/^www\./, "");
+export class IngestError extends Error {
+  code: string;
 
-    if (hostname === "youtu.be") {
-      const id = parsed.pathname.slice(1).split("/")[0];
-      return id.length === 11 ? id : null;
-    }
-
-    if (hostname === "youtube.com") {
-      // /watch?v=
-      const v = parsed.searchParams.get("v");
-      if (v && v.length === 11) return v;
-
-      // /shorts/VIDEO_ID or /embed/VIDEO_ID or /v/VIDEO_ID
-      const match = parsed.pathname.match(/\/(?:shorts|embed|v)\/([a-zA-Z0-9_-]{11})/);
-      if (match) return match[1];
-    }
-  } catch {
-    // URL constructor throws on invalid URLs
+  constructor(code: string, message: string) {
+    super(message);
+    this.name = "IngestError";
+    this.code = code;
   }
-  return null;
 }
 
-/**
- * Fetches the transcript for a YouTube video using the youtube-transcript package.
- * Throws if the transcript is unavailable or too short to be useful.
- */
-async function fetchYouTubeTranscript(videoId: string): Promise<string> {
-  console.log("[ingest:youtube] Fetching transcript for videoId:", videoId);
+export { extractYouTubeVideoId };
 
-  let segments;
-  try {
-    segments = await YoutubeTranscript.fetchTranscript(videoId);
-    console.log(
-      "[ingest:youtube] Transcript fetch SUCCESS - segments count:",
-      segments?.length ?? 0
-    );
-  } catch (error) {
-    console.error(
-      "[ingest:youtube] Transcript fetch FAILED - Full Error Object:",
-      error
-    );
-    if (error instanceof Error) {
-      console.error("[ingest:youtube] Error message:", error.message);
-      console.error("[ingest:youtube] Error stack:", error.stack);
-      console.error("[ingest:youtube] Error name:", error.name);
-      console.error("[ingest:youtube] Error constructor:", error.constructor.name);
-    }
-    if (typeof error === "object" && error !== null) {
-      console.error("[ingest:youtube] Error keys:", Object.keys(error));
-      for (const key of Object.keys(error)) {
-        console.error(`[ingest:youtube] error.${key}:`, (error as Record<string, unknown>)[key]);
-      }
-    }
-    throw new Response(
-      JSON.stringify({ error: "Transcript unavailable" }),
-      { status: 422 },
-    );
-  }
-
-  // Check for explicit silent failure: null/undefined returned without throwing
-  if (!segments) {
-    console.error("[ingest:youtube] SILENT FAILURE - segments is null/undefined");
-    throw new Response(
-      JSON.stringify({ error: "Transcript unavailable" }),
-      { status: 422 },
-    );
-  }
-
-  if (segments.length === 0) {
-    console.error(
-      "[ingest:youtube] SILENT FAILURE - Empty array returned (no captions or access denied)"
-    );
-    throw new Response(
-      JSON.stringify({ error: "Transcript unavailable" }),
-      { status: 422 },
-    );
-  }
-
-  const transcript = segments
-    .map((segment) => segment.text.trim())
-    .filter(Boolean)
-    .join(" ");
-
-  console.log("[ingest:youtube] Transcript length (chars):", transcript.length);
-
-  if (transcript.length === 0) {
-    console.error(
-      "[ingest:youtube] SILENT FAILURE - All segments filtered to empty string"
-    );
-    throw new Response(
-      JSON.stringify({ error: "Transcript unavailable" }),
-      { status: 422 },
-    );
-  }
-
-  if (transcript.length < 50) {
-    console.error("[ingest:youtube] Transcript too short:", transcript.length);
-    throw new Response(
-      JSON.stringify({ error: "Unable to extract content from the video." }),
-      { status: 422 },
-    );
-  }
-
-  return transcript;
+export async function ingestYoutubeTranscriptOnly(url: string, userId: string): Promise<Project> {
+  return ingestYoutube(url, userId);
 }
 
 export async function ingestYoutube(url: string, userId: string): Promise<Project> {
@@ -130,124 +29,87 @@ export async function ingestYoutube(url: string, userId: string): Promise<Projec
     return getStoredProject("demo-ai-youtube")!;
   }
 
-  const videoId = extractYouTubeVideoId(url);
-  if (!videoId) {
-    throw new Response(
-      JSON.stringify({
-        error: "Invalid YouTube URL. Supported formats: youtube.com/watch?v=, youtube.com/shorts/, youtu.be/",
-        code: "invalid_youtube_url",
-      }),
-      { status: 400 },
-    );
-  }
-
-  // Load user voice preferences
-  const brandVoice = await prisma.brandVoice.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  });
-
-  // Fetch watch page metadata if available to seed title/desc
-  let titleSeed = `YouTube video ${videoId}`;
-  let descSeed = "";
   try {
-    const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    const res = await axios.get(watchUrl, {
-      timeout: 5000,
-      headers: { "User-Agent": "Mozilla/5.0" }
-    });
-    const $ = cheerio.load(res.data);
-    titleSeed = $("title").text().trim() || titleSeed;
-    descSeed = $("meta[name='description']").attr("content")?.trim() || "";
-  } catch (e) {
-    console.error("[ingest:youtube] Metadata pre-fetch failed:", e);
-  }
-
-  const pipelineResult = await runContentPipeline({
-    url,
-    userId,
-    sourceType: "YOUTUBE",
-    title: titleSeed,
-    description: descSeed,
-    tonePref: brandVoice?.toneDescriptors?.[0] || "casual",
-    samplePosts: brandVoice?.samplePosts || [],
-    bannedWords: brandVoice?.bannedWords || [],
-  });
-
-  const { title, transcript, summary, hooks, contents } = pipelineResult;
-  const wordCount = transcript.split(/\s+/).filter(Boolean).length;
-  const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-  const projectId = `youtube-${hash(url).slice(0, 10)}-${userId}`;
-
-  // Persist project
-  try {
-    await prisma.project.create({
-      data: {
-        id: projectId,
-        userId,
-        title,
-        sourceType: "youtube",
-        sourceUrl: url,
-        thumbnailUrl,
-        transcript,
-        summary: summary as any,
-        wordCount,
-        hooks: {
-          create: hooks.map((h) => ({
-            id: h.id,
-            text: h.text,
-            hookType: h.hookType,
-            reachScore: h.reachScore,
-          })),
-        },
-        contents: {
-          create: contents.map((c) => ({
-            id: c.id,
-            hookId: c.hookId,
-            platform: c.platform,
-            contentType: c.contentType,
-            body: c.body,
-            originalBody: c.originalBody,
-            tone: c.tone,
-            approved: c.approved,
-            order: c.order,
-          })),
-        },
+    const source = await extractYouTubeSource(url);
+    const project = buildProject({
+      id: `youtube-${hash(`${source.url}:${userId}`).slice(0, 10)}-${userId}`,
+      userId,
+      title: source.title,
+      sourceType: "YOUTUBE",
+      sourceUrl: source.url,
+      thumbnailUrl: source.thumbnailUrl,
+      sourceText: source.sourceDocument,
+      transcript: source.sourceDocument,
+      duration: source.durationSeconds,
+      wordCount: countWords(source.transcript || source.sourceDocument),
+      summary: {
+        tldr:
+          source.transcriptStatus === "available"
+            ? `Transcript found (${countWords(source.transcript)} words). Source is ready for V1 generation.`
+            : "Transcript unavailable. Generation will use metadata and description only.",
+        takeaways: [
+          `Channel: ${source.channelName}`,
+          `Published: ${source.publishedDate}`,
+          source.description || "No description was available.",
+        ],
+        hooks: [],
+        detectedTone: "educational",
+        topics: ["youtube", "source repurposing"],
+        targetAudience: "Creators and their audience",
       },
     });
-  } catch (dbError) {
-    console.error("[ingest:youtube] DB write failed:", dbError);
+    await persistProject(project, "youtube");
+    saveStoredProject(project);
+    return project;
+  } catch (error) {
+    if (error instanceof Error && /Invalid YouTube URL/i.test(error.message)) {
+      throw new IngestError("INVALID_URL", error.message);
+    }
+    throw error;
+  }
+}
+
+export async function ingestBlog(url: string, userId: string = "local-user"): Promise<Project> {
+  if (process.env.RECASTR_DEMO_MODE === "true") {
+    return getStoredProject("demo-marketing-blog")!;
   }
 
-  const project: Project = {
-    id: projectId,
-    userId,
-    title,
-    sourceType: "YOUTUBE",
-    sourceUrl: url,
-    thumbnailUrl,
-    transcript,
-    summary,
-    duration: 0,
-    wordCount,
-    hooks,
-    contents,
-    outputs: contents.map((c) => ({
-      id: c.id,
-      projectId,
-      platform: c.platform,
-      outputType: c.contentType,
-      content: c.body,
-      originalContent: c.originalBody,
-      tone: c.tone,
-      approved: c.approved,
-      createdAt: c.createdAt,
-    })),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    status: "DRAFT",
-  };
+  const source = await extractBlogSource(url);
+  const text = [
+    "ARTICLE INFORMATION",
+    "",
+    "Title:",
+    source.title,
+    "",
+    "Description:",
+    source.description || "No description available.",
+    "",
+    "Body:",
+    source.body || source.description || "No article body could be extracted.",
+    "",
+    "END OF SOURCE",
+  ].join("\n");
 
+  const project = buildProject({
+    id: `blog-${hash(`${url}:${userId}`).slice(0, 10)}-${userId}`,
+    userId,
+    title: source.title,
+    sourceType: "BLOG",
+    sourceUrl: url,
+    sourceText: text,
+    transcript: text,
+    wordCount: countWords(text),
+    summary: {
+      tldr: "Article source is ready for V1 generation.",
+      takeaways: [source.description || "Article metadata extracted."],
+      hooks: [],
+      detectedTone: "educational",
+      topics: ["article", "source repurposing"],
+      targetAudience: "Creators and their audience",
+    },
+  });
+
+  await persistProject(project, "blog");
   saveStoredProject(project);
   return project;
 }
@@ -265,101 +127,121 @@ export async function ingestPodcast(fileName = "podcast-upload.mp3"): Promise<Pr
   };
 }
 
-export async function ingestBlog(url: string, userId: string = "local-user"): Promise<Project> {
-  if (process.env.RECASTR_DEMO_MODE === "true") {
-    return getStoredProject("demo-marketing-blog")!;
-  }
-
-  // Load user voice preferences
-  const brandVoice = await prisma.brandVoice.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  });
-
-  const pipelineResult = await runContentPipeline({
-    url,
-    userId,
-    sourceType: "BLOG",
-    tonePref: brandVoice?.toneDescriptors?.[0] || "casual",
-    samplePosts: brandVoice?.samplePosts || [],
-    bannedWords: brandVoice?.bannedWords || [],
-  });
-
-  const { title, transcript, summary, hooks, contents } = pipelineResult;
-  const wordCount = transcript.split(/\s+/).filter(Boolean).length;
-  const projectId = `blog-${hash(url).slice(0, 10)}-${userId}`;
-
-  // Persist project
-  try {
-    await prisma.project.create({
-      data: {
-        id: projectId,
-        userId,
-        title,
-        sourceType: "blog",
-        sourceUrl: url,
-        transcript,
-        summary: summary as any,
-        wordCount,
-        hooks: {
-          create: hooks.map((h) => ({
-            id: h.id,
-            text: h.text,
-            hookType: h.hookType,
-            reachScore: h.reachScore,
-          })),
-        },
-        contents: {
-          create: contents.map((c) => ({
-            id: c.id,
-            hookId: c.hookId,
-            platform: c.platform,
-            contentType: c.contentType,
-            body: c.body,
-            originalBody: c.originalBody,
-            tone: c.tone,
-            approved: c.approved,
-            order: c.order,
-          })),
-        },
-      },
-    });
-  } catch (dbError) {
-    console.error("[ingest:blog] DB write failed:", dbError);
-  }
-
-  const project: Project = {
-    id: projectId,
-    userId,
-    title,
-    sourceType: "BLOG",
-    sourceUrl: url,
-    transcript,
-    summary,
-    duration: 0,
-    wordCount,
-    hooks,
-    contents,
-    outputs: contents.map((c) => ({
-      id: c.id,
-      projectId,
-      platform: c.platform,
-      outputType: c.contentType,
-      content: c.body,
-      originalContent: c.originalBody,
-      tone: c.tone,
-      approved: c.approved,
-      createdAt: c.createdAt,
-    })),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    status: "DRAFT",
-  };
-
-  saveStoredProject(project);
-  return project;
-}
-
 export function hash(value: string | Buffer) {
   return crypto.createHash("md5").update(value).digest("hex");
+}
+
+function buildProject({
+  id,
+  userId,
+  title,
+  sourceType,
+  sourceUrl,
+  thumbnailUrl,
+  sourceText,
+  transcript,
+  duration,
+  wordCount,
+  summary,
+}: {
+  id: string;
+  userId: string;
+  title: string;
+  sourceType: Project["sourceType"];
+  sourceUrl: string;
+  thumbnailUrl?: string;
+  sourceText: string;
+  transcript: string;
+  duration?: number;
+  wordCount: number;
+  summary: SourceSummary;
+}): Project {
+  const now = new Date().toISOString();
+  return {
+    id,
+    userId,
+    title,
+    sourceType,
+    sourceUrl,
+    thumbnailUrl,
+    sourceText,
+    transcript,
+    duration,
+    wordCount,
+    summary,
+    hooks: [],
+    contents: [],
+    outputs: [],
+    createdAt: now,
+    updatedAt: now,
+    status: "DRAFT",
+  };
+}
+
+async function persistProject(project: Project, dbSourceType: string) {
+  await prisma.project.upsert({
+    where: { id: project.id },
+    update: {
+      title: project.title,
+      sourceUrl: project.sourceUrl,
+      sourceText: project.sourceText,
+      sourceType: dbSourceType,
+      thumbnailUrl: project.thumbnailUrl,
+      transcript: project.transcript,
+      summary: project.summary as Prisma.InputJsonValue,
+      duration: project.duration,
+      wordCount: project.wordCount,
+      hooks: { deleteMany: {} },
+      contents: { deleteMany: {} },
+    },
+    create: {
+      id: project.id,
+      userId: project.userId ?? "local-user",
+      title: project.title,
+      sourceUrl: project.sourceUrl,
+      sourceText: project.sourceText,
+      sourceType: dbSourceType,
+      thumbnailUrl: project.thumbnailUrl,
+      transcript: project.transcript,
+      summary: project.summary as Prisma.InputJsonValue,
+      duration: project.duration,
+      wordCount: project.wordCount,
+    },
+  });
+}
+
+async function extractBlogSource(url: string) {
+  const response = await axios.get<string>(url, {
+    timeout: 10000,
+    headers: { "User-Agent": "Mozilla/5.0" },
+  });
+  const $ = cheerio.load(response.data);
+  $("script, style, nav, footer, aside").remove();
+
+  const title =
+    cleanText($("meta[property='og:title']").attr("content")) ||
+    cleanText($("title").text()) ||
+    "Imported article";
+  const description =
+    cleanText($("meta[name='description']").attr("content")) ||
+    cleanText($("meta[property='og:description']").attr("content"));
+  const body = sanitizeHtml($("article").text() || $("main").text() || $("body").text(), {
+    allowedTags: [],
+    allowedAttributes: {},
+  })
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 12_000)
+    .join(" ");
+
+  return { title, description, body };
+}
+
+function countWords(value: string) {
+  return value.split(/\s+/).filter(Boolean).length;
+}
+
+function cleanText(value: unknown) {
+  return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
 }

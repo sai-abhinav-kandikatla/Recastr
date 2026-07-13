@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   const parsed = verifySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return err("Invalid verification code", "invalid_mfa_code", 400);
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const {
     data: { user },
     error: userError,

@@ -1,22 +1,13 @@
 import axios, { AxiosError } from "axios";
 import { YoutubeTranscript } from "youtube-transcript";
-import { env } from "@/lib/env";
 
 const MIN_TRANSCRIPT_WORDS = 50;
-const SUPADATA_BASE_URL = "https://api.supadata.ai/v1";
+const DEBUG_TRANSCRIPT_LOGS = process.env.RECASTR_DEBUG_TRANSCRIPTS === "true" && process.env.NODE_ENV !== "production";
 
-type TranscriptProvider = "youtube-transcript" | "watch-page" | "nvidia-nim" | "supadata";
-
-export type SupadataTranscriptResponse = {
-  content?: string | Array<{ text?: string }>;
-  jobId?: string;
-  status?: "queued" | "active" | "completed" | "failed";
-  error?: string | { message?: string };
-};
+type TranscriptProvider = "youtube-oembed" | "youtube-transcript" | "watch-page";
 
 type TranscriptErrorCode =
   | "INVALID_URL"
-  | "INVALID_API_KEY"
   | "NO_CAPTIONS"
   | "PRIVATE_VIDEO"
   | "AGE_RESTRICTED"
@@ -141,9 +132,7 @@ export async function getYouTubeTranscript(videoUrl: string): Promise<{
       throw new TranscriptError({ code: "INVALID_URL", provider: "url-normalizer", reason: "Unable to extract a YouTube video ID." });
     }
 
-    console.log(`[Transcript] Incoming URL: ${videoUrl}`);
-    console.log(`[Transcript] Normalized URL: ${normalizedUrl}`);
-    console.log(`[Transcript] Video ID: ${videoId}`);
+    logTranscriptDebug("normalized-url", { videoId });
 
     const result = await fetchTranscriptResult(normalizedUrl, videoId);
     return {
@@ -179,24 +168,20 @@ export async function fetchTranscript(videoIdOrUrl: string): Promise<string> {
 async function fetchTranscriptResult(videoUrl: string, videoId: string): Promise<ProviderResult> {
   const failures: ProviderFailure[] = [];
 
-  // Provider 1: Supadata (canonical)
-  if (env.supadataKey) {
-    try {
-      return await runProvider("supadata", () => fetchSupadataTranscriptWithRetry(videoUrl, videoId), 45000);
-    } catch (e: any) {
-      failures.push(toProviderFailure(e));
-      console.warn(`[Transcript Pipeline] Supadata failed. Trying next fallback provider...`);
-    }
-  } else {
-    failures.push({
-      provider: "supadata",
-      code: "INVALID_API_KEY",
-      reason: "SUPADATA_API_KEY environment variable is not configured.",
-      durationMs: 0,
+  try {
+    await runAvailabilityCheck(videoUrl);
+  } catch (error) {
+    failures.push(toProviderFailure(error));
+    const failure = failures[0];
+    logTranscriptDebug("availability-check-failed", failure);
+    throw new TranscriptError({
+      code: failure.code,
+      provider: failure.provider,
+      reason: failure.reason,
+      failures,
     });
   }
 
-  // Fallbacks: Scrapers
   const lightweightProviders: Array<() => Promise<ProviderResult>> = [
     () => runProvider("youtube-transcript", () => fetchWithYoutubeTranscriptLib(videoId), 7000),
     () => runProvider("watch-page", () => scrapeWatchPageCaptions(videoUrl), 8000),
@@ -206,20 +191,49 @@ async function fetchTranscriptResult(videoUrl: string, videoId: string): Promise
   if (lightResult) return lightResult;
 
   const dominant = chooseDominantFailure(failures);
-  console.error("[Transcript] All providers failed:", JSON.stringify(failures));
-
-  let finalReason = dominant.reason;
-  // If the failure reason indicates a bot block and the user hasn't set the Supadata key, suggest setting it.
-  if (!env.supadataKey && (dominant.reason.toLowerCase().includes("bot") || dominant.reason.toLowerCase().includes("sign in"))) {
-    finalReason = "YouTube blocked the scraper with a bot challenge ('Sign in to confirm you're not a bot'). Configure SUPADATA_API_KEY in your environment variables to bypass this challenge.";
-  }
-
+  logTranscriptDebug("all-providers-failed", { failures });
   throw new TranscriptError({
     code: dominant.code,
     provider: dominant.provider,
-    reason: finalReason,
+    reason: normalizeFinalReason(dominant),
     failures,
   });
+}
+
+async function runAvailabilityCheck(videoUrl: string) {
+  const startedAt = Date.now();
+  logTranscriptDebug("provider-start", { provider: "youtube-oembed" });
+  try {
+    const response = await axios.get(`https://www.youtube.com/oembed`, {
+      params: { url: videoUrl, format: "json" },
+      timeout: 3500,
+      validateStatus: () => true,
+    });
+
+    if (response.status === 404 || response.status === 410) {
+      throw new TranscriptError({ code: "VIDEO_UNAVAILABLE", provider: "youtube-oembed", reason: "Video unavailable." });
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw new TranscriptError({ code: "PRIVATE_VIDEO", provider: "youtube-oembed", reason: "This video is private or restricted." });
+    }
+    if (response.status === 429) {
+      throw new TranscriptError({ code: "TRANSCRIPT_QUOTA_EXCEEDED", provider: "youtube-oembed", reason: "YouTube availability check was rate limited." });
+    }
+    if (response.status < 200 || response.status >= 300) {
+      throw new TranscriptError({ code: "NETWORK_FAILURE", provider: "youtube-oembed", reason: `YouTube availability check returned HTTP ${response.status}.` });
+    }
+
+    logTranscriptDebug("provider-success", { provider: "youtube-oembed", durationMs: Date.now() - startedAt });
+  } catch (error) {
+    const classified = toTranscriptError(error, "youtube-oembed");
+    logTranscriptDebug("provider-failed", { provider: "youtube-oembed", durationMs: Date.now() - startedAt, code: classified.code });
+    throw new TranscriptError({
+      code: classified.code,
+      provider: "youtube-oembed",
+      reason: classified.reason,
+      failures: [{ provider: "youtube-oembed", code: classified.code, reason: classified.reason, durationMs: Date.now() - startedAt }],
+    });
+  }
 }
 
 function firstSuccessfulProvider(
@@ -247,24 +261,17 @@ async function runProvider(
   timeoutMs: number,
 ): Promise<ProviderResult> {
   const startedAt = Date.now();
-  console.log(`[Transcript Provider] START provider=${provider}`);
+  logTranscriptDebug("provider-start", { provider });
   try {
-    const transcript = await withTimeout(
-      withRetry(fetcher, {
-        retries: provider === "nvidia-nim" || provider === "supadata" ? 0 : 2,
-        provider,
-      }),
-      timeoutMs,
-      provider,
-    );
+    const transcript = await withTimeout(withRetry(fetcher, { retries: 2, provider }), timeoutMs, provider);
     const normalized = normalizeAndValidateTranscript(transcript, provider);
     const durationMs = Date.now() - startedAt;
-    console.log(`[Transcript Provider] SUCCESS provider=${provider} duration=${durationMs}ms length=${normalized.length} words=${wordCount(normalized)}`);
+    logTranscriptDebug("provider-success", { provider, durationMs, normalizedLength: normalized.length, words: wordCount(normalized) });
     return { provider, transcript: normalized, durationMs };
   } catch (error) {
     const durationMs = Date.now() - startedAt;
     const classified = toTranscriptError(error, provider);
-    console.error(`[Transcript Provider] FAILED provider=${provider} duration=${durationMs}ms code=${classified.code} reason=${classified.reason}`);
+    logTranscriptDebug("provider-failed", { provider, durationMs, code: classified.code });
     throw new TranscriptError({
       code: classified.code,
       provider,
@@ -272,161 +279,6 @@ async function runProvider(
       failures: [{ provider, code: classified.code, reason: classified.reason, durationMs }],
     });
   }
-}
-
-async function fetchSupadataTranscriptWithRetry(videoUrl: string, videoId: string): Promise<string> {
-  let attempt = 0;
-  const maxAttempts = 3;
-  let lastError: any = null;
-
-  while (attempt < maxAttempts) {
-    attempt++;
-    const startTime = Date.now();
-    console.log(`[Supadata Client] START - Attempt ${attempt}/${maxAttempts}\n- Input: ${videoUrl}`);
-
-    try {
-      const response = await axios.get<SupadataTranscriptResponse>(`${SUPADATA_BASE_URL}/transcript`, {
-        headers: { "x-api-key": env.supadataKey },
-        params: {
-          url: videoUrl,
-          lang: "en",
-          text: true,
-          mode: "native",
-        },
-        timeout: 30000,
-        validateStatus: () => true, // capture raw error details
-      });
-
-      const elapsedMs = Date.now() - startTime;
-      console.log(`[Supadata Client] response status: ${response.status}, elapsed: ${elapsedMs}ms`);
-
-      if (response.status === 202 && response.data.jobId) {
-        return await pollSupadataJob(response.data.jobId, videoUrl, videoId);
-      }
-
-      if (response.status === 206) {
-        throw new TranscriptError({ code: "NO_CAPTIONS", provider: "supadata", reason: "Supadata returned transcript unavailable for existing captions." });
-      }
-
-      if (response.status === 401 || response.status === 403) {
-        throw new TranscriptError({ code: "INVALID_API_KEY", provider: "supadata", reason: "Invalid API key configured for Supadata." });
-      }
-
-      if (response.status === 429) {
-        throw new TranscriptError({ code: "TRANSCRIPT_QUOTA_EXCEEDED", provider: "supadata", reason: "Transcript provider quota exceeded." });
-      }
-
-      if (response.status < 200 || response.status >= 300) {
-        const errorMsg = readSupadataError(response.data);
-        throw new TranscriptError({ code: "TRANSCRIPT_UNAVAILABLE", provider: "supadata", reason: `Supadata transcript request failed with HTTP ${response.status}: ${errorMsg}` });
-      }
-
-      const content = readSupadataContent(response.data);
-      const transcript = normalizeAndValidateTranscript(content, "supadata");
-      return transcript;
-    } catch (error: any) {
-      const elapsedMs = Date.now() - startTime;
-      console.error(`[Supadata Client] FAILED - Attempt ${attempt}/${maxAttempts}\n- Duration: ${elapsedMs}ms`);
-      console.error(`- Provider: supadata`);
-      console.error(`- Video ID: ${videoId}`);
-      console.error(`- Normalized URL: ${videoUrl}`);
-      
-      if (error.response) {
-        console.error(`- HTTP Status: ${error.response.status}`);
-        console.error(`- Response Body:`, JSON.stringify(error.response.data));
-      } else {
-        console.error(`- Error: ${error.message || error}`);
-      }
-
-      lastError = error;
-
-      // Do not retry on permanent errors
-      if (error instanceof TranscriptError && 
-         (error.code === "NO_CAPTIONS" || error.code === "INVALID_API_KEY" || error.code === "TRANSCRIPT_QUOTA_EXCEEDED")) {
-        throw error;
-      }
-
-      if (attempt < maxAttempts) {
-        const backoff = attempt * 1000;
-        console.log(`[Supadata Client] Retrying after ${backoff}ms backoff...`);
-        await new Promise((resolve) => setTimeout(resolve, backoff));
-      }
-    }
-  }
-
-  throw lastError || new TranscriptError({ code: "TRANSCRIPT_UNAVAILABLE", provider: "supadata", reason: "Supadata failed after retries." });
-}
-
-async function pollSupadataJob(jobId: string, videoUrl: string, videoId: string): Promise<string> {
-  const deadline = Date.now() + 55000;
-  let lastStatus = "queued";
-  const pollStartTime = Date.now();
-
-  while (Date.now() < deadline) {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    const stepStart = Date.now();
-    console.log(`[Supadata Client Poll] START - Job ${jobId}`);
-
-    try {
-      const response = await axios.get<SupadataTranscriptResponse>(`${SUPADATA_BASE_URL}/transcript/${jobId}`, {
-        headers: { "x-api-key": env.supadataKey },
-        timeout: 15000,
-        validateStatus: () => true,
-      });
-
-      const elapsedMs = Date.now() - stepStart;
-      console.log(`[Supadata Client Poll] response status: ${response.status}, elapsed: ${elapsedMs}ms`);
-
-      if (response.status < 200 || response.status >= 300) {
-        const errorMsg = readSupadataError(response.data);
-        throw new TranscriptError({ code: "TRANSCRIPT_UNAVAILABLE", provider: "supadata", reason: `Supadata job check failed with HTTP ${response.status}: ${errorMsg}` });
-      }
-
-      lastStatus = response.data.status ?? lastStatus;
-      if (response.data.status === "failed") {
-        const errorMsg = readSupadataError(response.data);
-        throw new TranscriptError({ code: "TRANSCRIPT_UNAVAILABLE", provider: "supadata", reason: `Supadata job failed: ${errorMsg}` });
-      }
-
-      if (response.data.status === "completed" || response.data.content) {
-        const content = readSupadataContent(response.data);
-        const transcript = normalizeAndValidateTranscript(content, "supadata");
-        return transcript;
-      }
-    } catch (error: any) {
-      console.error(`[Supadata Client Poll] FAILED - Job ${jobId}`);
-      console.error(`- Provider: supadata`);
-      console.error(`- Video ID: ${videoId}`);
-      console.error(`- Normalized URL: ${videoUrl}`);
-      if (error.response) {
-        console.error(`- HTTP Status: ${error.response.status}`);
-        console.error(`- Response Body:`, JSON.stringify(error.response.data));
-      } else {
-        console.error(`- Error: ${error.message || error}`);
-      }
-      throw error;
-    }
-  }
-
-  throw new TranscriptError({ code: "PROVIDER_TIMEOUT", provider: "supadata", reason: `Supadata transcript job ${jobId} timed out while status was ${lastStatus}.` });
-}
-
-function readSupadataContent(payload: SupadataTranscriptResponse): string {
-  if (typeof payload.content === "string") return payload.content;
-  if (Array.isArray(payload.content)) {
-    return payload.content
-      .map((item) => item.text?.trim() ?? "")
-      .filter(Boolean)
-      .join(" ");
-  }
-  return "";
-}
-
-function readSupadataError(payload: SupadataTranscriptResponse): string {
-  if (!payload) return "empty response";
-  if (typeof payload.error === "string") return payload.error;
-  if (payload.error?.message) return payload.error.message;
-  return JSON.stringify(payload);
 }
 
 async function fetchWithYoutubeTranscriptLib(videoId: string): Promise<string> {
@@ -478,19 +330,11 @@ async function scrapeWatchPageCaptions(videoUrl: string): Promise<string> {
         : parseJsonCaption(captionResponse.data);
       if (wordCount(text) >= MIN_TRANSCRIPT_WORDS) return text;
     } catch (error) {
-      console.warn(`[Transcript Provider] watch-page caption URL failed: ${error instanceof Error ? error.message : String(error)}`);
+      logTranscriptDebug("watch-page-caption-url-failed", { message: error instanceof Error ? error.message : String(error) });
     }
   }
 
   throw new TranscriptError({ code: "NO_CAPTIONS", provider: "watch-page", reason: "Caption tracks existed, but none returned usable transcript text." });
-}
-
-async function fetchTranscriptWithNIM(videoUrl: string, videoId: string): Promise<string> {
-  throw new TranscriptError({
-    code: "NO_CAPTIONS",
-    provider: "nvidia-nim",
-    reason: "Transcript web search fallback is not supported on NVIDIA NIM.",
-  });
 }
 
 async function withRetry<T>(
@@ -506,7 +350,7 @@ async function withRetry<T>(
       const transcriptError = toTranscriptError(error, provider);
       if (!isRetryable(transcriptError) || attempt === retries) break;
       const backoffMs = 350 * 2 ** attempt;
-      console.warn(`[Transcript Provider] retry provider=${provider} attempt=${attempt + 1} backoff=${backoffMs}ms code=${transcriptError.code}`);
+      logTranscriptDebug("provider-retry", { provider, attempt: attempt + 1, backoffMs, code: transcriptError.code });
       await delay(backoffMs);
     }
   }
@@ -537,15 +381,16 @@ function toTranscriptError(error: unknown, provider: string): TranscriptError {
   const message = error instanceof Error ? error.message : String(error);
   const lower = message.toLowerCase();
   let code: TranscriptErrorCode = "TRANSCRIPT_UNAVAILABLE";
-  if (lower.includes("private")) code = "PRIVATE_VIDEO";
+  if (lower.includes("not a bot") || lower.includes("unusual traffic")) code = "NETWORK_FAILURE";
+  else if (lower.includes("private")) code = "PRIVATE_VIDEO";
   else if (lower.includes("age") && lower.includes("restrict")) code = "AGE_RESTRICTED";
   else if (lower.includes("region") || lower.includes("geo")) code = "REGION_BLOCKED";
   else if (lower.includes("live")) code = "LIVE_STREAM_UNSUPPORTED";
-  else if (lower.includes("not a bot") || lower.includes("unusual traffic")) code = "NETWORK_FAILURE";
   else if (lower.includes("disabled")) code = "TRANSCRIPT_DISABLED";
   else if (lower.includes("caption") || lower.includes("subtitle") || lower.includes("transcript")) code = "NO_CAPTIONS";
   else if (lower.includes("quota") || lower.includes("429") || lower.includes("too many")) code = "TRANSCRIPT_QUOTA_EXCEEDED";
   else if (lower.includes("timeout") || lower.includes("timed out")) code = "PROVIDER_TIMEOUT";
+  else if (lower.includes("unavailable") || lower.includes("not found")) code = "VIDEO_UNAVAILABLE";
   else if (isAxiosNetworkError(error)) code = "NETWORK_FAILURE";
 
   return new TranscriptError({ code, provider, reason: message });
@@ -571,20 +416,28 @@ function chooseDominantFailure(failures: ProviderFailure[]): ProviderFailure {
     "VIDEO_UNAVAILABLE",
     "LIVE_STREAM_UNSUPPORTED",
     "TRANSCRIPT_QUOTA_EXCEEDED",
-    "NETWORK_FAILURE",
     "TRANSCRIPT_DISABLED",
     "NO_CAPTIONS",
     "PROVIDER_TIMEOUT",
+    "NETWORK_FAILURE",
   ];
   return (
     priority.map((code) => failures.find((failure) => failure.code === code)).find(Boolean) ??
     failures[0] ?? {
-      provider: "nvidia-nim",
+      provider: "youtube-transcript",
       code: "TRANSCRIPT_UNAVAILABLE",
       reason: "All transcript providers failed.",
       durationMs: 0,
     }
   );
+}
+
+function normalizeFinalReason(failure: ProviderFailure) {
+  const lower = failure.reason.toLowerCase();
+  if (lower.includes("not a bot") || lower.includes("unusual traffic")) {
+    return "YouTube blocked automatic transcript access from the server. Paste the transcript manually or try another public video with captions.";
+  }
+  return failure.reason;
 }
 
 function isRetryable(error: TranscriptError) {
@@ -667,11 +520,16 @@ function extractInitialPlayerResponse(html: string): {
 function normalizeAndValidateTranscript(raw: string, provider: string) {
   const transcript = normalizeTranscript(raw);
   const words = wordCount(transcript);
-  console.log(`[Transcript Normalizer] provider=${provider} rawChars=${raw?.length ?? 0} normalizedChars=${transcript.length} words=${words}`);
+  logTranscriptDebug("normalizer", { provider, rawChars: raw?.length ?? 0, normalizedChars: transcript.length, words });
   if (words < MIN_TRANSCRIPT_WORDS) {
     throw new TranscriptError({ code: "NO_CAPTIONS", provider, reason: `Transcript is too short after normalization (${words} words; minimum is ${MIN_TRANSCRIPT_WORDS}).` });
   }
   return transcript;
+}
+
+function logTranscriptDebug(event: string, metadata: Record<string, unknown>) {
+  if (!DEBUG_TRANSCRIPT_LOGS) return;
+  console.info(`[Transcript Debug] ${event}`, metadata);
 }
 
 function normalizeTranscript(value: string) {

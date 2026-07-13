@@ -87,8 +87,7 @@ async function loadTasksData(userId?: string): Promise<{
         orderBy: { scheduledAt: "asc" },
       }),
     ]),
-    4000,
-    [[], []],
+    8000,
   );
 
   return {
@@ -119,11 +118,12 @@ function shouldUseLocalSchedules() {
   return process.env.NODE_ENV !== "production" || process.env.RECASTR_DEMO_MODE === "true";
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, fallback: T) {
-  return Promise.race([
-    promise,
-    new Promise<T>((resolve) => {
-      setTimeout(() => resolve(fallback), timeoutMs);
-    }),
-  ]);
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("Tasks database request timed out")), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
 }

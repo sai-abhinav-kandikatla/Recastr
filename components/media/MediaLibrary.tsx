@@ -215,6 +215,7 @@ export function MediaLibrary() {
                   {/* Visual Preview */}
                   <div className="relative aspect-video w-full bg-[#151515] flex items-center justify-center border-b border-[#232323]">
                     {isImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- Media previews are local data URLs, not remote optimizable assets.
                       <img
                         src={item.url}
                         alt={item.name}

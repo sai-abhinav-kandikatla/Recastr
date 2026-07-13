@@ -22,10 +22,10 @@ export function VerifyEmailBanner({ email, next }: { email?: string; next?: stri
         </p>
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Button asChild className="rounded-full bg-[var(--violet)] text-black hover:bg-[var(--violet-hover)]">
-            <Link href={`/login${next ? `?next=${encodeURIComponent(next)}` : ""}`}>Go to sign in</Link>
+            <Link href={`/login${next ? `?next=${encodeURIComponent(next)}` : ""}`} prefetch={false}>Go to sign in</Link>
           </Button>
           <Button asChild className="rounded-xl" variant="outline">
-            <Link href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ""}`}>Use another email</Link>
+            <Link href={`/signup${next ? `?next=${encodeURIComponent(next)}` : ""}`} prefetch={false}>Use another email</Link>
           </Button>
         </div>
       </section>

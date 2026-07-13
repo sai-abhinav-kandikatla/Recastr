@@ -28,7 +28,9 @@ type ScheduleRecoveryPayload = {
 export async function GET(request: Request) {
   try {
     const user = await getRequestUser(request);
-    await processDueScheduledNotifications({ userId: user.id });
+    void processDueScheduledNotifications({ userId: user.id }).catch((error) => {
+      console.error("Failed to process due scheduled notifications in background:", error);
+    });
 
     const localPosts = shouldUseLocalSchedules()
       ? listStoredScheduledPosts().filter((post) => ["PENDING", "SCHEDULED"].includes(post.status))
@@ -39,7 +41,18 @@ export async function GET(request: Request) {
 
     const posts = await prisma.scheduledPost.findMany({
       where: { userId: user.id },
-      include: { content: true },
+      select: {
+        id: true,
+        contentId: true,
+        platform: true,
+        postingMethod: true,
+        scheduledAt: true,
+        status: true,
+        timezone: true,
+        verificationRequired: true,
+        verifiedByUser: true,
+        content: { select: { contentType: true } },
+      },
       orderBy: { scheduledAt: "asc" },
     });
 

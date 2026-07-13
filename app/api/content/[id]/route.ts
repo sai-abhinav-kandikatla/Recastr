@@ -10,25 +10,26 @@ export const runtime = "nodejs";
 const patchContentSchema = z.object({
   body: z.string().min(1).max(20_000).optional(),
   approved: z.boolean().optional(),
-  tone: z.enum(["professional", "casual", "educational", "entertaining"]).optional(),
+  tone: z.string().trim().min(1).optional(),
 });
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const user = await getRequestUser(request);
     const payload = patchContentSchema.parse(await request.json());
 
-    if (process.env.RECASTR_DEMO_MODE === "true" || isLocalContent(params.id)) {
-      const updated = updateStoredContent(params.id, payload);
-      return NextResponse.json({ content: updated ?? { id: params.id, ...payload } });
+    if (process.env.RECASTR_DEMO_MODE === "true" || isLocalContent(id)) {
+      const updated = updateStoredContent(id, payload);
+      return NextResponse.json({ content: updated ?? { id, ...payload } });
     }
 
     const existing = await prisma.content.findFirst({
       where: {
-        id: params.id,
+        id,
         project: { userId: user.id },
       },
       select: { id: true, platform: true, body: true, approved: true },
@@ -55,7 +56,7 @@ export async function PATCH(
     }
 
     const content = await prisma.content.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         body: payload.body,
         approved: payload.body && payload.body.length > limit && existing.approved ? false : payload.approved,

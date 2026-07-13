@@ -61,6 +61,10 @@ export async function generateAIText({
   }
   messages.push({ role: "user", content: prompt });
 
+  console.log("[AI Client] prompt length:", prompt.length);
+  console.log("[AI Client] resolvedModel:", resolvedModel);
+  console.log("[AI Client] sending completions request...");
+
   const response = await client.chat.completions.create({
     model: resolvedModel,
     messages,

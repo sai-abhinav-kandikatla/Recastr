@@ -1,10 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ContentOutput } from "@/components/dashboard/ContentOutput";
 import { toast } from "sonner";
-
-const PLATFORMS = ["linkedin", "twitter", "instagram", "reel"];
 
 interface WorkspaceEditorProps {
   project: any;
@@ -12,15 +10,24 @@ interface WorkspaceEditorProps {
 }
 
 export function WorkspaceEditor({ project, defaultPlatform }: WorkspaceEditorProps) {
+  const [localOutputs, setLocalOutputs] = useState(() => project.outputs || []);
+  const generatedPlatforms = useMemo(
+    () => Array.from(new Set(localOutputs.map((output: any) => normalizePlatform(output.platform)))).filter(Boolean) as string[],
+    [localOutputs],
+  );
   const [activePlatform, setActivePlatform] = useState(() => {
     const requested = defaultPlatform.toLowerCase();
-    return PLATFORMS.includes(requested) ? requested : "linkedin";
+    return generatedPlatforms.includes(requested) ? requested : generatedPlatforms[0] ?? "";
   });
-  const [localOutputs, setLocalOutputs] = useState(() => project.outputs || []);
 
   const activePost = localOutputs.find(
-    (p: any) => p.platform.toLowerCase() === activePlatform.toLowerCase()
+    (p: any) => normalizePlatform(p.platform) === activePlatform
   );
+
+  useEffect(() => {
+    if (activePlatform && generatedPlatforms.includes(activePlatform)) return;
+    setActivePlatform(generatedPlatforms[0] ?? "");
+  }, [activePlatform, generatedPlatforms]);
 
   const handleSave = async (newBody: string) => {
     if (!activePost) return;
@@ -64,7 +71,7 @@ export function WorkspaceEditor({ project, defaultPlatform }: WorkspaceEditorPro
         </div>
         <div className="flex items-center gap-2">
           {/* Platform tabs */}
-          {PLATFORMS.map((p) => (
+          {generatedPlatforms.map((p) => (
             <button
               key={p}
               onClick={() => setActivePlatform(p)}
@@ -95,10 +102,21 @@ export function WorkspaceEditor({ project, defaultPlatform }: WorkspaceEditorPro
           />
         ) : (
           <div className="text-center text-neutral-500 py-20 bg-[#111111] rounded-2xl border border-dashed border-[#232323] p-8">
-            <p>No {activePlatform === "twitter" ? "X / Twitter" : activePlatform} content has been generated for this project yet.</p>
+            <p>No content generated yet.</p>
           </div>
         )}
       </main>
     </div>
   );
+}
+
+function normalizePlatform(platform: string) {
+  const value = String(platform || "").toLowerCase();
+  if (value === "twitter") return "twitter";
+  if (value === "linkedin") return "linkedin";
+  if (value === "instagram" || value === "carousel" || value === "story" || value === "reel") return "instagram";
+  if (value === "facebook") return "facebook";
+  if (value === "threads") return "threads";
+  if (value === "community" || value === "youtube") return "youtube";
+  return value;
 }

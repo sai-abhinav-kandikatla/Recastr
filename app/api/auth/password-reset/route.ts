@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     return ok({ message: "If an account exists, a reset link will be sent." });
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const origin = getRequestOrigin(request);
   const createPasswordPath = `/reset-password?mode=change&verified=1&next=${encodeURIComponent(
     "/login?password=updated",

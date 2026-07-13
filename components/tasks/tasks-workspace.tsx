@@ -58,22 +58,28 @@ export function TasksWorkspace({
   const [tab, setTab] = useState<TaskTab>(() => parseTaskTab(tabParam));
   const [scheduledFilter, setScheduledFilter] = useState<ScheduledFilter>("upcoming");
 
-  const { data: dbScheduled = scheduledPosts, isFetching: scheduledLoading } = useQuery<ScheduledPost[]>({
+  const scheduledQuery = useQuery<ScheduledPost[]>({
     queryKey: ["scheduled"],
     queryFn: async () => {
       const res = await fetch("/api/scheduled?filter=all");
-      return readArrayPayload<ScheduledPost>(await res.json().catch(() => []));
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(readApiError(payload, "Could not load scheduled reminders."));
+      return readArrayPayload<ScheduledPost>(payload);
     },
     initialData: scheduledPosts,
   });
+  const { data: dbScheduled = scheduledPosts, isFetching: scheduledLoading } = scheduledQuery;
 
-  const { data: dbHistoryResponse, isFetching: historyLoading } = useQuery<{ items: ScheduledPost[] }>({
+  const historyQuery = useQuery<{ items: ScheduledPost[] }>({
     queryKey: ["history"],
     queryFn: async () => {
       const res = await fetch("/api/history?page=1");
-      return readItemsPayload<ScheduledPost>(await res.json().catch(() => ({ items: [] })));
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(readApiError(payload, "Could not load reminder history."));
+      return readItemsPayload<ScheduledPost>(payload);
     },
   });
+  const { data: dbHistoryResponse, isFetching: historyLoading } = historyQuery;
 
   const localScheduled = useMemo(() => {
     const historyItems = dbHistoryResponse?.items ?? [];
@@ -178,6 +184,20 @@ export function TasksWorkspace({
 
   return (
     <div className="space-y-8">
+      {scheduledQuery.isError || historyQuery.isError ? (
+        <div className="flex flex-col gap-3 border-y border-red-500/20 bg-red-500/5 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-red-100">
+            {scheduledQuery.error?.message ?? historyQuery.error?.message ?? "Tasks could not be refreshed."}
+          </p>
+          <Button
+            onClick={() => void Promise.all([scheduledQuery.refetch(), historyQuery.refetch()])}
+            type="button"
+            variant="secondary"
+          >
+            Retry
+          </Button>
+        </div>
+      ) : null}
       <div>
         <h1 className="text-3xl font-bold font-display tracking-tight flex items-center gap-2">
           <CheckCircle2 className="h-7 w-7 text-primary" />
@@ -743,6 +763,16 @@ function readItemsPayload<T>(payload: unknown): { items: T[] } {
     }
   }
   return { items: [] };
+}
+
+function readApiError(payload: unknown, fallback: string) {
+  if (!payload || typeof payload !== "object") return fallback;
+  const error = (payload as { error?: unknown }).error;
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object" && typeof (error as { message?: unknown }).message === "string") {
+    return (error as { message: string }).message;
+  }
+  return fallback;
 }
 
 function replaceScheduledGroup(

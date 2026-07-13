@@ -38,11 +38,15 @@ type AnalyticsData = {
 };
 
 export default function AnalyticsPage() {
-  const { data, isLoading } = useQuery<AnalyticsData>({
+  const { data, error, isError, isLoading } = useQuery<AnalyticsData>({
     queryKey: ["analytics"],
     queryFn: async () => {
       const res = await fetch("/api/analytics");
-      return res.json();
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error ?? "Could not load analytics");
+      }
+      return payload as AnalyticsData;
     },
   });
 
@@ -60,32 +64,37 @@ export default function AnalyticsPage() {
     );
   }
 
-  const isOnboarding = !data || data.totalGeneratedPosts === 0;
+  if (isError) {
+    return (
+      <AppShell title="Analytics">
+        <PageHeader title="Analytics" backHref="/dashboard" />
+        <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-[var(--app-line)] bg-[var(--app-surface)] p-8 text-center">
+          <AlertCircle className="mb-4 h-10 w-10 text-red-400" />
+          <h2 className="text-xl font-bold text-white">Analytics unavailable</h2>
+          <p className="mt-2 max-w-md text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : "Could not load analytics right now."}
+          </p>
+          <Button asChild className="mt-6 rounded-full">
+            <Link href="/dashboard">Back to dashboard</Link>
+          </Button>
+        </div>
+      </AppShell>
+    );
+  }
 
-  // Onboarding sample data
-  const twitterCount = isOnboarding
-    ? 3
-    : (data.platformCounts.TWITTER || 0) + (data.platformCounts.THREADS || 0);
-  const linkedinCount = isOnboarding
-    ? 2
-    : (data.platformCounts.LINKEDIN || 0);
-  const facebookIgCount = isOnboarding
-    ? 4
-    : (data.platformCounts.FACEBOOK || 0) + (data.platformCounts.INSTAGRAM || 0) + (data.platformCounts.CAROUSEL || 0);
-  const youtubeCount = isOnboarding
-    ? 2
-    : (data.platformCounts.COMMUNITY || 0);
+  if (!data) return null;
 
-  const totalProjects = isOnboarding ? 0 : data.totalProjects;
-  const scheduledCount = isOnboarding ? 0 : data.totalScheduledPosts;
-
-  const chartData = isOnboarding
-    ? Array.from({ length: 14 }).map((_, i) => ({
-        date: new Date(Date.now() - (13 - i) * 24 * 60 * 60 * 1000).toISOString(),
-        created: [2, 0, 3, 0, 2, 4, 0, 1, 3, 0, 2, 4, 0, 3][i],
-        scheduled: [0, 0, 1, 0, 1, 2, 0, 0, 1, 0, 1, 2, 0, 2][i],
-      }))
-    : data.chartData;
+  const isOnboarding = data.totalGeneratedPosts === 0;
+  const twitterCount = (data.platformCounts.TWITTER || 0) + (data.platformCounts.THREADS || 0);
+  const linkedinCount = data.platformCounts.LINKEDIN || 0;
+  const facebookIgCount =
+    (data.platformCounts.FACEBOOK || 0) +
+    (data.platformCounts.INSTAGRAM || 0) +
+    (data.platformCounts.CAROUSEL || 0);
+  const youtubeCount = data.platformCounts.COMMUNITY || 0;
+  const totalProjects = data.totalProjects;
+  const scheduledCount = data.totalScheduledPosts;
+  const chartData = data.chartData;
 
   const maxVal = Math.max(...chartData.map((d) => Math.max(d.created, d.scheduled, 1)), 1);
 
@@ -112,7 +121,7 @@ export default function AnalyticsPage() {
             <div className="flex-1">
               <h3 className="text-base font-semibold text-white">Onboarding Mode</h3>
               <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                You haven't generated any social content packs yet. Below is a preview of how Recastr tracks your metrics with sample data. Analyze your first video to start!
+                You haven't generated any social content packs yet. Your real generation and scheduling metrics will appear here after your first project.
               </p>
               <Button asChild size="sm" className="mt-4 rounded-full bg-[var(--violet)] px-5 text-black hover:bg-[var(--violet-hover)]">
                 <Link href="/generate">
@@ -179,7 +188,7 @@ export default function AnalyticsPage() {
           <div className="rounded-2xl border border-[#232323] bg-[#0F0F0F] p-6 text-center sm:text-left">
             <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Success Rate</p>
             <p className="mt-2 text-3xl font-bold text-white">
-              {isOnboarding ? "100%" : `${data.generationSuccessRate}%`}
+              {`${data.generationSuccessRate}%`}
             </p>
           </div>
         </div>
@@ -209,7 +218,11 @@ export default function AnalyticsPage() {
 
           {/* Bar Chart Graphics */}
           <div className="flex h-48 items-end gap-3 px-2 border-b border-[#232323] pb-2">
-            {chartBars.map((bar, i) => (
+            {chartBars.length === 0 ? (
+              <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+                Activity will appear after you generate or schedule content.
+              </div>
+            ) : chartBars.map((bar, i) => (
               <div
                 key={i}
                 className="flex h-full flex-1 flex-col justify-end"

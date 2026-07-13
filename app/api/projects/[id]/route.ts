@@ -15,13 +15,14 @@ const updateProjectTranscriptSchema = z.object({
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params;
   const user = await getRequestUser(request);
   try {
     const project = await prisma.project.findFirst({
       where: {
-        id: params.id,
+        id,
         userId: user.id,
       },
       select: projectWorkspaceSelect,
@@ -33,7 +34,7 @@ export async function GET(
 
     return NextResponse.json(serializeProject(project));
   } catch {
-    const storedProject = getCachedProject(params.id);
+    const storedProject = getCachedProject(id);
     if (storedProject) return NextResponse.json(storedProject);
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
@@ -41,18 +42,20 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const user = await getRequestUser(request);
     const body = updateProjectTranscriptSchema.parse(await request.json());
 
     // Verify the project belongs to the user
     const existingProject = await prisma.project.findFirst({
       where: {
-        id: params.id,
+        id,
         userId: user.id,
       },
+      select: { id: true },
     });
 
     if (!existingProject) {
@@ -63,12 +66,12 @@ export async function PATCH(
     const wordCount = body.transcript.split(/\s+/).filter(Boolean).length;
 
     const project = await prisma.project.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         transcript: body.transcript,
         wordCount,
       },
-      include: { contents: true, hooks: true },
+      select: projectWorkspaceSelect,
     });
 
     await recordAuditLog({

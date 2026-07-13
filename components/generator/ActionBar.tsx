@@ -50,6 +50,12 @@ export function ActionBar() {
 
   const [calMonth, setCalMonth] = useState(selectedMonth);
   const [calYear, setCalYear] = useState(selectedYear);
+  const activeContent = getActiveContent(outputs, activePreviewTab);
+  const matchingContent = project?.contents?.find(
+    (content) => content.platform.toUpperCase() === activePreviewTab.toUpperCase(),
+  );
+  const canUseActiveContent = Boolean(activeContent);
+  const canPersistActiveContent = canUseActiveContent && Boolean(project && matchingContent);
 
   const handlePrevMonth = () => {
     if (calMonth === 0) {
@@ -70,13 +76,12 @@ export function ActionBar() {
   };
 
   const handleCopy = async () => {
-    const content = getActiveContent(outputs, activePreviewTab);
-    if (!content) {
+    if (!activeContent) {
       toast.error("No content to copy");
       return;
     }
     try {
-      await navigator.clipboard.writeText(content);
+      await navigator.clipboard.writeText(activeContent);
       toast.success("Copied to clipboard");
     } catch {
       toast.error("Failed to copy to clipboard");
@@ -84,14 +89,13 @@ export function ActionBar() {
   };
 
   const handleShare = async () => {
-    const content = getActiveContent(outputs, activePreviewTab);
-    if (!content) {
+    if (!activeContent) {
       toast.error("No content to share");
       return;
     }
     if (typeof navigator.share === "function") {
       try {
-        await navigator.share({ title: "ReCastr Content", text: content });
+        await navigator.share({ title: "ReCastr Content", text: activeContent });
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== "AbortError") {
           toast.error("Share failed");
@@ -99,7 +103,7 @@ export function ActionBar() {
       }
     } else {
       try {
-        await navigator.clipboard.writeText(content);
+        await navigator.clipboard.writeText(activeContent);
         toast.success("Content copied — paste to share");
       } catch {
         toast.error("Failed to copy content");
@@ -108,8 +112,7 @@ export function ActionBar() {
   };
 
   const handleSave = async (silent = false) => {
-    const contentText = getActiveContent(outputs, activePreviewTab);
-    if (!contentText) {
+    if (!activeContent) {
       toast.error("No content to save");
       return null;
     }
@@ -118,11 +121,7 @@ export function ActionBar() {
       return null;
     }
 
-    const matchingContent = project.contents?.find(
-      (c) => c.platform.toUpperCase() === activePreviewTab.toUpperCase()
-    );
     if (!matchingContent) {
-      toast.error(`No content slot found for ${activePreviewTab} in this project.`);
       return null;
     }
 
@@ -131,7 +130,7 @@ export function ActionBar() {
       const response = await fetch(`/api/content/${matchingContent.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: contentText, approved: true }),
+        body: JSON.stringify({ body: activeContent, approved: true }),
       });
       
       if (!response.ok) {
@@ -215,6 +214,7 @@ export function ActionBar() {
           variant="outline"
           className="gap-2 border-[#232323] bg-[#090909] text-white hover:bg-[#232323]"
           onClick={handleCopy}
+          disabled={!canUseActiveContent}
         >
           <Copy className="h-4 w-4" /> Copy
         </Button>
@@ -222,6 +222,7 @@ export function ActionBar() {
           variant="outline"
           className="gap-2 border-[#232323] bg-[#090909] text-white hover:bg-[#232323]"
           onClick={handleShare}
+          disabled={!canUseActiveContent}
         >
           <Share2 className="h-4 w-4" /> Share
         </Button>
@@ -229,17 +230,12 @@ export function ActionBar() {
           variant="outline"
           className="gap-2 border-[#232323] bg-[#090909] text-white hover:bg-[#232323]"
           onClick={() => {
-            const content = getActiveContent(outputs, activePreviewTab);
-            if (!content) {
-              toast.error("No content to schedule");
-              return;
-            }
-            if (!project) {
-              toast.error("Please ingest a source first");
+            if (!canPersistActiveContent) {
               return;
             }
             setIsModalOpen(true);
           }}
+          disabled={!canPersistActiveContent}
         >
           <Calendar className="h-4 w-4 text-[#8A8A8A]" /> Schedule Reminder
         </Button>

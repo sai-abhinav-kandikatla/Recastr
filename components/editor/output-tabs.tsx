@@ -11,7 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { format } from "date-fns";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { PlatformPreviewEngine } from "@/components/preview/PlatformPreview";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn, formatOutputForEditing, formatPlatform, wordCount } from "@/lib/utils";
 import type { Project, SocialOutput, Tone } from "@/lib/types";
 
-type StudioPlatform = "TWITTER" | "LINKEDIN" | "INSTAGRAM" | "COMMUNITY";
+type StudioPlatform = "TWITTER" | "LINKEDIN" | "INSTAGRAM" | "FACEBOOK" | "THREADS" | "COMMUNITY";
 
 type StudioTab = {
   platform: StudioPlatform;
@@ -45,6 +45,16 @@ const studioTabs: StudioTab[] = [
     accent: "from-pink-500 to-violet-electric",
   },
   {
+    platform: "FACEBOOK",
+    label: "Facebook",
+    accent: "from-blue-500 to-sky-400",
+  },
+  {
+    platform: "THREADS",
+    label: "Threads",
+    accent: "from-zinc-200 to-zinc-500",
+  },
+  {
     platform: "COMMUNITY",
     label: "YouTube Community",
     accent: "from-teal-500 to-cyan-400",
@@ -54,12 +64,12 @@ const studioTabs: StudioTab[] = [
 const tones: Tone[] = [
   "Professional",
   "Casual",
-  "Witty",
-  "Bold",
-  "Empathetic",
   "Educational",
-  "Controversial",
+  "Entertainment",
+  "Founder",
   "Storytelling",
+  "Personal Brand",
+  "Viral",
 ];
 
 export function OutputTabs({
@@ -70,7 +80,16 @@ export function OutputTabs({
   onExport: (format: "pdf" | "csv" | "json") => void;
 }) {
   const [outputs, setOutputs] = useState(project.outputs);
-  const [activePlatform, setActivePlatform] = useState<StudioPlatform>("TWITTER");
+  const generatedTabs = useMemo(() => {
+    const generated = Array.from(new Set(outputs.map((output) => output.platform)))
+      .filter((platform): platform is StudioPlatform =>
+        studioTabs.some((tab) => tab.platform === platform),
+      );
+    return studioTabs.filter((tab) => generated.includes(tab.platform));
+  }, [outputs]);
+  const [activePlatform, setActivePlatform] = useState<StudioPlatform>(
+    () => generatedTabs[0]?.platform ?? "TWITTER",
+  );
   const [generatingPlatform, setGeneratingPlatform] = useState<StudioPlatform | null>(null);
   const [previewTheme, setPreviewTheme] = useState<"light" | "dark">("dark");
   const [drafts, setDrafts] = useState<Record<string, string>>(() =>
@@ -79,35 +98,42 @@ export function OutputTabs({
     ),
   );
   const [toneByPlatform, setToneByPlatform] = useState<Record<StudioPlatform, Tone>>({
-    TWITTER: "Bold",
+    TWITTER: "Viral",
     LINKEDIN: "Professional",
-    INSTAGRAM: "Witty",
+    INSTAGRAM: "Entertainment",
+    FACEBOOK: "Casual",
+    THREADS: "Storytelling",
     COMMUNITY: "Casual",
   });
 
   const outputByPlatform = useMemo(() => {
-    return studioTabs.reduce<Partial<Record<StudioPlatform, SocialOutput>>>(
+    return generatedTabs.reduce<Partial<Record<StudioPlatform, SocialOutput>>>(
       (acc, tab) => {
         acc[tab.platform] = outputs.find((output) => output.platform === tab.platform);
         return acc;
       },
       {},
     );
-  }, [outputs]);
+  }, [generatedTabs, outputs]);
 
-  const activeTab = studioTabs.find((tab) => tab.platform === activePlatform) ?? studioTabs[0];
+  useEffect(() => {
+    if (generatedTabs.some((tab) => tab.platform === activePlatform)) return;
+    setActivePlatform(generatedTabs[0]?.platform ?? "TWITTER");
+  }, [activePlatform, generatedTabs]);
+
+  const activeTab = generatedTabs.find((tab) => tab.platform === activePlatform) ?? generatedTabs[0];
   const activeOutput = outputByPlatform[activePlatform];
   const activeDraft = activeOutput ? drafts[activeOutput.id] ?? formatOutputForEditing(activeOutput) : "";
-  const activeTone = toneByPlatform[activePlatform];
+  const activeTone = toneByPlatform[activePlatform] ?? "Casual";
   const qualityScore = getQualityScore(activeOutput, activePlatform);
-  const viralScore = Math.max(
-    ...studioTabs.map((tab) => getQualityScore(outputByPlatform[tab.platform], tab.platform)),
-  );
+  const viralScore = generatedTabs.length
+    ? Math.max(...generatedTabs.map((tab) => getQualityScore(outputByPlatform[tab.platform], tab.platform)))
+    : 0;
 
   async function copyActiveContent() {
     if (!activeDraft) return;
     await navigator.clipboard.writeText(activeDraft);
-    toast.success(`${activeTab.label} copied`);
+    toast.success(`${activeTab?.label ?? "Content"} copied`);
   }
 
   async function regenerateActiveContent() {
@@ -149,7 +175,7 @@ export function OutputTabs({
         }
       }
 
-      toast.success(`${activeTab.label} regenerated`);
+      toast.success(`${activeTab?.label ?? "Content"} regenerated`);
     } catch {
       toast.error("Regeneration failed");
     } finally {
@@ -193,6 +219,7 @@ export function OutputTabs({
             <Button
               size="lg"
               onClick={() => onExport("pdf")}
+              disabled={outputs.length === 0}
               className="h-full bg-violet-electric text-white shadow-lg shadow-violet-950/30 hover:bg-violet-electric/90"
             >
               <Download className="h-4 w-4" />
@@ -219,7 +246,7 @@ export function OutputTabs({
         <div className="space-y-3">
           <SectionHeader eyebrow="Generated Assets" />
           <div className="grid gap-2 md:grid-cols-4">
-            {studioTabs.map((tab) => {
+            {generatedTabs.map((tab) => {
               const active = tab.platform === activePlatform;
               return (
                 <button
@@ -240,6 +267,7 @@ export function OutputTabs({
           </div>
         </div>
 
+        {activeTab && activeOutput ? (
         <AnimatePresence mode="wait">
           <motion.div
             key={activePlatform}
@@ -317,6 +345,11 @@ export function OutputTabs({
             </div>
           </motion.div>
         </AnimatePresence>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.045] p-10 text-center text-slate-400">
+            No content generated yet.
+          </div>
+        )}
       </div>
     </section>
   );
@@ -410,6 +443,8 @@ function getQualityScore(output: SocialOutput | undefined, platform: StudioPlatf
     TWITTER: 91,
     LINKEDIN: 88,
     INSTAGRAM: 86,
+    FACEBOOK: 84,
+    THREADS: 87,
     COMMUNITY: 84,
   };
   const densityBonus = Math.min(8, Math.floor(wordCount(text) / 80));

@@ -40,6 +40,7 @@ const platformLabels: Record<Platform, string> = {
 };
 
 const MIN_GENERATION_TRANSCRIPT_WORDS = 50;
+const DEBUG_AI_LOGS = process.env.RECASTR_DEBUG_AI === "true" && process.env.NODE_ENV !== "production";
 
 // Tone-specific instructions to guide the AI
 const toneInstructions: Record<Tone, string> = {
@@ -134,16 +135,11 @@ export async function extractBrief(transcript: string, title: string): Promise<G
   const source = truncateWords(transcript, 5000);
   const prompt = extractBriefPrompt(source, title);
 
-  console.log("======================================== LLM PROMPT (extractBrief) ========================================");
-  console.log(prompt);
-  console.log("============================================================================================");
-  console.log(`Transcript length: ${transcript.length}`);
-  console.log(`Fact count: N/A (Brief extraction)`);
-  console.log(`Context length: ${prompt.length}`);
-  console.log(`Prompt size: ${prompt.length}`);
-  console.log(`Provider: NVIDIA NIM`);
-  console.log(`Model: NVIDIA NIM configured model`);
-  console.log("============================================================================================");
+  logAiDebug("extractBrief", {
+    transcriptLength: transcript.length,
+    promptLength: prompt.length,
+    provider: "NVIDIA NIM",
+  });
 
   const text = await generateAIText({
     prompt,
@@ -225,16 +221,12 @@ async function writePlatformPost({
     (brief.hook_angle ? 1 : 0) +
     (brief.specific_detail ? 1 : 0);
 
-  console.log(`======================================== LLM PROMPT (writePlatformPost for ${platform}) ========================================`);
-  console.log(prompt);
-  console.log("============================================================================================");
-  console.log(`Transcript length: ${transcriptLength}`);
-  console.log(`Fact count: ${factCount}`);
-  console.log(`Context length: ${prompt.length}`);
-  console.log(`Prompt size: ${prompt.length}`);
-  console.log(`Provider: NVIDIA NIM`);
-  console.log(`Model: NVIDIA NIM configured model`);
-  console.log("============================================================================================");
+  logAiDebug(`writePlatformPost:${platform}`, {
+    transcriptLength,
+    factCount,
+    promptLength: prompt.length,
+    provider: "NVIDIA NIM",
+  });
 
   // Validation: If no real facts are present, fail loudly
   if (factCount === 0) {
@@ -274,12 +266,17 @@ async function generateWithRetry(platform: Platform, title: string, generateFn: 
   const first = await run();
   if (first.isValid) return first.content;
 
-  console.log(`[Retry] First attempt failed for ${platform}, retrying...`);
+  logAiDebug("retry", { platform });
   const second = await run();
   if (!second.isValid) {
     throw new Error(`Generated content validation failed for platform ${platform}.`);
   }
   return second.content;
+}
+
+function logAiDebug(event: string, metadata: Record<string, unknown>) {
+  if (!DEBUG_AI_LOGS) return;
+  console.info(`[AI Debug] ${event}`, metadata);
 }
 
 function validateGenerated(platform: Platform, raw: string) {

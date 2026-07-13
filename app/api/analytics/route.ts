@@ -3,34 +3,50 @@ import { getRequestUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma/client";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   try {
     const user = await getRequestUser(request);
 
-    // Fetch in parallel all counts and data from DB
-    const [platformRows, contentItems, scheduledPosts, totalProjects, completedPosts] = await Promise.all([
+    const now = new Date();
+    const startDate = new Date(now);
+    startDate.setDate(startDate.getDate() - 13);
+    startDate.setHours(0, 0, 0, 0);
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const scheduledActiveStatuses = ["pending", "scheduled", "processing"];
+    const completedStatuses = ["notified", "published"];
+    const failedStatuses = ["failed"];
+
+    const [
+      platformRows,
+      recentContentItems,
+      recentScheduledPosts,
+      totalProjects,
+      scheduledStatusRows,
+    ] = await Promise.all([
       prisma.content.groupBy({
         by: ["platform"],
         where: { project: { userId: user.id } },
         _count: { _all: true },
       }),
       prisma.content.findMany({
-        where: { project: { userId: user.id } },
-        select: { platform: true, createdAt: true },
+        where: { project: { userId: user.id }, createdAt: { gte: oneMonthAgo } },
+        select: { createdAt: true },
       }),
       prisma.scheduledPost.findMany({
-        where: { userId: user.id },
-        select: { scheduledAt: true, status: true, createdAt: true },
+        where: { userId: user.id, scheduledAt: { gte: oneMonthAgo } },
+        select: { scheduledAt: true, status: true },
       }),
       prisma.project.count({
         where: { userId: user.id },
       }),
-      prisma.scheduledPost.count({
-        where: {
-          userId: user.id,
-          status: { in: ["notified", "published", "NOTIFIED", "PUBLISHED"] },
-        },
+      prisma.scheduledPost.groupBy({
+        by: ["status"],
+        where: { userId: user.id },
+        _count: { _all: true },
       }),
     ]);
 
@@ -51,15 +67,15 @@ export async function GET(request: Request) {
         platformCounts[p] = item._count._all;
       }
     });
-
-    const totalGeneratedPosts = contentItems.length;
-    const totalScheduled = scheduledPosts.filter(p => ["pending", "scheduled", "PENDING", "SCHEDULED"].includes(p.status)).length;
-    const completedReminders = completedPosts;
-
-    // Calculate daily activity for last 14 days
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 13);
-    startDate.setHours(0, 0, 0, 0);
+    const totalGeneratedPosts = platformRows.reduce((total, item) => total + item._count._all, 0);
+    const statusCounts = new Map(
+      scheduledStatusRows.map((row) => [row.status.toLowerCase(), row._count._all]),
+    );
+    const countStatuses = (statuses: string[]) =>
+      statuses.reduce((total, status) => total + (statusCounts.get(status) ?? 0), 0);
+    const totalScheduled = countStatuses(scheduledActiveStatuses);
+    const completedReminders = countStatuses(completedStatuses);
+    const failedCount = countStatuses(failedStatuses);
 
     const last14Days = Array.from({ length: 14 }).map((_, i) => {
       const d = new Date(startDate);
@@ -69,13 +85,13 @@ export async function GET(request: Request) {
     });
 
     const chartData = last14Days.map((date) => {
-      const created = contentItems.filter((item) => {
+      const created = recentContentItems.filter((item) => {
         const itemDate = new Date(item.createdAt);
         itemDate.setHours(0, 0, 0, 0);
         return itemDate.getTime() === date.getTime();
       }).length;
 
-      const scheduled = scheduledPosts.filter((post) => {
+      const scheduled = recentScheduledPosts.filter((post) => {
         const postDate = new Date(post.scheduledAt);
         postDate.setHours(0, 0, 0, 0);
         return postDate.getTime() === date.getTime();
@@ -88,20 +104,13 @@ export async function GET(request: Request) {
       };
     });
 
-    // Today, Weekly, Monthly activity
-    const now = new Date();
-    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    const todayActivity = contentItems.filter(item => new Date(item.createdAt) >= oneDayAgo).length + 
-      scheduledPosts.filter(post => new Date(post.scheduledAt) >= oneDayAgo).length;
-
-    const weeklyActivity = contentItems.filter(item => new Date(item.createdAt) >= oneWeekAgo).length + 
-      scheduledPosts.filter(post => new Date(post.scheduledAt) >= oneWeekAgo).length;
-
-    const monthlyActivity = contentItems.filter(item => new Date(item.createdAt) >= oneMonthAgo).length + 
-      scheduledPosts.filter(post => new Date(post.scheduledAt) >= oneMonthAgo).length;
+    const contentToday = recentContentItems.filter((item) => item.createdAt >= oneDayAgo).length;
+    const contentWeekly = recentContentItems.filter((item) => item.createdAt >= oneWeekAgo).length;
+    const scheduledToday = recentScheduledPosts.filter((post) => post.scheduledAt >= oneDayAgo).length;
+    const scheduledWeekly = recentScheduledPosts.filter((post) => post.scheduledAt >= oneWeekAgo).length;
+    const todayActivity = contentToday + scheduledToday;
+    const weeklyActivity = contentWeekly + scheduledWeekly;
+    const monthlyActivity = recentContentItems.length + recentScheduledPosts.length;
 
     // Top platform
     let topPlatform = "None";
@@ -114,10 +123,9 @@ export async function GET(request: Request) {
     });
 
     // Success rate
-    const failedCount = scheduledPosts.filter(p => ["failed", "FAILED"].includes(p.status)).length;
     const successRate = completedReminders + failedCount > 0
       ? Math.round((completedReminders / (completedReminders + failedCount)) * 100)
-      : 100;
+      : 0;
 
     return NextResponse.json({
       totalGeneratedPosts,
@@ -131,7 +139,7 @@ export async function GET(request: Request) {
       monthlyActivity,
       topPlatform,
       generationSuccessRate: Math.min(100, Math.max(0, successRate)),
-      averageGenerationTimeSeconds: totalGeneratedPosts > 0 ? 4.2 : 0,
+      averageGenerationTimeSeconds: 0,
     });
   } catch (error) {
     if (error instanceof Response) return error;

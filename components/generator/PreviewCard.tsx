@@ -31,11 +31,12 @@ const platformNames: Record<Platform, string> = {
 };
 
 export function PreviewCard() {
-  const { outputs, isGenerating, progress, activePreviewTab, setActivePreviewTab, selectedPlatforms, theme, setTheme } = useGenerator();
+  const { outputs, isGenerating, progress, activePreviewTab, setActivePreviewTab, theme, setTheme } = useGenerator();
   const [device, setDevice] = useState<PreviewDevice>("iphone");
   const activePreviewPlatform = toPreviewPlatform(activePreviewTab);
+  const generatedPlatforms = Array.from(new Set(outputs.map((output) => output.platform)));
 
-  if (progress === "idle") {
+  if (outputs.length === 0 && !isGenerating) {
     return (
       <div className="flex h-full items-center justify-center rounded-2xl border-2 border-dashed border-[#232323] bg-[#090909]">
         <ContentEmptyState />
@@ -52,22 +53,18 @@ export function PreviewCard() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-[#232323] pb-4 mb-6">
         <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-          {selectedPlatforms.map((platform) => {
+          {generatedPlatforms.map((platform) => {
             const tabPlatform = toPreviewPlatform(platform);
-            const hasOutput = outputs.some((o) => toPreviewPlatform(o.platform) === tabPlatform);
             const isActive = activePreviewPlatform === tabPlatform;
             
             return (
               <button
                 key={platform}
-                onClick={() => hasOutput && setActivePreviewTab(tabPlatform)}
-                disabled={!hasOutput}
+                onClick={() => setActivePreviewTab(platform)}
                 className={`px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-colors ${
                   isActive 
                     ? "bg-white text-black" 
-                    : hasOutput 
-                      ? "bg-[#151515] text-[#8A8A8A] hover:text-white" 
-                      : "opacity-50 cursor-not-allowed text-[#8A8A8A]"
+                    : "bg-[#151515] text-[#8A8A8A] hover:text-white"
                 }`}
               >
                 {platformNames[platform] || platform}

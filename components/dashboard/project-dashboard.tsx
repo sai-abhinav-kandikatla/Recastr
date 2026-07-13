@@ -11,23 +11,19 @@ import { Button } from "@/components/ui/button";
 import type { CurrentUser } from "@/lib/current-user";
 import type { Project, ScheduledPost } from "@/lib/types";
 import { PlatformIcon } from "@/components/PlatformIcon";
-import { useQuery } from "@tanstack/react-query";
 import { ActivityFeed } from "./ActivityFeed";
-
-export type DashboardMetrics = {
-  projects: number;
-  contentCount: number;
-  scheduled: number;
-};
+import { DataLoadError } from "@/components/error/DataLoadError";
 
 export function ProjectDashboard({
   initialProjects,
-  initialMetrics,
+  initialScheduled = [],
+  initialLoadError,
   demoLocked = false,
   user,
 }: {
   initialProjects: Project[];
-  initialMetrics?: DashboardMetrics;
+  initialScheduled?: ScheduledPost[];
+  initialLoadError?: string;
   demoLocked?: boolean;
   user?: CurrentUser | null;
 }) {
@@ -36,22 +32,8 @@ export function ProjectDashboard({
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [selectedProjectTitle, setSelectedProjectTitle] = useState<string | undefined>();
   
-  const { data: projects = initialProjects } = useQuery<Project[]>({
-    queryKey: ["projects"],
-    queryFn: async () => {
-      const res = await fetch("/api/projects");
-      return readArrayPayload<Project>(await res.json().catch(() => []));
-    },
-    initialData: initialProjects,
-  });
-
-  const { data: scheduled = [] } = useQuery<ScheduledPost[]>({
-    queryKey: ["scheduled"],
-    queryFn: async () => {
-      const res = await fetch("/api/scheduled");
-      return readArrayPayload<ScheduledPost>(await res.json().catch(() => []));
-    },
-  });
+  const projects = initialProjects;
+  const scheduled = initialScheduled;
 
   const projectCount = projects.length;
   const contentCount = projects.reduce(
@@ -82,6 +64,10 @@ export function ProjectDashboard({
     { label: "Time saved", value: formatHours(timeSavedHours), icon: Timer, trend: "Estimated" },
   ];
 
+  if (initialLoadError) {
+    return <DataLoadError message={initialLoadError} />;
+  }
+
   return (
     <div className="space-y-10">
       <section>
@@ -92,7 +78,7 @@ export function ProjectDashboard({
           ) : initialProjects.length ? (
             <>{firstName}, you have <span className="text-[var(--violet)]">{projectLabel}</span> ready.</>
           ) : (
-            <>{firstName}, paste a source below to get started.</>
+            <>{firstName}, create your first project.</>
           )}
         </h1>
       </section>
@@ -132,6 +118,17 @@ export function ProjectDashboard({
           </div>
         </div>
       ) : null}
+
+      <section className="flex flex-col gap-5 border-y border-[var(--app-line)] py-7 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Your workflow</p>
+          <h2 className="mt-2 text-xl font-semibold">Create, generate, edit, then schedule.</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Every analyzed source becomes a persistent project workspace.</p>
+        </div>
+        <Button asChild size="lg" className="shrink-0">
+          <Link href="/generate"><Plus className="mr-2 h-5 w-5" />Create Project</Link>
+        </Button>
+      </section>
 
 
       <div className="grid gap-8 lg:grid-cols-[2fr_1fr] items-start">
@@ -213,7 +210,7 @@ export function ProjectDashboard({
               </div>
               <h3 className="text-2xl font-bold font-display">No projects yet</h3>
               <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground">
-                Paste a source URL or upload a file above to generate your first content pack.
+                Create a project, analyze your source, and continue in a persistent editing workspace.
               </p>
               <div className="mt-8 flex justify-center">
                 <Button
@@ -254,12 +251,4 @@ function formatHours(hours: number) {
 function formatGeneratedCount(project: Project) {
   const count = project.contents?.length ?? project.outputs.length;
   return count > 0 ? `Generated ${count} pieces` : "Open content pack";
-}
-
-function readArrayPayload<T>(payload: unknown): T[] {
-  if (Array.isArray(payload)) return payload as T[];
-  if (payload && typeof payload === "object" && Array.isArray((payload as { data?: unknown }).data)) {
-    return (payload as { data: T[] }).data;
-  }
-  return [];
 }

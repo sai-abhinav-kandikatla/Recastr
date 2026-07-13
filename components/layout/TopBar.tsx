@@ -142,7 +142,7 @@ export function TopBar({
           </div>
         ) : (
           <Button asChild size="sm" className="rounded-full bg-foreground text-background hover:bg-foreground/90">
-            <Link href="/login">
+            <Link href="/login" prefetch={false}>
               <UserCircle className="mr-2 h-4 w-4" />
               Sign in
             </Link>

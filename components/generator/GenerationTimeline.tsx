@@ -8,7 +8,7 @@ export function GenerationTimeline() {
 
   return (
     <div className="rounded-[32px] border border-[#232323] bg-[#151515] p-5">
-      <h3 className="text-base font-semibold text-white mb-4">Pipeline Progress</h3>
+      <h3 className="text-base font-semibold text-white mb-4">Generation</h3>
       <div className="space-y-5">
         {/* Step 1: Extract */}
         <div className="relative flex gap-4">
@@ -28,7 +28,7 @@ export function GenerationTimeline() {
           </div>
           <div className="flex flex-col pb-6">
             <span className={`text-sm font-medium ${progress !== "idle" ? "text-white" : "text-[#8A8A8A]"}`}>
-              Extract Transcript
+              Source Ready
             </span>
           </div>
         </div>
@@ -44,6 +44,8 @@ export function GenerationTimeline() {
               <div className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-500/20 text-purple-500">
                 <Sparkles className="h-3.5 w-3.5 animate-pulse" />
               </div>
+            ) : progress === "error" ? (
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500/20 text-red-500">!</div>
             ) : (
               <div className="h-2 w-2 rounded-full bg-[#232323]" />
             )}
@@ -53,7 +55,10 @@ export function GenerationTimeline() {
               Generate Posts
             </span>
             {progress === "generating" && (
-              <span className="text-xs text-purple-500 mt-1">Writing content for selected platforms...</span>
+              <span className="text-xs text-purple-500 mt-1">Writing one platform-native set...</span>
+            )}
+            {progress === "error" && (
+              <span className="mt-1 text-xs text-red-400">Generation failed. Review the message and try again.</span>
             )}
           </div>
         </div>

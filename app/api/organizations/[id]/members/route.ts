@@ -4,15 +4,16 @@ import { requireOrgAccess, type AuthenticatedUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma/client";
 import { err } from "@/lib/api-response";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const user = await getCurrentUser();
     if (!user) return new Response("Unauthorized", { status: 401 });
 
-    await requireOrgAccess(user as AuthenticatedUser, params.id, ["owner", "admin", "editor", "viewer"]);
+    await requireOrgAccess(user as AuthenticatedUser, id, ["owner", "admin", "editor", "viewer"]);
 
     const members = await prisma.organizationMembership.findMany({
-      where: { organizationId: params.id },
+      where: { organizationId: id },
       include: {
         user: {
           select: {
@@ -38,13 +39,14 @@ const addMemberSchema = z.object({
   role: z.enum(["admin", "editor", "viewer"]).default("viewer"),
 });
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const currentUser = await getCurrentUser();
     if (!currentUser) return new Response("Unauthorized", { status: 401 });
 
     // Only owners and admins can add members
-    await requireOrgAccess(currentUser as AuthenticatedUser, params.id, ["owner", "admin"]);
+    await requireOrgAccess(currentUser as AuthenticatedUser, id, ["owner", "admin"]);
 
     const payload = addMemberSchema.parse(await request.json());
 
@@ -66,7 +68,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const existingMembership = await prisma.organizationMembership.findUnique({
       where: {
         organizationId_userId: {
-          organizationId: params.id,
+          organizationId: id,
           userId: targetUser.id,
         },
       },
@@ -81,7 +83,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const membership = await prisma.organizationMembership.create({
       data: {
-        organizationId: params.id,
+        organizationId: id,
         userId: targetUser.id,
         role: payload.role,
       },
@@ -104,8 +106,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const currentUser = await getCurrentUser();
     if (!currentUser) return new Response("Unauthorized", { status: 401 });
 
@@ -118,14 +121,14 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
     // A user can remove themselves (leave), otherwise requires owner/admin
     if (currentUser.id !== userIdToRemove) {
-      await requireOrgAccess(currentUser as AuthenticatedUser, params.id, ["owner", "admin"]);
+      await requireOrgAccess(currentUser as AuthenticatedUser, id, ["owner", "admin"]);
     } else {
-      await requireOrgAccess(currentUser as AuthenticatedUser, params.id, ["owner", "admin", "editor", "viewer"]);
+      await requireOrgAccess(currentUser as AuthenticatedUser, id, ["owner", "admin", "editor", "viewer"]);
     }
 
     // Check if trying to remove the owner
     const org = await prisma.organization.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { ownerId: true },
     });
 
@@ -136,7 +139,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     await prisma.organizationMembership.delete({
       where: {
         organizationId_userId: {
-          organizationId: params.id,
+          organizationId: id,
           userId: userIdToRemove,
         },
       },

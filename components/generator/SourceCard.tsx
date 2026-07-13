@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { FileText, Video, PlayCircle, Loader2, History } from "lucide-react";
 import { toast } from "sonner";
 import { readApiJson } from "@/lib/client-api";
@@ -10,14 +10,11 @@ import type { Project } from "@/lib/types";
 
 export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[] }) {
   const { project, setProject, isAnalyzing: isIngesting, setIsAnalyzing: setIsIngesting } = useGenerator();
-  const router = useRouter();
   const [mode, setMode] = useState<"url" | "text">("url");
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
   const [title, setTitle] = useState("");
   const [history, setHistory] = useState<Project[]>(initialHistory);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [hasLoadedInitially, setHasLoadedInitially] = useState(initialHistory.length > 0);
   const [lastError, setLastError] = useState("");
 
   useEffect(() => {
@@ -25,31 +22,6 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
       setHistory(initialHistory);
     }
   }, [initialHistory]);
-
-  useEffect(() => {
-    if (!project) {
-      if (!hasLoadedInitially) {
-        loadHistory();
-      } else {
-        setHasLoadedInitially(false);
-      }
-    }
-  }, [project]);
-
-  async function loadHistory() {
-    setIsLoadingHistory(true);
-    try {
-      const response = await fetch("/api/projects");
-      if (response.ok) {
-        const data = await response.json();
-        setHistory(data.slice(0, 3));
-      }
-    } catch (error) {
-      console.error("Failed to load history:", error);
-    } finally {
-      setIsLoadingHistory(false);
-    }
-  }
 
   async function handleIngest(e?: React.FormEvent) {
     if (e) e.preventDefault();
@@ -65,12 +37,7 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
           body: JSON.stringify({ url: url.trim() }),
         });
         
-        const data = await readApiJson<{
-          project?: Project;
-          error?: string;
-          warning?: string;
-          transcriptStatus?: "available" | "missing";
-        }>(response);
+        const data = await readApiJson<{ project?: Project; error?: string; warning?: string; transcriptStatus?: "available" | "missing" }>(response);
         if ("project" in data && data.project) {
           toast.success("Source analyzed successfully!");
           if (data.warning || data.transcriptStatus === "missing") {
@@ -142,7 +109,14 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
         <div className="flex flex-col gap-3 rounded-xl border border-[#232323] bg-[#090909] p-4">
           <div className="flex items-start gap-4">
             {project.thumbnailUrl ? (
-              <img src={project.thumbnailUrl} alt={project.title} className="h-16 w-16 object-cover rounded-lg border border-[#232323]" />
+              <Image
+                src={project.thumbnailUrl}
+                alt={project.title}
+                width={64}
+                height={64}
+                className="h-16 w-16 rounded-lg border border-[#232323] object-cover"
+                sizes="64px"
+              />
             ) : (
               <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-500 border border-red-500/20">
                 <PlayCircle className="h-8 w-8" />
@@ -162,7 +136,7 @@ export function SourceCard({ initialHistory = [] }: { initialHistory?: Project[]
           </div>
           
           <div className="text-xs text-[#D1D1D1] bg-[#151515] p-3 rounded-lg border border-[#232323]">
-            <span className="font-semibold text-white mb-1 block">Analysis:</span>
+            <span className="font-semibold text-white mb-1 block">Source status:</span>
             {project.summary?.tldr || "Source transcript loaded and ready for extraction."}
           </div>
           

@@ -4,6 +4,8 @@ import { env } from "@/lib/env";
 export type RewriteMode =
   | "professional"
   | "casual"
+  | "entertainment"
+  | "entertaining"
   | "storytelling"
   | "viral"
   | "educational"
@@ -44,6 +46,28 @@ Rules:
 - Sounds like a real human wrote it at 11pm, not a marketing team
 
 Banned phrases: "I am pleased to share", "As we navigate", "In today's landscape", "It is important to note"
+`,
+
+  entertainment: `
+You are rewriting social media content in an ENTERTAINMENT mode.
+
+Rules:
+- Lead with curiosity, surprise, or tension.
+- Keep it lively without inventing jokes or facts.
+- Use vivid phrasing, crisp pacing, and a strong payoff.
+- Make the reader want to finish because the angle is fun.
+- Avoid fake hype, motivational filler, and generic hooks.
+`,
+
+  entertaining: `
+You are rewriting social media content in an ENTERTAINMENT mode.
+
+Rules:
+- Lead with curiosity, surprise, or tension.
+- Keep it lively without inventing jokes or facts.
+- Use vivid phrasing, crisp pacing, and a strong payoff.
+- Make the reader want to finish because the angle is fun.
+- Avoid fake hype, motivational filler, and generic hooks.
 `,
 
   storytelling: `
@@ -163,6 +187,7 @@ CRITICAL RULES (apply regardless of mode):
    - Reel: [HOOK 0-3s] timestamps, short sentences for on-camera delivery
 3. OUTPUT only the rewritten content — no preamble, no "Here's the rewritten version:", no explanation.
 4. Match the length of the original (within 20% word count).
+5. Never start with "Have you ever wondered", "In today's world", "Here are", "Let's dive into", "It is important to", or "Unlock the power".
 `;
 
   const userMessage = `
@@ -198,8 +223,17 @@ Rewrite this content now in ${mode} tone for ${platform}. Output only the rewrit
 }
 
 function fallbackLocalRewrite(content: string, mode: RewriteMode): string {
-  const title = mode.charAt(0).toUpperCase() + mode.slice(1).replace("_", " ");
-  return `[${title} Tone Version]\n\n${content}`;
+  const cleaned = content
+    .replace(/^(Have you ever wondered|In today's world|Here are|Let's dive into|It is important to|Unlock the power)[:,.\s-]*/i, "")
+    .trim();
+  if (mode === "professional") return `The practical signal is clear.\n\n${cleaned}\n\nThat is the part worth acting on.`;
+  if (mode === "educational") return `A useful way to apply this:\n\n1. Find the main constraint.\n2. Turn it into one simple decision.\n3. Use the lesson before adding more complexity.\n\n${cleaned}`;
+  if (mode === "storytelling") return `The lesson starts with tension.\n\n${cleaned}\n\nThat is where the useful insight lives.`;
+  if (mode === "founder") return `This is a tradeoff problem.\n\n${cleaned}\n\nThe best operators notice the cost before they chase the upside.`;
+  if (mode === "personal_brand") return `I would frame it this way:\n\n${cleaned}\n\nThe point is not to copy the move. It is to understand the judgment behind it.`;
+  if (mode === "viral") return `This is the part people miss:\n\n${cleaned}\n\nSave this before you need it.`;
+  if (mode === "entertainment" || mode === "entertaining") return `This gets interesting fast.\n\n${cleaned}\n\nThe payoff is simpler than it first looks.`;
+  return `${cleaned}\n\nWorth remembering.`;
 }
 
 function runHumanizerFilter(text: string): string {

@@ -5,7 +5,6 @@ import { GeneratorWorkspace } from "@/components/generator/GeneratorWorkspace";
 import { getCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma/client";
 import { projectShellSelect, serializeProjectShell } from "@/lib/projects/serialize";
-import { listStoredProjects } from "@/lib/projects/store";
 import type { Project } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -37,7 +36,6 @@ export default async function GeneratePage() {
 
 async function loadRecentProjects(userId?: string): Promise<Project[]> {
   if (!userId) return [];
-  const storedProjects = listStoredProjects({ includeFallback: false });
 
   try {
     const projects = await prisma.project.findMany({
@@ -46,20 +44,9 @@ async function loadRecentProjects(userId?: string): Promise<Project[]> {
       orderBy: { createdAt: "desc" },
       take: 3,
     });
-    return mergeProjects(projects.map(serializeProjectShell), storedProjects).slice(0, 3);
+    return projects.map(serializeProjectShell);
   } catch (error) {
     console.error("Failed to load recent projects:", error);
-    return storedProjects.slice(0, 3);
+    return [];
   }
-}
-
-function mergeProjects(primary: Project[], fallback: Project[]) {
-  const seen = new Set<string>();
-  return [...primary, ...fallback]
-    .filter((project) => {
-      if (seen.has(project.id)) return false;
-      seen.add(project.id);
-      return true;
-    })
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }

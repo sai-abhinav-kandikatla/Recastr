@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const otpType = parseOtpType(requestUrl.searchParams.get("type"));
   const source = requestUrl.searchParams.get("source");
   const nextPath = normalizeNextPath(requestUrl.searchParams.get("next"));
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
 
   if (!code && (!tokenHash || !otpType)) {
     return NextResponse.redirect(

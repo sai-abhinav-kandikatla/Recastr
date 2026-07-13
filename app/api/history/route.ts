@@ -38,7 +38,20 @@ export async function GET(request: Request) {
       Promise.all([
         prisma.scheduledPost.findMany({
           where,
-          include: { content: true },
+          select: {
+            id: true,
+            contentId: true,
+            platform: true,
+            postingMethod: true,
+            scheduledAt: true,
+            status: true,
+            timezone: true,
+            verificationRequired: true,
+            verifiedByUser: true,
+            publishedAt: true,
+            failReason: true,
+            content: { select: { body: true } },
+          },
           orderBy: { scheduledAt: "desc" },
           skip: (page - 1) * pageSize,
           take: pageSize,

@@ -20,15 +20,17 @@ export default async function WorkspacePage({
   params,
   searchParams,
 }: {
-  params: { projectId: string };
-  searchParams: { platform?: string };
+  params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ platform?: string }>;
 }) {
+  const { projectId } = await params;
+  const { platform } = await searchParams;
   const user = await getCurrentUser();
   if (!user) {
-    redirect(`/login?next=/workspace/${params.projectId}`);
+    redirect(`/login?next=/workspace/${projectId}`);
   }
 
-  const project = await findProject(params.projectId, user.id);
+  const project = await findProject(projectId, user.id);
   if (!project) {
     notFound();
   }
@@ -36,7 +38,7 @@ export default async function WorkspacePage({
   return (
     <WorkspaceEditor
       project={project}
-      defaultPlatform={searchParams.platform || "linkedin"}
+      defaultPlatform={platform || "linkedin"}
     />
   );
 }

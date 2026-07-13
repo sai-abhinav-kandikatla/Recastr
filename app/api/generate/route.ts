@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import crypto from "node:crypto";
 import { getRequestUser } from "@/lib/auth";
 import { generatePostSchema } from "@/lib/ai/schemas";
 import { assertGenerationRateLimit } from "@/lib/rate-limit";
@@ -13,6 +13,7 @@ import { prisma } from "@/lib/prisma/client";
 import { getStoredProject, saveStoredProject } from "@/lib/projects/store";
 import { recordUsageEvent } from "@/lib/usage";
 import { generateV1SocialOutputs } from "@/lib/v1/social-generator";
+import { buildGenerationSource } from "@/lib/v1/generation-source";
 import type { Platform, Project, SocialOutput, Tone } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -45,6 +46,14 @@ export async function GET(request: Request) {
     const platforms = parsePlatforms(url.searchParams.get("platforms"));
     const tone = (url.searchParams.get("tone") ?? "Professional") as Tone;
     const isRegeneration = url.searchParams.get("isRegeneration") === "true";
+    const requestId = crypto.randomUUID();
+    logGenerationStage(requestId, "api_request_received", {
+      projectId,
+      platforms,
+      tone,
+      isRegeneration,
+      transport: "legacy-get",
+    });
     await assertCanGenerateContent(user, platforms);
 
     const project = await loadProjectForGeneration(projectId, user.id);
@@ -52,46 +61,18 @@ export async function GET(request: Request) {
       return Response.json({ error: "Project not found", code: "project_not_found" }, { status: 404 });
     }
 
-    const sourceDocument = project.sourceText?.trim() || project.transcript?.trim();
-    if (!sourceDocument) {
-      return Response.json(
-        {
-          error: "No source document found. Analyze the YouTube URL again.",
-          code: "source_missing",
-        },
-        { status: 422 },
-      );
-    }
-
-    const outputs = await generateV1SocialOutputs({
+    const source = buildGenerationSource(project);
+    return streamGeneration({
+      requestId,
+      user,
       projectId,
-      sourceDocument,
       platforms,
       tone,
-      transcriptAvailable: !/Transcript:\s*Transcript unavailable/i.test(sourceDocument),
       isRegeneration,
-      previousDrafts: isRegeneration ? await loadPreviousDrafts(projectId, user.id, platforms) : [],
+      sourceDocument: source.sourceDocument,
+      transcriptAvailable: source.transcriptAvailable,
+      sourceMode: source.sourceMode,
     });
-
-    await persistGeneratedOutputs({ userId: user.id, projectId, outputs, tone });
-    await recordGeneratedContentUsage({
-      userId: user.id,
-      count: outputs.length,
-      metadata: { projectId, platforms, tone },
-    });
-    await recordUsageEvent({
-      userId: user.id,
-      eventType: "content_generated",
-      metadata: { projectId, platforms, tone },
-    });
-    await trackServerEvent("content_generated", {
-      userId: user.id,
-      projectId,
-      metadata: { platforms: platforms.join(","), tone, architecture: "v1-one-pass" },
-    });
-    await consumeCredits(user);
-
-    return streamOutputs(outputs);
   } catch (error) {
     if (error instanceof Response) return error;
     console.error("GET /api/generate failed:", error);
@@ -102,13 +83,8 @@ export async function GET(request: Request) {
     const creditResponse = creditErrorResponse(error);
     if (creditResponse) return creditResponse;
 
-    return Response.json(
-      {
-        error: "Content generation is temporarily unavailable. Check the AI provider configuration and try again.",
-        code: "generation_failed",
-      },
-      { status: 500 },
-    );
+    const failure = describeGenerationFailure(error);
+    return Response.json(failure, { status: failure.status });
   }
 }
 
@@ -119,6 +95,13 @@ export async function POST(request: Request) {
     await requireCredits(user);
 
     const payload = generatePostSchema.parse(await request.json());
+    const requestId = crypto.randomUUID();
+    logGenerationStage(requestId, "api_request_received", {
+      projectId: payload.projectId,
+      platforms: payload.platforms,
+      tone: payload.tone,
+      isRegeneration: payload.isRegeneration,
+    });
     await assertCanGenerateContent(user, payload.platforms);
 
     const project = await loadProjectForGeneration(payload.projectId, user.id);
@@ -126,28 +109,17 @@ export async function POST(request: Request) {
       return Response.json({ error: "Project not found", code: "project_not_found" }, { status: 404 });
     }
 
-    const sourceDocument = project.sourceText?.trim() || project.transcript?.trim();
-    if (!sourceDocument) {
-      return Response.json({ error: "Source document missing", code: "source_missing" }, { status: 422 });
-    }
-
-    const outputs = await generateV1SocialOutputs({
+    const source = buildGenerationSource(project);
+    return streamGeneration({
+      requestId,
+      user,
       projectId: payload.projectId,
-      sourceDocument,
       platforms: parsePlatforms(payload.platforms.join(",")),
       tone: payload.tone,
-      transcriptAvailable: !/Transcript:\s*Transcript unavailable/i.test(sourceDocument),
       isRegeneration: payload.isRegeneration,
-      previousDrafts: payload.isRegeneration
-        ? await loadPreviousDrafts(payload.projectId, user.id, parsePlatforms(payload.platforms.join(",")))
-        : [],
-    });
-    await persistGeneratedOutputs({ userId: user.id, projectId: payload.projectId, outputs, tone: payload.tone });
-    await consumeCredits(user);
-
-    return Response.json({
-      success: true,
-      posts: Object.fromEntries(outputs.map((output) => [output.platform, output.content])),
+      sourceDocument: source.sourceDocument,
+      transcriptAvailable: source.transcriptAvailable,
+      sourceMode: source.sourceMode,
     });
   } catch (error) {
     if (error instanceof Response) return error;
@@ -159,14 +131,118 @@ export async function POST(request: Request) {
     const creditResponse = creditErrorResponse(error);
     if (creditResponse) return creditResponse;
 
-    return Response.json(
-      {
-        error: "Generation failed",
-        code: "generation_failed",
-      },
-      { status: 500 },
-    );
+    const failure = describeGenerationFailure(error);
+    return Response.json(failure, { status: failure.status });
   }
+}
+
+function streamGeneration({
+  requestId,
+  user,
+  projectId,
+  platforms,
+  tone,
+  isRegeneration,
+  sourceDocument,
+  transcriptAvailable,
+  sourceMode,
+}: {
+  requestId: string;
+  user: Awaited<ReturnType<typeof getRequestUser>>;
+  projectId: string;
+  platforms: Platform[];
+  tone: Tone | string;
+  isRegeneration: boolean;
+  sourceDocument: string;
+  transcriptAvailable: boolean;
+  sourceMode: "metadata" | "transcript";
+}) {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      const send = (payload: Record<string, unknown>) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+      };
+
+      void (async () => {
+        try {
+          logGenerationStage(requestId, "generation_started", { projectId, sourceMode, platforms });
+          send({ stage: "generation_started", requestId, sourceMode });
+
+          const outputs = await generateV1SocialOutputs({
+            projectId,
+            sourceDocument,
+            platforms,
+            tone,
+            transcriptAvailable,
+            isRegeneration,
+            previousDrafts: isRegeneration ? await loadPreviousDrafts(projectId, user.id, platforms) : [],
+            onStage(stage, metadata) {
+              logGenerationStage(requestId, stage, metadata);
+              send({ stage, requestId, ...metadata });
+            },
+          });
+
+          if (outputs.length === 0) {
+            throw new Error("The AI provider returned no generated posts.");
+          }
+
+          await persistGeneratedOutputs({ userId: user.id, projectId, outputs, tone });
+          logGenerationStage(requestId, "database_saved", { projectId, outputCount: outputs.length });
+          send({ stage: "database_saved", requestId, outputCount: outputs.length });
+
+          await recordGeneratedContentUsage({
+            userId: user.id,
+            count: outputs.length,
+            metadata: { projectId, platforms, tone },
+          });
+          await recordUsageEvent({
+            userId: user.id,
+            eventType: "content_generated",
+            metadata: { projectId, platforms, tone },
+          });
+          await trackServerEvent("content_generated", {
+            userId: user.id,
+            projectId,
+            metadata: { platforms: platforms.join(","), tone, architecture: "v1-one-pass", sourceMode },
+          });
+          await consumeCredits(user);
+
+          for (const output of outputs) {
+            send({ stage: "output", requestId, output });
+          }
+          logGenerationStage(requestId, "response_returned", { outputCount: outputs.length });
+          send({ stage: "response_returned", requestId, done: true, outputCount: outputs.length });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Content generation failed.";
+          const failure = describeGenerationFailure(error);
+          console.error(`[generation:${requestId}] failed`, error);
+          send({
+            stage: "failed",
+            requestId,
+            error: failure.error,
+            code: failure.code,
+            detail: process.env.NODE_ENV === "production" ? undefined : message,
+          });
+        } finally {
+          controller.close();
+        }
+      })();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
+function logGenerationStage(requestId: string, stage: string, metadata?: Record<string, unknown>) {
+  console.info(`[generation:${requestId}] ${stage}`, metadata ?? {});
 }
 
 function parsePlatforms(value: string | null): Platform[] {
@@ -258,50 +334,6 @@ async function loadPreviousDrafts(projectId: string, userId: string, platforms: 
   }
 }
 
-function streamOutputs(outputs: SocialOutput[]) {
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    async start(controller) {
-      try {
-        for (const output of outputs) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                platform: output.platform,
-                outputType: output.outputType,
-                content: output.content,
-                output,
-                done: false,
-              })}\n\n`,
-            ),
-          );
-          await new Promise((resolve) => setTimeout(resolve, 100));
-        }
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
-      } catch {
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({
-              error: "Content generation is temporarily unavailable. Try again later.",
-              code: "generation_failed",
-            })}\n\n`,
-          ),
-        );
-      } finally {
-        controller.close();
-      }
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
-  });
-}
-
 async function persistGeneratedOutputs({
   userId,
   projectId,
@@ -348,42 +380,62 @@ async function persistGeneratedOutputs({
     console.error("Local cache save failed:", error);
   }
 
-  try {
-    const project = await prisma.project.findFirst({
-      where: { id: projectId, userId },
-      select: { id: true },
-    });
-    if (!project) return;
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId },
+    select: { id: true },
+  });
+  if (!project) {
+    if (getStoredProject(projectId)) return;
+    throw new Error("Project disappeared before generated posts could be saved.");
+  }
     const outputPlatforms = Array.from(new Set(outputs.map((output) => output.platform)));
 
-    await prisma.$transaction([
-      prisma.content.deleteMany({ where: { projectId, platform: { in: outputPlatforms } } }),
-      ...outputs.map((output, index) => {
-        const body = stringifyGeneratedContent(output.content);
-        const originalBody = stringifyGeneratedContent(output.originalContent ?? output.content);
-        return prisma.content.create({
-          data: {
-            id: output.id,
-            projectId,
-            platform: output.platform,
-            contentType: output.outputType,
-            body,
-            originalBody,
-            tone: String(output.tone ?? tone),
-            approved: output.approved,
-            order: index,
-          },
-        });
-      }),
-    ]);
-  } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return;
-    console.error("persistGeneratedOutputs error:", error);
-  }
+  await prisma.$transaction([
+    prisma.content.deleteMany({ where: { projectId, platform: { in: outputPlatforms } } }),
+    ...outputs.map((output, index) => {
+      const body = stringifyGeneratedContent(output.content);
+      const originalBody = stringifyGeneratedContent(output.originalContent ?? output.content);
+      return prisma.content.create({
+        data: {
+          id: output.id,
+          projectId,
+          platform: output.platform,
+          contentType: output.outputType,
+          body,
+          originalBody,
+          tone: String(output.tone ?? tone),
+          approved: output.approved,
+          order: index,
+        },
+      });
+    }),
+  ]);
 }
 
 function stringifyGeneratedContent(value: unknown) {
   if (typeof value === "string") return value;
   if (!value) return "";
   return JSON.stringify(value, null, 2);
+}
+
+function describeGenerationFailure(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  const lower = message.toLowerCase();
+
+  if (lower.includes("timeout") || lower.includes("timed out") || lower.includes("abort")) {
+    return { error: "The AI request timed out. Retry in a moment.", code: "provider_timeout", status: 504 };
+  }
+  if (lower.includes("quota") || lower.includes("rate limit") || lower.includes("429")) {
+    return { error: "The AI provider quota is temporarily exhausted. Retry later.", code: "provider_quota", status: 429 };
+  }
+  if (lower.includes("api key") || lower.includes("unauthorized") || lower.includes("authentication")) {
+    return { error: "The AI provider credentials are invalid. Contact support.", code: "provider_auth", status: 503 };
+  }
+  if (lower.includes("prisma") || lower.includes("database") || lower.includes("connection pool")) {
+    return { error: "The database is temporarily unavailable. Your source is safe; retry generation.", code: "database_unavailable", status: 503 };
+  }
+  if (lower.includes("network") || lower.includes("fetch failed") || lower.includes("econn")) {
+    return { error: "The AI provider could not be reached. Check your connection and retry.", code: "provider_network", status: 503 };
+  }
+  return { error: "Content generation failed. Retry the request.", code: "generation_failed", status: 500 };
 }

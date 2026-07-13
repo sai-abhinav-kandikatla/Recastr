@@ -8,20 +8,21 @@ import { addRecastrJob, jobNames } from "@/lib/queue/client";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const user = await getRequestUser(request);
-    if (isLocalScheduleId(params.id)) {
-      const post = retryStoredScheduledPost(params.id);
+    if (isLocalScheduleId(id)) {
+      const post = retryStoredScheduledPost(id);
       if (!post) return err("Scheduled post not found", "scheduled_post_not_found", 404);
       return ok({
-        id: params.id,
+        id,
         status: "PENDING",
       });
     }
 
     const post = await prisma.scheduledPost.findFirst({
-      where: { id: params.id, userId: user.id },
+      where: { id, userId: user.id },
       select: { id: true, scheduledAt: true },
     });
 
@@ -29,18 +30,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
     await assertEmailTransportReady();
 
     await prisma.scheduledPost.update({
-      where: { id: params.id },
+      where: { id },
       data: { status: "pending", publishedAt: null, failReason: null },
     });
     await addRecastrJob(
       jobNames.publishPost,
-      { scheduledPostId: params.id },
+      { scheduledPostId: id },
       Math.max(0, post.scheduledAt.getTime() - Date.now()),
       { required: false },
     );
 
     return ok({
-      id: params.id,
+      id,
       status: "PENDING",
     });
   } catch (error) {

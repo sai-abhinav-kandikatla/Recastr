@@ -4,8 +4,6 @@ import { ensureUserRecord, getRequestUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma/client";
 import {
   projectShellSelect,
-  projectWorkspaceSelect,
-  serializeProject,
   serializeProjectShell,
 } from "@/lib/projects/serialize";
 import { apiError } from "@/lib/api/response";
@@ -25,12 +23,12 @@ export async function GET(request: Request) {
     const user = await getRequestUser(request);
     const projects = await prisma.project.findMany({
       where: { userId: user.id },
-      select: projectWorkspaceSelect,
+      select: projectShellSelect,
       orderBy: { createdAt: "desc" },
       take: 10, // limit to 10 most recent
     });
 
-    return NextResponse.json(projects.map(serializeProject));
+    return NextResponse.json(projects.map(serializeProjectShell));
   } catch (error) {
     if (error instanceof Response) return error;
     console.error("Error in GET /api/projects:", error);
@@ -53,7 +51,7 @@ export async function POST(request: Request) {
         transcript: body.transcript,
         wordCount: body.transcript.split(/\s+/).filter(Boolean).length,
       },
-      include: { contents: true, hooks: true },
+      select: projectShellSelect,
     });
     await recordAuditLog({
       userId: user.id,
@@ -64,7 +62,7 @@ export async function POST(request: Request) {
       request,
     });
 
-    return NextResponse.json(serializeProject(project), { status: 201 });
+    return NextResponse.json(serializeProjectShell(project), { status: 201 });
   } catch (error) {
     if (error instanceof Response) return error;
     const planResponse = planLimitErrorResponse(error);

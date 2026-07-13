@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       return err("Signup is temporarily unavailable.", "signup_admin_unavailable", 503);
     }
 
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     const requestOrigin = getRequestOrigin(request);
     const nextPath = normalizeNextPath(payload.next, "/onboarding");
 

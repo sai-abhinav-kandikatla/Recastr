@@ -52,6 +52,7 @@ export const generateSchema = z.object({
   tone: z.enum([
     "Professional",
     "Casual",
+    "Entertainment",
     "Witty",
     "Bold",
     "Empathetic",
@@ -79,14 +80,14 @@ export const generatePostSchema = z.object({
     .array(z.enum(["TWITTER", "LINKEDIN", "INSTAGRAM", "FACEBOOK", "THREADS", "CAROUSEL", "COMMUNITY", "STORY", "HOOKS", "CTA"]))
     .min(1),
   contentTypes: z.array(z.string().min(1)).default(["tweet", "linkedin", "reel", "caption"]),
-  tone: z.enum(["professional", "casual", "educational", "entertaining"]).default("casual"),
+  tone: z.string().trim().min(1).default("Casual"),
   hookId: z.string().optional(),
   isRegeneration: z.boolean().default(false),
 });
 
 export const toneSchema = z.object({
   contentId: z.string().optional(),
-  tone: z.enum(["professional", "casual", "educational", "entertaining"]).optional(),
+  tone: z.string().trim().min(1).optional(),
   outputId: z.string().optional(),
   newTone: z.string().optional(),
   content: z.string().min(1),

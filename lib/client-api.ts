@@ -97,9 +97,13 @@ function friendlyApiMessage(response: Response, payload: CreditPayload) {
   }
 
   if (code === "TRANSCRIPT_QUOTA_EXCEEDED") {
-    return providerName(payload) === "nvidia-nim"
-      ? "NVIDIA NIM quota exceeded. Update NVIDIA_API_KEY, then retry."
+    return providerName(payload) === "openai-web"
+      ? "OpenAI quota exceeded. Add billing or update OPENAI_API_KEY, then retry."
       : raw ?? "Transcript provider quota exceeded. Try again later or paste the transcript.";
+  }
+
+  if (code === "NETWORK_FAILURE" && raw?.toLowerCase().includes("not a bot")) {
+    return "YouTube blocked automatic transcript access. Paste the transcript manually or try another public video.";
   }
 
   if (code === "INVALID_API_KEY") {

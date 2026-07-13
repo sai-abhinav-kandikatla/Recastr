@@ -55,10 +55,18 @@ export function PlatformPreviewEngine({
   includeFacebook?: boolean;
   compact?: boolean;
 }) {
-  const platforms = includeFacebook ? fullPreviewPlatforms : previewPlatforms;
+  const requestedPlatform = platform.toUpperCase() as PreviewPlatform;
+  const platforms = useMemo(
+    () =>
+      compact
+        ? [requestedPlatform]
+        : includeFacebook
+          ? fullPreviewPlatforms
+          : previewPlatforms,
+    [compact, includeFacebook, requestedPlatform],
+  );
   const [activePlatform, setActivePlatform] = useState<PreviewPlatform>(() => {
-    const upper = platform.toUpperCase() as PreviewPlatform;
-    return (includeFacebook ? fullPreviewPlatforms : previewPlatforms).includes(upper) ? upper : "LINKEDIN";
+    return platforms.includes(requestedPlatform) ? requestedPlatform : "LINKEDIN";
   });
   const [device, setDevice] = useState<PreviewDevice>("iphone");
   const [localTheme, setLocalTheme] = useState<"light" | "dark">(theme ?? "dark");
@@ -124,21 +132,23 @@ export function PlatformPreviewEngine({
           </div>
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {platforms.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => setActivePlatform(item)}
-              className={cn(
-                "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground",
-                activePlatform === item && "border-[var(--violet)] bg-[var(--violet-light)] text-[var(--violet)]",
-              )}
-            >
-              {platformLabels[item]}
-            </button>
-          ))}
-        </div>
+        {!compact ? (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {platforms.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setActivePlatform(item)}
+                className={cn(
+                  "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground",
+                  activePlatform === item && "border-[var(--violet)] bg-[var(--violet-light)] text-[var(--violet)]",
+                )}
+              >
+                {platformLabels[item]}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <div className="pt-4">

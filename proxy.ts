@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const protectedPrefixes = [
+  "/admin",
   "/dashboard",
   "/projects",
   "/generate",
@@ -14,8 +15,18 @@ const protectedPrefixes = [
   "/billing",
 ];
 
-export async function middleware(request: NextRequest) {
+const productionOnlyBlockedPrefixes = [
+  "/api/debug",
+  "/api/admin",
+  "/admin/create-demo-user-if-missing",
+];
+
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  if (process.env.NODE_ENV === "production" && isBlockedDiagnosticPath(pathname)) {
+    return withSecurityHeaders(new NextResponse("Not found", { status: 404 }));
+  }
 
   if (pathname.startsWith("/api") && request.method === "OPTIONS") {
     return withCors(request, withSecurityHeaders(new NextResponse(null, { status: 204 })));
@@ -88,6 +99,10 @@ function normalizeSupabaseUrl(value: string | undefined) {
 
 function isProtectedPath(pathname: string) {
   return protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function isBlockedDiagnosticPath(pathname: string) {
+  return productionOnlyBlockedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 function withCors(request: NextRequest, response: NextResponse) {
@@ -183,6 +198,7 @@ function isAllowedCorsOrigin(origin: string, allowedOrigin: string) {
 export const config = {
   matcher: [
     "/api/:path*",
+    "/admin/:path*",
     "/dashboard/:path*",
     "/projects/:path*",
     "/generate/:path*",

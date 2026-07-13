@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     console.log('  - canUseDemoUser:', canUseDemoUser);
     
     console.log('Step 3: Creating Supabase client');
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient();
     console.log('  - client created:', !!supabase);
     
     console.log('Step 4: Getting session');

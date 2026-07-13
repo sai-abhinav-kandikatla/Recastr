@@ -3,16 +3,17 @@ import { prisma } from "@/lib/prisma/client";
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const user = await getRequestUser(request);
-    if (process.env.RECASTR_DEMO_MODE === "true" || params.id.startsWith("demo-job")) {
-      return Response.json(demoProgress(params.id));
+    if (process.env.RECASTR_DEMO_MODE === "true" || id.startsWith("demo-job")) {
+      return Response.json(demoProgress(id));
     }
 
     const job = await prisma.jobRecord.findFirst({
       where: {
-        id: params.id,
+        id,
         OR: [{ userId: user.id }, { userId: null }],
       },
     });

@@ -24,12 +24,25 @@ export async function GET(request: Request) {
       : [];
     const posts = await withTimeout(
       prisma.scheduledPost.findMany({
-      where: {
-        userId: user.id,
-        status: { in: ["pending", "scheduled", "processing"] },
-      },
-      include: { content: true },
-      orderBy: { scheduledAt: "asc" },
+        where: {
+          userId: user.id,
+          status: { in: ["pending", "scheduled", "processing"] },
+        },
+        select: {
+          id: true,
+          contentId: true,
+          platform: true,
+          postingMethod: true,
+          scheduledAt: true,
+          status: true,
+          timezone: true,
+          verificationRequired: true,
+          verifiedByUser: true,
+          publishedAt: true,
+          failReason: true,
+          content: { select: { body: true } },
+        },
+        orderBy: { scheduledAt: "asc" },
       }),
       localPosts.length ? 1_200 : 4_000,
       [],

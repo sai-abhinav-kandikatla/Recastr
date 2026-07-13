@@ -9,6 +9,8 @@ type GenerateV1Options = {
   transcriptAvailable: boolean;
   isRegeneration?: boolean;
   previousDrafts?: string[];
+  onStage?: (stage: "llm_called" | "llm_returned" | "posts_parsed", metadata?: Record<string, unknown>) => void;
+  onOutput?: (output: SocialOutput) => void;
 };
 
 type GeneratedPostsPayload = {
@@ -110,63 +112,97 @@ export async function generateV1SocialOutputs({
   transcriptAvailable,
   isRegeneration = false,
   previousDrafts = [],
+  onStage,
+  onOutput,
 }: GenerateV1Options): Promise<SocialOutput[]> {
   const selectedPlatforms = platforms.filter((platform) => SUPPORTED_PLATFORMS.includes(platform));
   if (selectedPlatforms.length === 0) return [];
 
-  const raw = await generateAIText({
-    prompt: buildMasterPrompt({
-      sourceDocument,
-      platforms: selectedPlatforms,
-      tone,
-      transcriptAvailable,
-      isRegeneration,
-      previousDrafts,
-    }),
-    responseMimeType: "application/json",
-    temperature: isRegeneration ? 0.92 : 0.74,
-    maxOutputTokens: 4000,
-  });
-  const payload = parseGeneratedPosts(raw);
-  const now = new Date().toISOString();
+  onStage?.("llm_called", { platformCount: selectedPlatforms.length, transcriptAvailable });
+
   const outputs: SocialOutput[] = [];
+  const now = new Date().toISOString();
 
-  selectedPlatforms.forEach((platform, index) => {
-    const drafts = payload.posts?.[platform];
-    const draftList = Array.isArray(drafts) ? drafts : (drafts ? [drafts] : []);
-    
-    let targetCount = 1;
-    if (platform === "TWITTER") targetCount = 3;
-    else if (platform === "LINKEDIN") targetCount = 2;
-    else if (platform === "FACEBOOK") targetCount = 2;
-    else if (platform === "INSTAGRAM") targetCount = 2;
-    else if (platform === "CAROUSEL") targetCount = 2;
-    else if (platform === "THREADS") targetCount = 2;
-    else if (platform === "COMMUNITY") targetCount = 2;
-
-    for (let i = 0; i < targetCount; i++) {
-      const generated = draftList[i]?.trim();
-      const content = cleanGeneratedPost(
-        generated || fallbackPost(platform, transcriptAvailable, i + 1),
-        previousDrafts
-      );
-      
-      const label = PLATFORM_LABELS[platform] ?? platform;
-      const countLabel = targetCount > 1 ? `${label} - Draft ${i + 1}` : label;
-
-      outputs.push({
-        id: `${projectId}-v1-${platform.toLowerCase()}-${i + 1}-${Date.now()}-${index}`,
-        projectId,
-        platform,
-        outputType: countLabel,
-        content,
-        originalContent: content,
-        tone,
-        approved: false,
-        createdAt: now,
+  for (let index = 0; index < selectedPlatforms.length; index++) {
+    const platform = selectedPlatforms[index];
+    try {
+      const raw = await generateAIText({
+        prompt: buildMasterPrompt({
+          sourceDocument,
+          platforms: [platform],
+          tone,
+          transcriptAvailable,
+          isRegeneration,
+          previousDrafts,
+        }),
+        responseMimeType: "application/json",
+        temperature: isRegeneration ? 0.92 : 0.74,
+        maxOutputTokens: 1500,
       });
+
+      const payload = parseGeneratedPosts(raw);
+      const drafts = payload.posts?.[platform];
+      const draftList = Array.isArray(drafts) ? drafts : (drafts ? [drafts] : []);
+
+      const targetCount = draftCountForPlatform(platform);
+
+      for (let i = 0; i < targetCount; i++) {
+        const generated = draftList[i]?.trim();
+        const content = cleanGeneratedPost(
+          generated || fallbackPost(platform, transcriptAvailable, i + 1),
+          previousDrafts
+        );
+
+        const label = PLATFORM_LABELS[platform] ?? platform;
+        const countLabel = targetCount > 1 ? `${label} - Draft ${i + 1}` : label;
+
+        const output: SocialOutput = {
+          id: `${projectId}-v1-${platform.toLowerCase()}-${i + 1}-${Date.now()}-${index}`,
+          projectId,
+          platform,
+          outputType: countLabel,
+          content,
+          originalContent: content,
+          tone,
+          approved: false,
+          createdAt: now,
+        };
+
+        outputs.push(output);
+        onOutput?.(output);
+      }
+    } catch (err) {
+      console.error(`Sequential V1 generation failed for platform ${platform}:`, err);
+      const targetCount = draftCountForPlatform(platform);
+
+      for (let i = 0; i < targetCount; i++) {
+        const content = cleanGeneratedPost(
+          fallbackPost(platform, transcriptAvailable, i + 1),
+          previousDrafts
+        );
+        const label = PLATFORM_LABELS[platform] ?? platform;
+        const countLabel = targetCount > 1 ? `${label} - Draft ${i + 1}` : label;
+
+        const output: SocialOutput = {
+          id: `${projectId}-v1-${platform.toLowerCase()}-${i + 1}-${Date.now()}-${index}`,
+          projectId,
+          platform,
+          outputType: countLabel,
+          content,
+          originalContent: content,
+          tone,
+          approved: false,
+          createdAt: now,
+        };
+
+        outputs.push(output);
+        onOutput?.(output);
+      }
     }
-  });
+  }
+
+  onStage?.("llm_returned", { responseCharacters: 0 });
+  onStage?.("posts_parsed", { outputCount: outputs.length });
 
   return outputs;
 }
@@ -356,6 +392,10 @@ function escapeRegExp(value: string) {
 
 function normalizeTone(tone: Tone | string) {
   return String(tone).trim().toLowerCase().replace(/-/g, " ").replace(/_/g, " ");
+}
+
+function draftCountForPlatform(platform: Platform) {
+  return platform === "TWITTER" ? 3 : 2;
 }
 
 function normalizeForComparison(value: string) {

@@ -86,10 +86,10 @@ export function Navbar() {
 
         <div className="navbar-actions hidden items-center gap-3 md:flex">
           <Button variant="ghost" asChild className="text-[#8A8A8A] hover:bg-white hover:text-black transition-all duration-300">
-            <Link href="/login">Sign in</Link>
+            <Link href="/login" prefetch={false}>Sign in</Link>
           </Button>
           <Button variant="ghost" asChild className="text-[#8A8A8A] hover:bg-white hover:text-black transition-all duration-300">
-            <Link href="/signup">Sign up</Link>
+            <Link href="/signup" prefetch={false}>Sign up</Link>
           </Button>
         </div>
 
@@ -118,6 +118,7 @@ export function Navbar() {
           <hr className="my-2 border-[#232323]" />
           <Link
             href="/login"
+            prefetch={false}
             onClick={() => setMobileOpen(false)}
             className="block py-3 text-[15px] text-[#8A8A8A] hover:text-white"
           >
@@ -125,6 +126,7 @@ export function Navbar() {
           </Link>
           <Link
             href="/signup"
+            prefetch={false}
             onClick={() => setMobileOpen(false)}
             className="mt-2 inline-flex w-full items-center justify-center rounded-full bg-white px-4 py-3 text-sm font-semibold text-black"
           >

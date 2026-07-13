@@ -87,11 +87,11 @@ export function AuthPromptModal({
                 </span>
                 Continue with Google
               </button>
-              <Link className={buttonClass("secondary")} href={`/signup?next=${next}`}>
+              <Link className={buttonClass("secondary")} href={`/signup?next=${next}`} prefetch={false}>
                 <ArrowRight className="h-4 w-4" />
                 Create Account
               </Link>
-              <Link className={buttonClass("ghost")} href={`/login?next=${next}`}>
+              <Link className={buttonClass("ghost")} href={`/login?next=${next}`} prefetch={false}>
                 <LogIn className="h-4 w-4" />
                 Sign In
               </Link>

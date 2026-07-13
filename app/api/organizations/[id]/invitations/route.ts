@@ -5,15 +5,16 @@ import { requireOrgAccess, type AuthenticatedUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma/client";
 import { err } from "@/lib/api-response";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const user = await getCurrentUser();
     if (!user) return new Response("Unauthorized", { status: 401 });
 
-    await requireOrgAccess(user as AuthenticatedUser, params.id, ["owner", "admin", "editor", "viewer"]);
+    await requireOrgAccess(user as AuthenticatedUser, id, ["owner", "admin", "editor", "viewer"]);
 
     const invitations = await prisma.invitation.findMany({
-      where: { organizationId: params.id },
+      where: { organizationId: id },
       orderBy: { createdAt: "desc" },
     });
 
@@ -29,12 +30,13 @@ const createInvitationSchema = z.object({
   role: z.enum(["admin", "editor", "viewer"]).default("viewer"),
 });
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const currentUser = await getCurrentUser();
     if (!currentUser) return new Response("Unauthorized", { status: 401 });
 
-    await requireOrgAccess(currentUser as AuthenticatedUser, params.id, ["owner", "admin"]);
+    await requireOrgAccess(currentUser as AuthenticatedUser, id, ["owner", "admin"]);
 
     const payload = createInvitationSchema.parse(await request.json());
 
@@ -47,7 +49,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       const existingMembership = await prisma.organizationMembership.findUnique({
         where: {
           organizationId_userId: {
-            organizationId: params.id,
+            organizationId: id,
             userId: targetUser.id,
           },
         },
@@ -64,7 +66,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     // Check if there's already a pending invite
     const existingInvite = await prisma.invitation.findFirst({
       where: {
-        organizationId: params.id,
+        organizationId: id,
         email: payload.email,
         acceptedAt: null,
       },
@@ -82,7 +84,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const invitation = await prisma.invitation.create({
       data: {
-        organizationId: params.id,
+        organizationId: id,
         email: payload.email,
         role: payload.role,
         token,
@@ -101,12 +103,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const currentUser = await getCurrentUser();
     if (!currentUser) return new Response("Unauthorized", { status: 401 });
 
-    await requireOrgAccess(currentUser as AuthenticatedUser, params.id, ["owner", "admin"]);
+    await requireOrgAccess(currentUser as AuthenticatedUser, id, ["owner", "admin"]);
 
     const url = new URL(request.url);
     const inviteId = url.searchParams.get("inviteId");

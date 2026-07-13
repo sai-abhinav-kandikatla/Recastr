@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   const parsed = enrollSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) return err("Invalid request", "validation_error", 400);
 
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const {
     data: { user },
     error: userError,

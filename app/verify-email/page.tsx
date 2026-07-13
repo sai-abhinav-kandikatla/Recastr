@@ -58,7 +58,7 @@ export default function VerifyEmailPage() {
           </Button>
 
           <Button className="w-full" size="lg" variant="ghost" asChild>
-            <Link href="/login">
+            <Link href="/login" prefetch={false}>
               Back to log in <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>

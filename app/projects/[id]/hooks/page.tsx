@@ -10,9 +10,10 @@ import type { Project } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-export default async function HooksPage({ params }: { params: { id: string } }) {
+export default async function HooksPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const user = await getCurrentUser();
-  const project = await findProject(params.id, user?.id);
+  const project = await findProject(id, user?.id);
   if (!project) notFound();
 
   return (

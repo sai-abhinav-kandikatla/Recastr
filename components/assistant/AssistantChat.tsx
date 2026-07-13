@@ -89,72 +89,72 @@ export function AssistantChat() {
     handleSend(suggestionText);
   };
 
+  function renderInlineMarkdown(text: string) {
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+        return <strong key={index}>{part.slice(2, -2)}</strong>;
+      }
+      return <React.Fragment key={index}>{part}</React.Fragment>;
+    });
+  }
+
   function renderMarkdown(text: string) {
     const lines = text.split("\n");
     let inList = false;
-    const rendered = [];
+    const rendered: React.ReactNode[] = [];
+    let listItems: React.ReactNode[] = [];
+
+    const flushList = () => {
+      if (!inList) return;
+      rendered.push(
+        <ul key={`list-${rendered.length}`} className="my-2 list-disc space-y-1 pl-5">
+          {listItems}
+        </ul>,
+      );
+      listItems = [];
+      inList = false;
+    };
 
     for (let i = 0; i < lines.length; i++) {
-      let line = lines[i].trim();
-
-      // Bold replacement
-      line = line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+      const line = lines[i].trim();
 
       // Headers
       if (line.startsWith("### ")) {
-        if (inList) {
-          rendered.push("</ul>");
-          inList = false;
-        }
-        rendered.push(`<h4 class="text-base font-bold text-white mt-4 mb-2">${line.slice(4)}</h4>`);
+        flushList();
+        rendered.push(<h4 key={i} className="mb-2 mt-4 text-base font-bold text-white">{renderInlineMarkdown(line.slice(4))}</h4>);
       } else if (line.startsWith("## ")) {
-        if (inList) {
-          rendered.push("</ul>");
-          inList = false;
-        }
-        rendered.push(`<h3 class="text-lg font-bold text-white mt-5 mb-2">${line.slice(3)}</h3>`);
+        flushList();
+        rendered.push(<h3 key={i} className="mb-2 mt-5 text-lg font-bold text-white">{renderInlineMarkdown(line.slice(3))}</h3>);
       } else if (line.startsWith("# ")) {
-        if (inList) {
-          rendered.push("</ul>");
-          inList = false;
-        }
-        rendered.push(`<h2 class="text-xl font-bold text-white mt-6 mb-3">${line.slice(2)}</h2>`);
+        flushList();
+        rendered.push(<h2 key={i} className="mb-3 mt-6 text-xl font-bold text-white">{renderInlineMarkdown(line.slice(2))}</h2>);
       }
       // Lists
       else if (line.startsWith("- ") || line.startsWith("* ")) {
         if (!inList) {
-          rendered.push('<ul class="list-disc pl-5 my-2 space-y-1">');
           inList = true;
         }
-        rendered.push(`<li class="text-sm text-zinc-300">${line.slice(2)}</li>`);
+        listItems.push(<li key={i} className="text-sm text-zinc-300">{renderInlineMarkdown(line.slice(2))}</li>);
       }
       // Empty line
       else if (line === "") {
-        if (inList) {
-          rendered.push("</ul>");
-          inList = false;
-        }
-        rendered.push('<div class="h-2"></div>');
+        flushList();
+        rendered.push(<div key={i} className="h-2" />);
       }
       // Regular text
       else {
-        if (inList) {
-          rendered.push("</ul>");
-          inList = false;
-        }
-        rendered.push(`<p class="text-sm text-zinc-300 leading-relaxed">${line}</p>`);
+        flushList();
+        rendered.push(<p key={i} className="text-sm leading-relaxed text-zinc-300">{renderInlineMarkdown(line)}</p>);
       }
     }
 
-    if (inList) {
-      rendered.push("</ul>");
-    }
+    flushList();
 
     return (
-      <div 
-        className="space-y-1 text-sm text-zinc-300 leading-relaxed" 
-        dangerouslySetInnerHTML={{ __html: rendered.join("") }} 
-      />
+      <div className="space-y-1 text-sm leading-relaxed text-zinc-300">
+        {rendered}
+      </div>
     );
   }
 

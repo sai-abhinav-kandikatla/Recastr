@@ -36,6 +36,7 @@ const BANNED_PHRASES = [
   'unlock the power of',
   'in today\'s world',
 ];
+const DEBUG_GENERATION_LOGS = process.env.RECASTR_DEBUG_AI === "true" && process.env.NODE_ENV !== "production";
 
 /**
  * Picks a random element from an array.
@@ -73,18 +74,15 @@ async function generatePostWithAI(
     (insights.emotional_moments?.length ?? 0) +
     (insights.curiosity_hooks?.length ?? 0);
 
-  // Print exact prompt and details
-  console.log(`[GENERATION] Generating post for platform: ${platform}`);
-  console.log("======================================== LLM PROMPT ========================================");
-  console.log(prompt);
-  console.log("============================================================================================");
-  console.log(`Transcript length: ${transcriptLength}`);
-  console.log(`Fact count: ${factCount}`);
-  console.log(`Context length: ${prompt.length}`);
-  console.log(`Prompt size: ${prompt.length}`);
-  console.log(`Provider: NVIDIA NIM`);
-  console.log(`Model: NVIDIA NIM configured model`);
-  console.log("============================================================================================");
+  if (DEBUG_GENERATION_LOGS) {
+    console.info("[Generation Debug]", {
+      platform,
+      transcriptLength,
+      factCount,
+      promptLength: prompt.length,
+      provider: "NVIDIA NIM",
+    });
+  }
 
   // Validation: If no real facts are present, fail loudly
   if (factCount === 0) {

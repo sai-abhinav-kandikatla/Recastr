@@ -43,6 +43,7 @@ export function ForgotPasswordForm() {
             </p>
             <Link
               href="/login"
+              prefetch={false}
               className="mt-6 inline-block text-sm font-medium text-zinc-400 hover:text-white transition-colors"
             >
               ← Back to sign in
@@ -83,6 +84,7 @@ export function ForgotPasswordForm() {
 
             <Link
               href="/login"
+              prefetch={false}
               className="block text-center text-sm text-muted-foreground hover:text-foreground"
             >
               ← Back to sign in

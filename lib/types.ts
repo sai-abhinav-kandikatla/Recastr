@@ -119,6 +119,7 @@ export type Project = {
   hooks?: ViralHook[];
   contents?: ContentPiece[];
   outputs: SocialOutput[];
+  generatedCount?: number;
   createdAt: string;
   updatedAt?: string;
   status?: PostStatus;

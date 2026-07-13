@@ -143,10 +143,10 @@ export function CreatePasswordForm() {
             </p>
             <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <Button asChild className="rounded-xl" variant="secondary">
-                <Link href="/signup">Create account</Link>
+                <Link href="/signup" prefetch={false}>Create account</Link>
               </Button>
               <Button asChild className="rounded-xl" variant="outline">
-                <Link href="/login">Go to sign in</Link>
+                <Link href="/login" prefetch={false}>Go to sign in</Link>
               </Button>
             </div>
           </div>

@@ -36,6 +36,10 @@ export function ExportInlinePanel({
   onClose: () => void;
 }) {
   async function download() {
+    if (selectedIds.length === 0) {
+      toast.error("Select at least one generated post to export.");
+      return;
+    }
     const response = await fetch(`/api/export/${format}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -123,7 +127,11 @@ export function ExportInlinePanel({
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {selectedIds.length} pieces will be exported as {format.toUpperCase()} with platform labels and source metadata.
           </p>
-          <Button className="mt-4 w-full rounded-full bg-[var(--violet)] text-black hover:bg-[var(--violet-hover)]" onClick={download}>
+          <Button
+            className="mt-4 w-full rounded-full bg-[var(--violet)] text-black hover:bg-[var(--violet-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={download}
+            disabled={selectedIds.length === 0}
+          >
             <Download className="h-4 w-4" />
             Download
           </Button>

@@ -6,8 +6,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function DELETE(request: Request, { params }: { params: { factorId: string } }) {
-  const supabase = createSupabaseServerClient();
+export async function DELETE(request: Request, { params }: { params: Promise<{ factorId: string }> }) {
+  const { factorId } = await params;
+  const supabase = await createSupabaseServerClient();
   const {
     data: { user },
     error: userError,
@@ -30,7 +31,7 @@ export async function DELETE(request: Request, { params }: { params: { factorId:
   }
 
   const { error } = await supabase.auth.mfa.unenroll({
-    factorId: params.factorId,
+    factorId,
   });
 
   if (error) {

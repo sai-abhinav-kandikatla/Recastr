@@ -71,6 +71,9 @@ export type DbProjectWithContent = {
   contents?: RawContent[];
   outputs?: RawContent[];
   hooks?: RawHook[];
+  _count?: {
+    contents?: number;
+  };
   createdAt: Date;
   updatedAt?: Date;
 };
@@ -86,6 +89,11 @@ export const projectShellSelect = {
   wordCount: true,
   createdAt: true,
   updatedAt: true,
+  _count: {
+    select: {
+      contents: true,
+    },
+  },
 } satisfies Prisma.ProjectSelect;
 
 export type DbProjectShell = Prisma.ProjectGetPayload<{ select: typeof projectShellSelect }>;
@@ -167,6 +175,7 @@ export function serializeProject(project: DbProjectWithContent): Project {
     hooks: (project.hooks ?? []).map(serializeHook),
     contents,
     outputs,
+    generatedCount: project._count?.contents ?? contents.length ?? outputs.length,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt?.toISOString(),
   };

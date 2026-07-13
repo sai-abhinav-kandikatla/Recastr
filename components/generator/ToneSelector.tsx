@@ -5,11 +5,12 @@ import { useGenerator } from "./GeneratorProvider";
 const rewriteModes = [
   "Professional",
   "Casual",
-  "Storytelling",
-  "Viral",
   "Educational",
+  "Entertainment",
   "Founder",
-  "Personal Brand"
+  "Storytelling",
+  "Personal Brand",
+  "Viral",
 ];
 
 export function ToneSelector() {
