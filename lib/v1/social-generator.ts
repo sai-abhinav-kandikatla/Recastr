@@ -1,5 +1,10 @@
 import { generateAIText } from "@/lib/ai/client";
 import type { Platform, SocialOutput, Tone } from "@/lib/types";
+import {
+  assertGeneratedOutputs,
+  GenerationPipelineError,
+  prepareGenerationSource,
+} from "@/lib/v1/generation-validation";
 
 type GenerateV1Options = {
   projectId: string;
@@ -35,20 +40,6 @@ const SUPPORTED_PLATFORMS: Platform[] = [
   "FACEBOOK",
   "COMMUNITY",
   "CAROUSEL",
-];
-
-const FORBIDDEN_OPENERS = [
-  "in this video",
-  "the creator says",
-  "this transcript",
-  "this video explains",
-  "according to the video",
-  "have you ever wondered",
-  "in today's world",
-  "here are",
-  "let's dive into",
-  "it is important to",
-  "unlock the power",
 ];
 
 const MODE_STRATEGIES: Record<string, string> = {
@@ -117,31 +108,33 @@ export async function generateV1SocialOutputs({
 }: GenerateV1Options): Promise<SocialOutput[]> {
   const selectedPlatforms = platforms.filter((platform) => SUPPORTED_PLATFORMS.includes(platform));
   if (selectedPlatforms.length === 0) return [];
+  const preparedSource = prepareGenerationSource(sourceDocument);
 
   onStage?.("llm_called", { platformCount: selectedPlatforms.length, transcriptAvailable });
 
   const outputs: SocialOutput[] = [];
   const now = new Date().toISOString();
-  let raw = "";
-  let payload: GeneratedPostsPayload = { posts: {} };
-
-  try {
-    raw = await generateAIText({
-      prompt: buildMasterPrompt({
-        sourceDocument,
-        platforms: selectedPlatforms,
-        tone,
-        transcriptAvailable,
-        isRegeneration,
-        previousDrafts,
-      }),
-      responseMimeType: "application/json",
-      temperature: isRegeneration ? 0.92 : 0.74,
-      maxOutputTokens: 4_000,
-    });
-    payload = parseGeneratedPosts(raw);
-  } catch (error) {
-    console.error("One-pass V1 generation failed; using safe fallback drafts:", error);
+  const raw = await generateAIText({
+    prompt: buildMasterPrompt({
+      sourceDocument: preparedSource,
+      platforms: selectedPlatforms,
+      tone,
+      transcriptAvailable,
+      isRegeneration,
+      previousDrafts,
+    }),
+    responseMimeType: "application/json",
+    temperature: isRegeneration ? 0.92 : 0.74,
+    maxOutputTokens: 4_000,
+  });
+  const payload = parseGeneratedPosts(raw);
+  if (!payload) {
+    throw new GenerationPipelineError(
+      "INVALID_GENERATED_CONTENT",
+      "The AI response did not meet our quality checks. No drafts were saved. Please retry generation.",
+      502,
+      ["The provider response was not valid generated-post JSON."],
+    );
   }
 
   onStage?.("llm_returned", { responseCharacters: raw.length });
@@ -152,10 +145,7 @@ export async function generateV1SocialOutputs({
     const targetCount = draftCountForPlatform(platform);
 
     for (let draftIndex = 0; draftIndex < targetCount; draftIndex += 1) {
-      const content = cleanGeneratedPost(
-        draftList[draftIndex]?.trim() || fallbackPost(platform, transcriptAvailable, draftIndex + 1),
-        previousDrafts,
-      );
+      const content = cleanGeneratedPost(draftList[draftIndex] ?? "");
       const label = PLATFORM_LABELS[platform] ?? platform;
       const countLabel = targetCount > 1 ? `${label} - Draft ${draftIndex + 1}` : label;
       const output: SocialOutput = {
@@ -171,11 +161,18 @@ export async function generateV1SocialOutputs({
       };
 
       outputs.push(output);
-      onOutput?.(output);
     }
   });
 
+  assertGeneratedOutputs({
+    outputs,
+    sourceDocument: preparedSource,
+    platforms: selectedPlatforms,
+    previousDrafts,
+  });
+
   onStage?.("posts_parsed", { outputCount: outputs.length });
+  outputs.forEach((output) => onOutput?.(output));
 
   return outputs;
 }
@@ -302,7 +299,7 @@ SOURCE DOCUMENT:
 ${sourceDocument}`;
 }
 
-function parseGeneratedPosts(raw: string): GeneratedPostsPayload {
+function parseGeneratedPosts(raw: string): GeneratedPostsPayload | null {
   const direct = tryParseJson(raw);
   if (direct) return direct;
 
@@ -312,7 +309,7 @@ function parseGeneratedPosts(raw: string): GeneratedPostsPayload {
 
   const objectMatch = raw.match(/\{[\s\S]*\}/);
   const fromObject = objectMatch ? tryParseJson(objectMatch[0]) : null;
-  return fromObject ?? { posts: {} };
+  return fromObject;
 }
 
 function tryParseJson(value: string): GeneratedPostsPayload | null {
@@ -324,43 +321,11 @@ function tryParseJson(value: string): GeneratedPostsPayload | null {
   }
 }
 
-function cleanGeneratedPost(value: string, previousDrafts: string[]) {
-  const cleaned = value
+function cleanGeneratedPost(value: string) {
+  return value
     .replace(/^["']|["']$/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
-
-  const lower = cleaned.toLowerCase();
-  const badOpener = FORBIDDEN_OPENERS.find((phrase) => lower.startsWith(phrase));
-  if (!badOpener) return cleaned;
-
-  const withoutBadOpener = cleaned
-    .split(/\n+/)
-    .slice(1)
-    .join("\n")
-    .trim() || cleaned.replace(new RegExp(`^${escapeRegExp(badOpener)}[:,.\\s-]*`, "i"), "").trim();
-
-  if (previousDrafts.some((draft) => normalizeForComparison(draft) === normalizeForComparison(withoutBadOpener))) {
-    return `${withoutBadOpener}\n\nWhat changes when you look at it this way?`;
-  }
-
-  return withoutBadOpener;
-}
-
-function fallbackPost(platform: Platform, transcriptAvailable: boolean, draftIndex: number) {
-  const sourceLimit = transcriptAvailable
-    ? "The source has a transcript, but generation returned an empty draft."
-    : "The transcript was unavailable, so this draft should be treated as a conservative starting point.";
-
-  if (platform === "COMMUNITY") {
-    return `[Draft ${draftIndex}] ${sourceLimit}\n\nWhat part of this topic would you want expanded next?`;
-  }
-
-  return `[Draft ${draftIndex}] ${sourceLimit}\n\nReview the source details, then rewrite this draft with a specific observation, a useful lesson, and a natural takeaway for ${platform}.`;
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function normalizeTone(tone: Tone | string) {
@@ -369,8 +334,4 @@ function normalizeTone(tone: Tone | string) {
 
 function draftCountForPlatform(platform: Platform) {
   return platform === "TWITTER" ? 3 : 2;
-}
-
-function normalizeForComparison(value: string) {
-  return value.toLowerCase().replace(/\s+/g, " ").trim();
 }

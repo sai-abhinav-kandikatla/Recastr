@@ -3,10 +3,10 @@
 import { useState, useCallback, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { Check, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { normalizePlatformCopy } from "@/lib/platform-limits";
 import { cn } from "@/lib/utils";
-import type { Project, ViralHook, ContentPiece } from "@/lib/types";
+import type { Project, ViralHook, ContentPiece, SocialOutput } from "@/lib/types";
 import { type ContentCardPlatform } from "@/components/content/ContentCard";
 import { platformLabels, platformOrder } from "./types";
 import { fromCardPlatform } from "./utils";
@@ -30,9 +30,7 @@ export function GenerateDrawer({
   onGenerated: (contents: ContentPiece[]) => void;
 }) {
   const [platforms, setPlatforms] = useState<ContentCardPlatform[]>(["twitter", "linkedin"]);
-  const [contentTypes, setContentTypes] = useState(["Tweet", "LinkedIn post"]);
   const [tone, setTone] = useState("casual");
-  const [wordCount, setWordCount] = useState(160);
   const [stream, setStream] = useState("");
   const [generating, setGenerating] = useState(false);
 
@@ -44,26 +42,78 @@ export function GenerateDrawer({
     );
   }, []);
 
-  const toggleContentType = useCallback((type: string) => {
-    setContentTypes((current) =>
-      current.includes(type)
-        ? current.filter((item) => item !== type)
-        : [...current, type],
-    );
-  }, []);
-
   async function generate() {
-    if (platforms.length === 0 || contentTypes.length === 0) return;
+    if (platforms.length === 0) return;
     setGenerating(true);
-    setStream("");
-    const text = `Writing ready-to-post drafts for ${platforms.map((item) => platformLabels[item]).join(", ")}.`;
-    for (const token of text.split(/(\s+)/).filter(Boolean)) {
-      setStream((current) => `${current}${token}`);
-      await new Promise((resolve) => window.setTimeout(resolve, 28));
+    setStream("Preparing source context...");
+
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: project.id,
+          platforms: platforms.map(fromCardPlatform),
+          contentTypes: ["platform-post"],
+          tone,
+          isRegeneration: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error ?? "Generation failed.");
+      }
+      if (!response.body) throw new Error("The generation response was interrupted.");
+
+      const generated: SocialOutput[] = [];
+      let streamError = "";
+      let buffer = "";
+      const processEvent = (eventBlock: string) => {
+        const data = eventBlock
+          .split("\n")
+          .filter((line) => line.startsWith("data:"))
+          .map((line) => line.replace(/^data:\s?/, ""))
+          .join("\n");
+        if (!data) return;
+
+        const event = JSON.parse(data) as {
+          stage?: string;
+          error?: string;
+          output?: SocialOutput;
+        };
+        if (event.error) streamError = event.error;
+        if (event.output) generated.push(event.output);
+        if (event.stage === "llm_called") setStream("Writing platform-specific drafts...");
+        if (event.stage === "database_saved") setStream("Quality checks passed. Saving drafts...");
+      };
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+        events.filter(Boolean).forEach(processEvent);
+      }
+      buffer += decoder.decode();
+      if (buffer.trim()) processEvent(buffer);
+
+      if (streamError) throw new Error(streamError);
+      if (generated.length === 0) throw new Error("Generation returned no validated drafts.");
+
+      const cards = generated.map(toContentPiece);
+      onGenerated(cards);
+      setStream(`${cards.length} validated drafts generated.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Generation failed.";
+      setStream(message);
+      toast.error(message);
+    } finally {
+      setGenerating(false);
     }
-    const cards = createGeneratedCards(project, selectedHook, platforms, contentTypes, tone, wordCount);
-    onGenerated(cards);
-    setGenerating(false);
   }
 
   return (
@@ -95,17 +145,6 @@ export function GenerateDrawer({
             ))}
           </ControlGroup>
 
-          <ControlGroup title="Content types">
-            {["Tweet", "Thread", "LinkedIn post", "Facebook post", "Reel script", "Caption", "Shorts script"].map((type) => (
-              <TogglePill
-                key={type}
-                active={contentTypes.includes(type)}
-                label={type}
-                onClick={() => toggleContentType(type)}
-              />
-            ))}
-          </ControlGroup>
-
           <div>
             <p className="mb-3 text-sm font-medium">Tone</p>
             <div className="grid gap-2">
@@ -131,28 +170,13 @@ export function GenerateDrawer({
             </div>
           </div>
 
-          <div>
-            <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="font-medium">Word count</span>
-              <span className="text-muted-foreground">{wordCount}</span>
-            </div>
-            <input
-              className="w-full accent-violet-600"
-              min={60}
-              max={500}
-              value={wordCount}
-              onChange={(event) => setWordCount(Number(event.target.value))}
-              type="range"
-            />
-          </div>
-
           <Button className="w-full bg-[var(--violet)] text-black hover:bg-[var(--violet-hover)]" disabled={generating} onClick={generate}>
             <Sparkles className="h-4 w-4" />
             {generating ? "Generating" : "Generate"}
           </Button>
 
           <div className="min-h-32 rounded-[12px] border bg-muted/30 p-4 text-sm leading-6 text-muted-foreground">
-            {stream || "Live generated output will stream here."}
+            {stream || "Ready to generate."}
             {generating ? <span className="ml-1 inline-block h-4 w-[2px] animate-pulse bg-primary align-middle" /> : null}
           </div>
         </div>
@@ -194,142 +218,19 @@ function TogglePill({
   );
 }
 
-function createGeneratedCards(
-  project: Project,
-  selectedHook: ViralHook | undefined,
-  platforms: ContentCardPlatform[],
-  contentTypes: string[],
-  tone: string,
-  wordCount: number,
-): ContentPiece[] {
-  const stamp = Date.now().toString(36);
-  const hookText = selectedHook?.text ?? project.summary.hooks[0] ?? project.title;
-  const maxWords = Math.max(30, wordCount);
-  const cards: ContentPiece[] = [];
-
-  platforms.forEach((platform, platformIndex) => {
-    contentTypes.forEach((contentType, typeIndex) => {
-      const platformName = platformLabels[platform];
-      const platformValue = fromCardPlatform(platform);
-      const body = normalizePlatformCopy(
-        platformValue,
-        buildGeneratedBody(project, hookText, platformName, maxWords, tone),
-      );
-      const hookId = selectedHook?.id ?? (project.hooks && project.hooks.length > 0 ? project.hooks[typeIndex % project.hooks.length]?.id : undefined);
-      cards.push({
-        id: `${project.id}-${platform}-${stamp}-${platformIndex}-${typeIndex}`,
-        projectId: project.id,
-        hookId,
-        platform: platformValue,
-        contentType,
-        body,
-        originalBody: body,
-        tone,
-        approved: false,
-        order: platformIndex * 10 + typeIndex,
-        createdAt: new Date().toISOString(),
-      });
-    });
-  });
-
-  return cards;
-}
-
-function buildGeneratedBody(
-  project: Project,
-  hook: string,
-  platform: string,
-  wordCount: number,
-  tone: string,
-) {
-  const facts = sourceFacts(project);
-  const lead = toneLead(tone, hook || facts.hook);
-  if (platform === "Twitter/X") {
-    return normalizePlatformCopy(
-      "TWITTER",
-      `${lead}\n\n1/ ${facts.promise}\n\n2/ ${facts.points[0]}\n\n3/ ${facts.points[1]}\n\n4/ ${facts.cta}`,
-    );
-  }
-  if (platform === "YouTube Shorts") {
-    return `[HOOK - 0 to 3 seconds]\n${lead}\n\n[BODY - 3 to 35 seconds]\n${facts.promise}\n${facts.points.slice(0, 3).join("\n")}\n\n[CTA - 35 to 60 seconds]\n${facts.cta}`;
-  }
-  if (platform === "Facebook") {
-    return `${lead}\n\n${facts.promise}\n\n${facts.points.slice(0, 3).join("\n")}\n\nWhat would help you most next: a checklist, a walkthrough, or common mistakes?`;
-  }
-  if (platform === "LinkedIn") {
-    return [
-      lead,
-      "",
-      facts.promise,
-      "",
-      "The useful details:",
-      "",
-      ...facts.points.slice(0, 3).map((point, index) => `${index + 1}. ${point}`),
-      "",
-      facts.detail,
-      "",
-      facts.cta,
-      "",
-      "#BuildInPublic #AI #CreatorWorkflow",
-    ].join("\n");
-  }
-  return [
-    lead,
-    "",
-    `-> ${facts.points[0]}`,
-    `-> ${facts.points[1]}`,
-    `-> ${facts.points[2]}`,
-    "",
-    facts.detail,
-    "",
-    facts.cta,
-  ].join("\n").split(/\s+/).slice(0, wordCount).join(" ");
-}
-
-function sourceFacts(project: Project) {
-  const candidates = [
-    project.summary.tldr,
-    ...(project.summary.takeaways ?? []),
-    ...(project.summary.hooks ?? []),
-    ...project.transcript.split(/\n+/),
-  ]
-    .map((item) => item.trim())
-    .filter((item) => item.length > 20 && !echoesTitle(item, project.title));
-
-  const fallback = "Extract one concrete point, explain why it matters, and give the reader one next step.";
-  const points = padFacts(candidates.slice(1), fallback);
+function toContentPiece(output: SocialOutput, index: number): ContentPiece {
+  const body = typeof output.content === "string" ? output.content : JSON.stringify(output.content);
+  const originalBody = typeof output.originalContent === "string" ? output.originalContent : body;
   return {
-    hook: candidates[0] ?? project.summary.hooks.find((item) => !echoesTitle(item, project.title)) ?? fallback,
-    promise: candidates[0] ?? fallback,
-    points,
-    detail: points[2] ?? points[0],
-    cta: "Save this and use it before your next content sprint.",
+    id: output.id,
+    projectId: output.projectId,
+    platform: output.platform,
+    contentType: output.outputType,
+    body,
+    originalBody,
+    tone: String(output.tone),
+    approved: output.approved,
+    order: index,
+    createdAt: output.createdAt,
   };
-}
-
-function padFacts(values: string[], fallback: string) {
-  const output = values.filter(Boolean);
-  while (output.length < 3) output.push(fallback);
-  return output.slice(0, 5);
-}
-
-function toneLead(tone: string, hook: string) {
-  if (tone === "casual") return `Here's the part worth remembering: ${hook}`;
-  if (tone === "educational") return `The useful framework starts here: ${hook}`;
-  if (tone === "entertaining") return `This is the scroll-stopper: ${hook}`;
-  return hook;
-}
-
-function echoesTitle(value: string, title: string) {
-  const normalizedValue = normalizeComparable(value);
-  const normalizedTitle = normalizeComparable(title);
-  if (!normalizedTitle) return false;
-  if (normalizedValue.includes(normalizedTitle)) return true;
-  const words = normalizedTitle.split(/\s+/).filter((word) => word.length > 3);
-  if (words.length < 3) return false;
-  return words.filter((word) => normalizedValue.includes(word)).length / words.length > 0.7;
-}
-
-function normalizeComparable(value: string) {
-  return value.toLowerCase().replace(/[^\w\s]/g, " ").replace(/\s+/g, " ").trim();
 }

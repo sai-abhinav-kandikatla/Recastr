@@ -14,6 +14,10 @@ import { getStoredProject, saveStoredProject } from "@/lib/projects/store";
 import { recordUsageEvent } from "@/lib/usage";
 import { generateV1SocialOutputs } from "@/lib/v1/social-generator";
 import { buildGenerationSource } from "@/lib/v1/generation-source";
+import {
+  assertGeneratedOutputs,
+  GenerationPipelineError,
+} from "@/lib/v1/generation-validation";
 import type { Platform, Project, SocialOutput, Tone } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -169,6 +173,9 @@ function streamGeneration({
           logGenerationStage(requestId, "generation_started", { projectId, sourceMode, platforms });
           send({ stage: "generation_started", requestId, sourceMode });
 
+          const previousDrafts = isRegeneration
+            ? await loadPreviousDrafts(projectId, user.id, platforms)
+            : [];
           const outputs = await generateV1SocialOutputs({
             projectId,
             sourceDocument,
@@ -176,7 +183,7 @@ function streamGeneration({
             tone,
             transcriptAvailable,
             isRegeneration,
-            previousDrafts: isRegeneration ? await loadPreviousDrafts(projectId, user.id, platforms) : [],
+            previousDrafts,
             onStage(stage, metadata) {
               logGenerationStage(requestId, stage, metadata);
               send({ stage, requestId, ...metadata });
@@ -187,7 +194,15 @@ function streamGeneration({
             throw new Error("The AI provider returned no generated posts.");
           }
 
-          await persistGeneratedOutputs({ userId: user.id, projectId, outputs, tone });
+          await persistGeneratedOutputs({
+            userId: user.id,
+            projectId,
+            outputs,
+            tone,
+            sourceDocument,
+            platforms,
+            previousDrafts,
+          });
           logGenerationStage(requestId, "database_saved", { projectId, outputCount: outputs.length });
           send({ stage: "database_saved", requestId, outputCount: outputs.length });
 
@@ -339,13 +354,19 @@ async function persistGeneratedOutputs({
   projectId,
   outputs,
   tone,
+  sourceDocument,
+  platforms,
+  previousDrafts,
 }: {
   userId: string;
   projectId: string;
   outputs: SocialOutput[];
   tone: Tone | string;
+  sourceDocument: string;
+  platforms: Platform[];
+  previousDrafts: string[];
 }) {
-  if (outputs.length === 0) return;
+  assertGeneratedOutputs({ outputs, sourceDocument, platforms, previousDrafts });
 
   try {
     const storedProject = getStoredProject(projectId);
@@ -414,6 +435,14 @@ function stringifyGeneratedContent(value: unknown) {
 }
 
 function describeGenerationFailure(error: unknown) {
+  if (error instanceof GenerationPipelineError) {
+    return {
+      error: error.userMessage,
+      code: error.code,
+      status: error.status,
+    };
+  }
+
   const message = error instanceof Error ? error.message : String(error);
   const lower = message.toLowerCase();
 

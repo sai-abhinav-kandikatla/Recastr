@@ -1,14 +1,18 @@
 import type { Project } from "@/lib/types";
+import { prepareGenerationSource } from "@/lib/v1/generation-validation";
 
-const TRANSCRIPT_UNAVAILABLE_PATTERN = /Transcript:\s*Transcript unavailable/i;
+const TRANSCRIPT_UNAVAILABLE_PATTERN = /Transcript:\s*Transcript (?:was |is )?unavailable/i;
 
 export function buildGenerationSource(project: Project) {
   const storedSource = project.sourceText?.trim() || project.transcript?.trim();
   if (storedSource) {
+    const transcriptUnavailable =
+      TRANSCRIPT_UNAVAILABLE_PATTERN.test(storedSource) ||
+      /transcript unavailable/i.test(project.summary?.tldr ?? "");
     return {
-      sourceDocument: storedSource,
-      transcriptAvailable: !TRANSCRIPT_UNAVAILABLE_PATTERN.test(storedSource),
-      sourceMode: TRANSCRIPT_UNAVAILABLE_PATTERN.test(storedSource) ? "metadata" : "transcript",
+      sourceDocument: prepareGenerationSource(storedSource),
+      transcriptAvailable: !transcriptUnavailable,
+      sourceMode: transcriptUnavailable ? "metadata" : "transcript",
     } as const;
   }
 
@@ -26,8 +30,11 @@ export function buildGenerationSource(project: Project) {
     summary?.tldr?.trim(),
     ...(summary?.takeaways ?? []).map((item) => `- ${item}`),
     "",
-    "Transcript:",
-    "Transcript unavailable. Use only the metadata above. Do not invent details.",
+    "Topics / tags:",
+    ...(summary?.topics ?? []).map((item) => `- ${item}`),
+    "",
+    "Target audience:",
+    summary?.targetAudience?.trim(),
     "",
     "END OF SOURCE",
   ]
@@ -36,7 +43,7 @@ export function buildGenerationSource(project: Project) {
     .trim();
 
   return {
-    sourceDocument: metadataDocument,
+    sourceDocument: prepareGenerationSource(metadataDocument),
     transcriptAvailable: false,
     sourceMode: "metadata",
   } as const;

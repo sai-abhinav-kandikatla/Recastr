@@ -308,7 +308,11 @@ export function ProjectWorkspace({
 
   const addGeneratedCards = useCallback(
     (cards: ContentPiece[]) => {
-      setContents((current) => [...cards, ...current]);
+      const generatedPlatforms = new Set(cards.map((card) => card.platform));
+      setContents((current) => [
+        ...cards,
+        ...current.filter((content) => !generatedPlatforms.has(content.platform)),
+      ]);
       setPlatformFilter("all");
       setSelectedHookId(null);
       toast.success(`${cards.length} new pieces generated`);

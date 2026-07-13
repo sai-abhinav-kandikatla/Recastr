@@ -54,7 +54,7 @@ export async function ingestYoutube(url: string, userId: string): Promise<Projec
         ],
         hooks: [],
         detectedTone: "educational",
-        topics: ["youtube", "source repurposing"],
+        topics: source.tags.length > 0 ? source.tags.slice(0, 5) : ["youtube", "source repurposing"],
         targetAudience: "Creators and their audience",
       },
     });

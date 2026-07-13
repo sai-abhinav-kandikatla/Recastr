@@ -36,60 +36,74 @@ export function GeneratePanel({ project }: { project: Project }) {
     setHasGenerated(true);
     setIsGenerating(true);
     setStream("");
-    const response = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        projectId: project.id,
-        platforms,
-        contentTypes,
-        tone,
-        isRegeneration: isRegen,
-      }),
-    });
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => ({}))) as {
-        code?: string;
-        credits?: number;
-        upgradeUrl?: string;
-        error?: string;
-      };
-      if (response.status === 403 && payload.code === "credit_exhausted") {
-        emitCreditExhausted(payload);
-      } else {
-        toast.error(payload.error ?? "Generation failed");
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: project.id,
+          platforms,
+          contentTypes,
+          tone,
+          isRegeneration: isRegen,
+        }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as {
+          code?: string;
+          credits?: number;
+          upgradeUrl?: string;
+          error?: string;
+        };
+        if (response.status === 403 && payload.code === "credit_exhausted") {
+          emitCreditExhausted(payload);
+        }
+        throw new Error(payload.error ?? "Generation failed");
       }
-      setIsGenerating(false);
-      return;
-    }
-    if (!response.body) {
-      toast.error("Generation stream unavailable");
-      setIsGenerating(false);
-      return;
-    }
+      if (!response.body) throw new Error("Generation stream unavailable");
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value);
-      chunk
-        .split("\n\n")
-        .filter(Boolean)
-        .forEach((line) => {
-          const payload = line.replace(/^data:\s*/, "");
-          if (payload === "[DONE]") return;
-          try {
-            const parsed = JSON.parse(payload) as { token?: string };
-            if (parsed.token) setStream((current) => current + parsed.token);
-          } catch {
-            setStream((current) => current + payload);
-          }
-        });
+      let buffer = "";
+      let streamError = "";
+      let receivedOutputs = 0;
+      const processEvent = (eventBlock: string) => {
+        const payload = eventBlock
+          .split("\n")
+          .filter((line) => line.startsWith("data:"))
+          .map((line) => line.replace(/^data:\s?/, ""))
+          .join("\n");
+        if (!payload) return;
+
+        const parsed = JSON.parse(payload) as { error?: string; output?: { content?: unknown } };
+        if (parsed.error) streamError = parsed.error;
+        if (parsed.output && typeof parsed.output.content === "string") {
+          receivedOutputs += 1;
+          setStream((current) => `${current}${current ? "\n\n---\n\n" : ""}${parsed.output?.content}`);
+        }
+      };
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+        const events = buffer.split("\n\n");
+        buffer = events.pop() ?? "";
+        events.filter(Boolean).forEach(processEvent);
+      }
+      buffer += decoder.decode();
+      if (buffer.trim()) processEvent(buffer);
+
+      if (streamError) throw new Error(streamError);
+      if (receivedOutputs === 0) throw new Error("Generation returned no validated drafts.");
+      toast.success("Generation complete");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Generation failed";
+      setHasGenerated(isRegen);
+      toast.error(message);
+    } finally {
+      setIsGenerating(false);
     }
-    setIsGenerating(false);
-    toast.success("Generation complete");
   }
 
   return (

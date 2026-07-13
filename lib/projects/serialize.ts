@@ -9,6 +9,7 @@ import type {
   SourceType,
   ViralHook,
 } from "@/lib/types";
+import { isRejectedGeneratedContent } from "@/lib/v1/generation-validation";
 
 const defaultSummary = {
   tldr: "",
@@ -155,8 +156,14 @@ export function serializeProjectShell(project: DbProjectShell): Project {
 }
 
 export function serializeProject(project: DbProjectWithContent): Project {
-  const contents = (project.contents ?? project.outputs ?? []).map(serializeContent);
-  const outputs = (project.outputs ?? project.contents ?? []).map(serializeOutput);
+  const rawContents = project.contents ?? project.outputs ?? [];
+  const safeContents = rawContents.filter((content) => {
+    const body = content.body ?? stringifyContent(content.content);
+    const originalBody = content.originalBody ?? body;
+    return !isRejectedGeneratedContent(body) && !isRejectedGeneratedContent(originalBody);
+  });
+  const contents = safeContents.map(serializeContent);
+  const outputs = safeContents.map(serializeOutput);
 
   return {
     id: project.id,

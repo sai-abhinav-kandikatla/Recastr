@@ -7,6 +7,7 @@ export type YouTubeSource = {
   title: string;
   description: string;
   channelName: string;
+  tags: string[];
   publishedDate: string;
   durationSeconds: number;
   thumbnailUrl?: string;
@@ -27,6 +28,7 @@ type PlayerResponse = {
     title?: string;
     author?: string;
     shortDescription?: string;
+    keywords?: string[];
     lengthSeconds?: string;
     thumbnail?: {
       thumbnails?: Array<{ url?: string }>;
@@ -112,6 +114,7 @@ export async function extractYouTubeSource(rawUrl: string): Promise<YouTubeSourc
     cleanText(details?.author) ||
     cleanText(microformat?.ownerChannelName) ||
     "Unknown channel";
+  const tags = (details?.keywords ?? []).map(cleanText).filter(Boolean).slice(0, 20);
   const publishedDate = cleanText(microformat?.publishDate) || cleanText(microformat?.uploadDate) || "Unknown";
   const durationSeconds = Number(details?.lengthSeconds ?? microformat?.lengthSeconds ?? 0) || 0;
   const thumbnailUrl =
@@ -129,6 +132,7 @@ export async function extractYouTubeSource(rawUrl: string): Promise<YouTubeSourc
     title,
     description,
     channelName,
+    tags,
     publishedDate,
     durationSeconds,
     thumbnailUrl,
@@ -161,9 +165,8 @@ export function buildSourceDocument(source: Omit<YouTubeSource, "sourceDocument"
     "",
     "Description:",
     source.description || "No description available.",
-    "",
-    "Transcript:",
-    source.transcript || "Transcript unavailable. Use only the metadata and description above. Do not invent details.",
+    ...(source.tags.length > 0 ? ["", "Tags:", source.tags.join(", ")] : []),
+    ...(source.transcript ? ["", "Transcript:", source.transcript] : []),
     "",
     "END OF SOURCE",
   ].join("\n");

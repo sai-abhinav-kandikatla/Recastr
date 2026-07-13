@@ -1,4 +1,5 @@
 import type { ContentPiece, Platform, Project, ScheduledPost, SocialOutput } from "@/lib/types";
+import { isRejectedGeneratedContent } from "@/lib/v1/generation-validation";
 
 const globalForProjects = globalThis as unknown as {
   recastrProjects?: Map<string, Project>;
@@ -24,7 +25,7 @@ export function listStoredProjects({
 }: {
   includeFallback?: boolean;
 } = {}) {
-  const projects = Array.from(getProjectMap().values());
+  const projects = Array.from(getProjectMap().values()).map(withoutRejectedGeneratedContent);
   if (projects.length === 0 && includeFallback) {
     projects.push(
       getStoredProject("demo-founder-podcast")!,
@@ -39,7 +40,7 @@ export function listStoredProjects({
 
 export function getStoredProject(projectId: string) {
   const stored = getProjectMap().get(projectId);
-  if (stored) return stored;
+  if (stored) return withoutRejectedGeneratedContent(stored);
   if (!isLocalProjectId(projectId)) return undefined;
 
   const fallback = createFallbackProject(projectId);
@@ -48,12 +49,14 @@ export function getStoredProject(projectId: string) {
 }
 
 export function getCachedProject(projectId: string) {
-  return getProjectMap().get(projectId);
+  const project = getProjectMap().get(projectId);
+  return project ? withoutRejectedGeneratedContent(project) : undefined;
 }
 
 export function saveStoredProject(project: Project) {
-  getProjectMap().set(project.id, project);
-  return project;
+  const sanitized = withoutRejectedGeneratedContent(project);
+  getProjectMap().set(project.id, sanitized);
+  return sanitized;
 }
 
 export function appendStoredOutputs(projectId: string, outputs: SocialOutput[]) {
@@ -292,4 +295,20 @@ function titleFromProjectId(projectId: string) {
   if (projectId.startsWith("blog-")) return "Imported blog post";
   if (projectId.startsWith("podcast-")) return "Imported podcast episode";
   return "Imported content source";
+}
+
+function withoutRejectedGeneratedContent(project: Project): Project {
+  return {
+    ...project,
+    contents: (project.contents ?? []).filter(
+      (content) =>
+        !isRejectedGeneratedContent(content.body) &&
+        !isRejectedGeneratedContent(content.originalBody),
+    ),
+    outputs: (project.outputs ?? []).filter(
+      (output) =>
+        !isRejectedGeneratedContent(output.content) &&
+        !isRejectedGeneratedContent(output.originalContent ?? output.content),
+    ),
+  };
 }
