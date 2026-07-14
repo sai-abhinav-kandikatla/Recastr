@@ -128,19 +128,13 @@ export async function POST(request: Request) {
         { status: 201 },
       );
     }
-    let content = await prisma.content.findFirst({
-      where: {
-        id: contentId,
-        project: {
-          userId: user.id,
-        },
-      },
-      select: { id: true, body: true, platform: true },
-    });
 
-    if (!content && isLocalDemoContent(contentId)) {
-      content = await persistStoredContentForScheduling(user, contentId, payload);
-    }
+    // Run SMTP verification in parallel with content lookup to avoid
+    // blocking on a cold TCP+auth handshake (~3-8s) before the DB query.
+    const [, content] = await Promise.all([
+      assertEmailTransportReady(),
+      resolveContent(user.id, contentId, payload),
+    ]);
 
     if (!content) {
       return Response.json(
@@ -160,7 +154,6 @@ export async function POST(request: Request) {
         { status: 422 },
       );
     }
-    await assertEmailTransportReady();
 
     const scheduledPost = await prisma.scheduledPost.upsert({
       where: { contentId },
@@ -190,20 +183,27 @@ export async function POST(request: Request) {
         status: "pending",
       },
     });
+
+    // Fire job queue + audit log in parallel without blocking the response.
+    // Both are non-critical for the user-facing result.
     const delay = Math.max(0, scheduledAt.getTime() - Date.now());
-    await addRecastrJob(
-      jobNames.publishPost,
-      { scheduledPostId: scheduledPost.id },
-      delay,
-      { required: false },
-    );
-    await recordAuditLog({
-      userId: user.id,
-      action: "content_scheduled",
-      entityType: "scheduled_post",
-      entityId: scheduledPost.id,
-      metadata: { contentId, platform: payload.platform, scheduledAt: scheduledAt.toISOString() },
-      request,
+    void Promise.all([
+      addRecastrJob(
+        jobNames.publishPost,
+        { scheduledPostId: scheduledPost.id },
+        delay,
+        { required: false },
+      ),
+      recordAuditLog({
+        userId: user.id,
+        action: "content_scheduled",
+        entityType: "scheduled_post",
+        entityId: scheduledPost.id,
+        metadata: { contentId, platform: payload.platform, scheduledAt: scheduledAt.toISOString() },
+        request,
+      }),
+    ]).catch((error) => {
+      console.error("Background schedule tasks failed:", error);
     });
 
     return Response.json(
@@ -329,6 +329,21 @@ async function persistStoredContentForScheduling(
     body,
     platform,
   };
+}
+
+async function resolveContent(userId: string, contentId: string, payload: ScheduleRecoveryPayload) {
+  const content = await prisma.content.findFirst({
+    where: {
+      id: contentId,
+      project: { userId },
+    },
+    select: { id: true, body: true, platform: true },
+  });
+  if (content) return content;
+  if (isLocalDemoContent(contentId)) {
+    return persistStoredContentForScheduling({ id: userId } as AuthenticatedUser, contentId, payload);
+  }
+  return null;
 }
 
 function projectIdFromContentId(contentId: string) {

@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import Link from "next/link";
 import { LayoutDashboard, Sparkles, FolderOpen, Calendar, BarChart3, Settings, Bot, CheckSquare } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 
 export function MobileSidebar() {
   const { sidebarOpen, setSidebarOpen } = useAppStore();
@@ -51,6 +52,9 @@ export function MobileSidebar() {
             );
           })}
         </nav>
+        <div className="pt-4 border-t border-[#232323]">
+          <LogoutButton />
+        </div>
       </div>
     </>
   );

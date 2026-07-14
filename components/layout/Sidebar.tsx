@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Sparkles, FolderOpen, Calendar, BarChart3, Settings, Bot, CheckSquare } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { useAppStore } from "@/store/app-store";
 import { useKeyboardShortcut } from "@/hooks/useKeyboardShortcut";
 
@@ -76,6 +77,9 @@ export function Sidebar() {
               </Link>
             );
           })}
+          <div className="pt-1">
+            <LogoutButton />
+          </div>
         </nav>
       </div>
     </aside>
