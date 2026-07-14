@@ -1,7 +1,8 @@
 import axios, { AxiosError } from "axios";
 import { YoutubeTranscript } from "youtube-transcript";
 
-const MIN_TRANSCRIPT_WORDS = 50;
+// Short-form videos can contain a complete, useful thought in well under 50 words.
+const MIN_TRANSCRIPT_WORDS = 20;
 const DEBUG_TRANSCRIPT_LOGS = process.env.RECASTR_DEBUG_TRANSCRIPTS === "true" && process.env.NODE_ENV !== "production";
 
 type TranscriptProvider = "youtube-oembed" | "youtube-transcript" | "watch-page";

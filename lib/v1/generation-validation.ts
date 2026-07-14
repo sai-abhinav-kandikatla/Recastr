@@ -42,6 +42,16 @@ const REJECTED_OUTPUT_PATTERNS: Array<{ label: string; pattern: RegExp }> = [
   { label: "fallback draft marker", pattern: /^\s*\[Draft\s+\d+\]/i },
   { label: "JSON example placeholder", pattern: /(?:Tweet|Post|Caption)\s+\d+\s+(?:text|\.\.\.)/i },
   { label: "carousel example placeholder", pattern: /Slide\s+\d+:\s*(?:\[?(?:Hook|Value|CTA)\]?|content\.\.\.|Slide title)/i },
+  { label: "video-description framing", pattern: /\b(?:this|the|a) video (?:shows?|showcases?|demonstrates?|explores?|describes?|is about|focuses on|features?)\b/i },
+  { label: "video narration", pattern: /\b(?:in|from|throughout) (?:the )?(?:first(?:-ever)? )?(?:youtube )?video\b/i },
+  { label: "video narration", pattern: /\b(?:the|this|a) (?:first(?:-ever)? )?(?:youtube )?video (?:highlights?|uses?|says?|shares?|opens?|starts?|focuses?|reminds?)\b/i },
+  { label: "creator narration", pattern: /\b(?:the )?creator(?:,? [\p{L}.-]+){0,3} (?:uses?|says?|shares?|shows?|explains?|focuses?)\b/iu },
+  { label: "fabricated source participation", pattern: /\b(?:as|when) i (?:stood|watched|listened|sat|spoke|walked|visited)\b/i },
+  { label: "source euphemism", pattern: /\b(?:a|the) recent (?:conversation|video|clip|recording)\b/i },
+  { label: "summary verb", pattern: /\b(?:showcases?|demonstrates?|explores the concept)\b/i },
+  { label: "generic learning question", pattern: /\bwhat can we learn\b/i },
+  { label: "generic AI copy", pattern: /\b(?:game[ -]?changer|in conclusion|i hope this helps|let me know your thoughts|don't miss this)\b/i },
+  { label: "response-schema placeholder", pattern: /complete publishable .* (?:draft|post)/i },
 ];
 
 const FORBIDDEN_OPENERS = [
@@ -92,11 +102,13 @@ export function assertGeneratedOutputs({
   sourceDocument,
   platforms,
   previousDrafts = [],
+  expectedDraftCounts,
 }: {
   outputs: SocialOutput[];
   sourceDocument: string;
   platforms: Platform[];
   previousDrafts?: string[];
+  expectedDraftCounts?: Partial<Record<Platform, number>>;
 }) {
   const sanitizedSource = prepareGenerationSource(sourceDocument);
   const sourceTerms = new Set(significantTokens(sanitizedSource));
@@ -104,7 +116,7 @@ export function assertGeneratedOutputs({
   const requestedPlatforms = Array.from(new Set(platforms));
 
   for (const platform of requestedPlatforms) {
-    const expected = draftCountForPlatform(platform);
+    const expected = expectedDraftCounts?.[platform] ?? draftCountForPlatform(platform);
     const actual = outputs.filter((output) => output.platform === platform).length;
     if (actual !== expected) {
       reasons.push(`${platform} returned ${actual} drafts; expected ${expected}.`);
@@ -147,12 +159,38 @@ export function assertGeneratedOutputs({
     if (overlap < requiredOverlap) {
       reasons.push(`${output.platform} draft ${index + 1} was not grounded in the source.`);
     }
-
-    if (output.platform === "TWITTER" && content.length > 320 && !/^\s*1[\/.]/m.test(content)) {
-      reasons.push(`TWITTER draft ${index + 1} exceeded a single post without thread formatting.`);
+    const unsupportedNumbers = unsupportedNumericClaims(content, sanitizedSource);
+    if (unsupportedNumbers.length > 0) {
+      reasons.push(
+        `${output.platform} draft ${index + 1} introduced unsupported numbers: ${unsupportedNumbers.join(", ")}.`,
+      );
     }
-    if (output.platform === "INSTAGRAM" && !/#\p{L}/u.test(content)) {
-      reasons.push(`INSTAGRAM draft ${index + 1} did not include platform-appropriate hashtags.`);
+
+    const wordCount = tokenize(content).length;
+    const hashtagCount = content.match(/#\p{L}[\p{L}\p{N}_]*/gu)?.length ?? 0;
+    if (output.platform === "LINKEDIN" && (wordCount < 150 || wordCount > 250)) {
+      reasons.push(`LINKEDIN draft ${index + 1} was outside the 150-250 word range.`);
+    }
+    if (output.platform === "LINKEDIN" && (hashtagCount < 3 || hashtagCount > 5)) {
+      reasons.push(`LINKEDIN draft ${index + 1} did not contain 3-5 hashtags.`);
+    }
+    if (output.platform === "TWITTER" && !hasCompleteTwitterThread(content)) {
+      reasons.push(`TWITTER draft ${index + 1} did not contain the required six-tweet thread.`);
+    }
+    if (output.platform === "INSTAGRAM" && (hashtagCount < 10 || hashtagCount > 15)) {
+      reasons.push(`INSTAGRAM draft ${index + 1} did not contain 10-15 hashtags.`);
+    }
+    if (output.platform === "FACEBOOK" && (wordCount < 100 || wordCount > 180)) {
+      reasons.push(`FACEBOOK draft ${index + 1} was outside the 100-180 word range.`);
+    }
+    if (output.platform === "FACEBOOK" && hashtagCount > 3) {
+      reasons.push(`FACEBOOK draft ${index + 1} contained more than 3 hashtags.`);
+    }
+    if (output.platform === "COMMUNITY" && (wordCount < 80 || wordCount > 120)) {
+      reasons.push(`COMMUNITY draft ${index + 1} was outside the 80-120 word range.`);
+    }
+    if (output.platform === "COMMUNITY" && hashtagCount > 0) {
+      reasons.push(`COMMUNITY draft ${index + 1} contained hashtags.`);
     }
     if (output.platform === "CAROUSEL" && !hasCompleteCarousel(content)) {
       reasons.push(`CAROUSEL draft ${index + 1} did not contain a complete five-slide sequence.`);
@@ -199,11 +237,25 @@ function hasCompleteCarousel(content: string) {
   return [1, 2, 3, 4, 5].every((slide) => new RegExp(`Slide\\s+${slide}:`, "i").test(content));
 }
 
+function hasCompleteTwitterThread(content: string) {
+  const sections = content.split(/\n\s*---\s*\n/).map((section) => section.trim());
+  if (sections.length !== 6) return false;
+
+  return sections.every((section, index) => {
+    if (!new RegExp(`^TWEET_${index + 1}:`, "i").test(section)) return false;
+    const tweet = section.replace(/^TWEET_\d+:\s*/i, "").trim();
+    if (!tweet || tweet.length > 280) return false;
+    if (index >= 1 && index <= 4 && !new RegExp(`^${index}\/`).test(tweet)) return false;
+    return true;
+  });
+}
+
 function areRepeatedDrafts(left: string, right: string, threshold = 0.84) {
   const normalizedLeft = normalizeForComparison(left);
   const normalizedRight = normalizeForComparison(right);
   if (!normalizedLeft || !normalizedRight) return false;
   if (normalizedLeft === normalizedRight) return true;
+  if (shareLongPhrase(normalizedLeft, normalizedRight)) return true;
 
   const leftTokens = new Set(tokenize(normalizedLeft));
   const rightTokens = new Set(tokenize(normalizedRight));
@@ -211,6 +263,32 @@ function areRepeatedDrafts(left: string, right: string, threshold = 0.84) {
   const intersection = Array.from(leftTokens).filter((token) => rightTokens.has(token)).length;
   const union = new Set([...leftTokens, ...rightTokens]).size;
   return union > 0 && intersection / union >= threshold;
+}
+
+function shareLongPhrase(left: string, right: string, phraseLength = 12) {
+  const leftTokens = tokenize(left);
+  const rightText = ` ${tokenize(right).join(" ")} `;
+  if (leftTokens.length < phraseLength) return false;
+
+  for (let index = 0; index <= leftTokens.length - phraseLength; index += 1) {
+    const phrase = ` ${leftTokens.slice(index, index + phraseLength).join(" ")} `;
+    if (rightText.includes(phrase)) return true;
+  }
+  return false;
+}
+
+function unsupportedNumericClaims(content: string, sourceDocument: string) {
+  const withoutFormatNumbers = content
+    .replace(/^\s*TWEET_\d+:\s*/gim, "")
+    .replace(/^\s*(?:Slide\s+)?\d+\s*[\/.):+-]\s*/gim, "");
+  const sourceNumbers = new Set(extractNumbers(sourceDocument));
+  return Array.from(new Set(extractNumbers(withoutFormatNumbers))).filter(
+    (number) => !sourceNumbers.has(number),
+  );
+}
+
+function extractNumbers(value: string) {
+  return value.match(/\b\d+(?:[.,]\d+)*(?:%|k|m|b)?\b/gi)?.map((item) => item.toLowerCase()) ?? [];
 }
 
 function significantTokens(value: string) {
