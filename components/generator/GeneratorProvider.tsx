@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, Component, ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { emitCreditExhausted } from "@/lib/client-api";
@@ -62,7 +61,6 @@ export function GeneratorProvider({
   children: React.ReactNode;
   project: Project | null
 }) {
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [currentProject, setCurrentProject] = useState<Project | null>(project);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([
@@ -235,14 +233,12 @@ export function GeneratorProvider({
         setGenerationError(message);
         toast.error(message);
       } else if (receivedOutputCount > 0 && !hadStreamError) {
-        await Promise.all([
+        void Promise.all([
           queryClient.invalidateQueries({ queryKey: ["projects"] }),
           queryClient.invalidateQueries({ queryKey: ["project", currentProject.id] }),
           queryClient.invalidateQueries({ queryKey: ["analytics"] }),
           queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] }),
         ]);
-        router.push(`/projects/${currentProject.id}`);
-        router.refresh();
       }
     } catch (error) {
       console.error("[generation-ui] request_failed", error);
